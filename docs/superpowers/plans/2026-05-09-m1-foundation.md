@@ -831,7 +831,9 @@ class User extends Entity
         if ($plain === '') {
             return null;
         }
-        $this->set('password_hash', (new DefaultPasswordHasher())->hash($plain));
+        // Argon2id explicitly (spec §6.1). DefaultPasswordHasher's default is PASSWORD_DEFAULT
+        // which resolves to PASSWORD_BCRYPT on PHP 8.1.
+        $this->set('password_hash', (new DefaultPasswordHasher(['hashType' => PASSWORD_ARGON2ID]))->hash($plain));
         return null;
     }
 }
