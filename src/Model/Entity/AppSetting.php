@@ -10,6 +10,5 @@ class AppSetting extends Entity
     protected array $_accessible = [
         'key' => true,
         'value' => true,
-        'updated_at' => true,
     ];
 }

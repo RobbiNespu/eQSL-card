@@ -15,9 +15,9 @@ class Template extends Entity
         'canvas_height' => true,
         'layout_json' => true,
         'thumbnail_path' => true,
-        'is_public' => true,
-        'is_approved' => true,
-        'is_system' => true,
+        'is_public' => true,        // user can request public; admin reviews
+        'is_approved' => false,     // admin-only via service layer
+        'is_system' => false,       // installer-only via service layer
         'user' => true,
         'cards' => true,
     ];

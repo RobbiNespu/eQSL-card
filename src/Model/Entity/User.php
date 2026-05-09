@@ -32,7 +32,7 @@ class User extends Entity
         if ($plain === '') {
             return null;
         }
-        $this->set('password_hash', (new DefaultPasswordHasher())->hash($plain));
+        $this->set('password_hash', (new DefaultPasswordHasher(['hashType' => PASSWORD_ARGON2ID]))->hash($plain));
         return null;
     }
 }
