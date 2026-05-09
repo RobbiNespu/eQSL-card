@@ -8,7 +8,9 @@
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.1/phpunit.xsd">
     <php>
         <ini name="memory_limit" value="-1"/>
-        <ini name="apc.enable_cli" value="1"/>
+        <env name="FIXTURE_SCHEMA_METADATA" value="./tests/schema.php"/>
+        <env name="DATABASE_TEST_URL" value="sqlite:///:memory:"/>
+        <env name="EMAIL_TRANSPORT_DEFAULT_URL" value="null:"/>
     </php>
 
     <!-- Add any additional test suites you want to run here -->
