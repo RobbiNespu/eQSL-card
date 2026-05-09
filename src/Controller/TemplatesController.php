@@ -163,6 +163,71 @@ class TemplatesController extends AppController
     }
 
     /**
+     * Clone-and-edit (M3-T8).
+     *
+     * Duplicates a template the current user is allowed to read (their own,
+     * any system row, or any public-approved row authored by another user)
+     * into a fresh row owned by the current user, with all visibility flags
+     * (`is_public`, `is_approved`, `is_system`) reset to false. Authorization
+     * mirrors `view()` exactly so what's previewable is also clonable, and
+     * non-readable rows surface as 404 via `firstOrFail` rather than a 403
+     * (avoids leaking row existence — same pattern as `edit()`).
+     *
+     * Field copy is explicit (whitelist via `newEntity`) so the entity's
+     * `_accessible` mask still applies to user-controllable columns; owner
+     * + flag overrides are then stamped via `set(..., ['guard' => false])`
+     * because the entity definition deliberately marks those fields as
+     * inaccessible to mass-assignment. `thumbnail_path` is reset to null —
+     * the next save (via `edit()`) regenerates it; we don't bother copying
+     * the source's thumbnail because the new row's id won't match the
+     * filename anyway.
+     *
+     * On success redirects straight to the edit URL so the user lands in the
+     * designer with their fresh copy.
+     *
+     * @param int $id Source template id (route-bound).
+     * @return \Cake\Http\Response|null
+     */
+    public function clone(int $id)
+    {
+        $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $templates = $this->fetchTable('Templates');
+
+        // Source can be: own template, system template, or public-approved template.
+        $source = $templates->find()
+            ->where(['Templates.id' => $id])
+            ->where(['OR' => [
+                ['Templates.user_id' => $userId],
+                ['Templates.is_system' => true],
+                ['AND' => ['Templates.is_public' => true, 'Templates.is_approved' => true]],
+            ]])
+            ->firstOrFail();
+
+        $newEntity = $templates->newEntity([
+            'name' => $source->name . ' (copy)',
+            'description' => $source->description,
+            'canvas_width' => $source->canvas_width,
+            'canvas_height' => $source->canvas_height,
+            'layout_json' => $source->layout_json,
+        ]);
+        // Owner / flag overrides via guard:false — these columns are
+        // intentionally not mass-assignable on the entity.
+        $newEntity->set('user_id', $userId, ['guard' => false]);
+        $newEntity->set('is_public', false, ['guard' => false]);
+        $newEntity->set('is_approved', false, ['guard' => false]);
+        $newEntity->set('is_system', false, ['guard' => false]);
+        // thumbnail_path is regenerated on the next save; don't copy across.
+        $newEntity->set('thumbnail_path', null, ['guard' => false]);
+
+        $templates->saveOrFail($newEntity);
+
+        $this->Flash->success('Template cloned. You can now edit your copy.');
+
+        return $this->redirect('/templates/' . $newEntity->id . '/edit');
+    }
+
+    /**
      * Shared save pipeline for `add()` and `edit()`.
      *
      * Trims/normalises form input, enforces name/canvas bounds, runs the

@@ -194,6 +194,13 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
+        // M3-T8: clone-and-edit. Static-suffixed route MUST come BEFORE the
+        // parametrized `/templates/{id}` view route so it isn't shadowed; the
+        // digit pattern matches the same ordering rule used elsewhere.
+        $builder->connect('/templates/{id}/clone', ['controller' => 'Templates', 'action' => 'clone'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
         $builder->connect('/templates/{id}', ['controller' => 'Templates', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
