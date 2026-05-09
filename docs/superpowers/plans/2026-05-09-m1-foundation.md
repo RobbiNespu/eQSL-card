@@ -1682,12 +1682,20 @@ final class InstallationCheckMiddlewareTest extends TestCase
         return new class implements RequestHandlerInterface {
             public function handle(\Psr\Http\Message\ServerRequestInterface $r): \Psr\Http\Message\ResponseInterface
             {
-                return new Response(200);
+                // Laminas\Diactoros\Response's 1st arg is the body stream, not status.
+                return new Response('php://memory', 200);
             }
         };
     }
 }
 ```
+
+Wire up requires three matching test-infra edits so existing tests keep passing once the middleware is live:
+
+1. In `tests/bootstrap.php`, touch `TMP . 'installed.lock'` and write `Configure::write('Installation.lockFile', $testInstallLock)` so non-installer tests don't 302-redirect.
+2. In `src/Application.php`, change the registration to `new \App\Middleware\InstallationCheckMiddleware(Configure::read('Installation.lockFile', CONFIG . 'installed.lock'))` so prod behavior is unchanged but tests resolve the in-tmp path.
+3. In `tests/TestCase/ApplicationTest.php`, the stock `testMiddleware` assertion needs to acknowledge that `InstallationCheckMiddleware` slots in at queue index 2, shifting `RoutingMiddleware` to 3.
+4. Add `tmp/installed.lock` to `.gitignore`.
 
 - [ ] **Step 2: Confirm test fails**
 
