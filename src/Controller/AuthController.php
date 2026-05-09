@@ -27,6 +27,7 @@ class AuthController extends AppController
     {
         parent::initialize();
 
+        $this->loadComponent('Authentication.Authentication');
         $this->Authentication->allowUnauthenticated([
             'register',
             'login',
@@ -36,12 +37,44 @@ class AuthController extends AppController
     }
 
     /**
-     * Register action stub (T15).
+     * Register a new user.
      *
-     * @return void
+     * GET renders the registration form. POST validates that
+     * `password` and `password_confirm` match, then creates the user
+     * with role `user` and redirects to `/login`. On mismatch we re-render
+     * the form with a flash error so the integration test can assert the
+     * "do not match" message in the response body.
+     *
+     * @return \Cake\Http\Response|null
      */
-    public function register(): void
+    public function register()
     {
+        $users = $this->fetchTable('Users');
+        $entity = $users->newEmptyEntity();
+        if ($this->request->is('post')) {
+            $data = $this->request->getData();
+            if (($data['password'] ?? null) !== ($data['password_confirm'] ?? null)) {
+                $this->Flash->error('Passwords do not match');
+                $this->set('user', $entity);
+
+                return null;
+            }
+            $entity = $users->newEntity([
+                'name' => $data['name'] ?? '',
+                'callsign' => $data['callsign'] ?? '',
+                'email' => $data['email'] ?? '',
+                'password' => $data['password'] ?? '',
+                'role' => 'user',
+            ]);
+            if ($users->save($entity)) {
+                $this->Flash->success('Account created. Please log in.');
+
+                return $this->redirect('/login');
+            }
+        }
+        $this->set('user', $entity);
+
+        return null;
     }
 
     /**
