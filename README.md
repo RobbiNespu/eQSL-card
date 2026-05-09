@@ -1,53 +1,67 @@
-# CakePHP Application Skeleton
+# eQSL Card Generator
 
-![Build Status](https://github.com/cakephp/app/actions/workflows/ci.yml/badge.svg?branch=5.x)
-[![Total Downloads](https://img.shields.io/packagist/dt/cakephp/app.svg?style=flat-square)](https://packagist.org/packages/cakephp/app)
-[![PHPStan](https://img.shields.io/badge/PHPStan-level%208-brightgreen.svg?style=flat-square)](https://github.com/phpstan/phpstan)
+A self-hostable web app for amateur radio operators to generate eQSL
+(electronic QSL) cards from QSO data. Designed to run on commodity shared
+hosting (PHP + MariaDB) with no external services required.
 
-A skeleton for creating applications with [CakePHP](https://cakephp.org) 5.x.
+## Status
 
-The framework source code can be found here: [cakephp/cakephp](https://github.com/cakephp/cakephp).
+**M1 / v0.1.0 — Foundation** released. Guest QSL generation works end-to-end:
+fill in QSO details, pick a built-in template, and download a rendered PNG
+or PDF card without an account.
 
-## Installation
+## Local dev quickstart
 
-1. Download [Composer](https://getcomposer.org/doc/00-intro.md) or update `composer self-update`.
-2. Run `php composer.phar create-project --prefer-dist cakephp/app [app_name]`.
-
-If Composer is installed globally, run
-
-```bash
-composer create-project --prefer-dist cakephp/app
-```
-
-In case you want to use a custom app dir name (e.g. `/myapp/`):
+Requires Docker and Docker Compose.
 
 ```bash
-composer create-project --prefer-dist cakephp/app myapp
+docker compose up -d
 ```
 
-You can now either use your machine's webserver to view the default home page, or start
-up the built-in webserver with:
+Then open <http://localhost:8080/install>, follow the install wizard
+(database check, admin user, site settings), and log in.
 
-```bash
-bin/cake server -p 8765
-```
+The default dev URL is `http://localhost:8080`. Database, app container, and
+volumes are all defined in `docker-compose.yml`.
 
-Then visit `http://localhost:8765` to see the welcome page.
+## Tech stack
 
-## Update
+- PHP 8.1 (strict types)
+- CakePHP 5.2
+- MariaDB 10.6.25
+- Bootstrap 5 + Alpine.js (loaded via CDN)
+- PHP-GD and [setasign/fpdf](https://packagist.org/packages/setasign/fpdf)
+  for PNG / PDF rendering
+- Docker for local development
 
-Since this skeleton is a starting point for your application and various files
-would have been modified as per your needs, there isn't a way to provide
-automated upgrades, so you have to do any updates manually.
+## Project layout
 
-## Configuration
+The directory structure and module boundaries are documented in the design
+spec — see
+[Section 5 of the design spec](docs/superpowers/specs/2026-05-09-eqsl-card-design.md)
+for the canonical project layout.
 
-Read and edit the environment specific `config/app_local.php` and set up the
-`'Datasources'` and any other configuration relevant for your application.
-Other environment agnostic settings can be changed in `config/app.php`.
+## Deployment
 
-## Layout
+Shared-hosting deployment (cPanel / DirectAdmin / similar) is documented in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
-The app skeleton uses [Milligram](https://milligram.io/) (v1.3) minimalist CSS
-framework by default. You can, however, replace it with any other library or
-custom styles.
+## Roadmap
+
+- ✅ **M1: Foundation** — guest QSL generation, installer, auth scaffolding
+  (`v0.1.0`).
+- ⏳ **M2: Logged-in features** — QSO library, ADIF/CSV import, share links.
+  Planned, see
+  [M2 plan](docs/superpowers/plans/2026-05-09-m2-logged-in-features.md).
+- ⏳ **M3: Template designer** — Fabric.js drag-drop editor. Planned, see
+  [M3 plan](docs/superpowers/plans/2026-05-09-m3-template-designer.md).
+- ⏳ **M4: Admin & polish** — admin tools, observability, CI. Planned, see
+  [M4 plan](docs/superpowers/plans/2026-05-09-m4-admin-polish.md).
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
+
+## Author
+
+Robbi Nespu &lt;robbinespu@gmail.com&gt;
