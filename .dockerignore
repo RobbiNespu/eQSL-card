@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+node_modules
+vendor
+tmp/cache/*
+tmp/sessions/*
+logs/*
+dist/
+.superpowers/
