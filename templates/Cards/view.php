@@ -40,7 +40,14 @@
       <p class="text-muted">Share was revoked on <?= h($card->share_revoked_at?->format('Y-m-d H:i')) ?>.</p>
       <p class="text-muted small">A future "re-share" action lands in M3 polish.</p>
     <?php else: ?>
-      <p class="text-muted">This card is private. Share form lands in M2-T13.</p>
+      <p class="text-muted">This card is private.</p>
+      <?= $this->Form->create(null, ['url' => '/cards/' . $card->id . '/share']) ?>
+      <div class="mb-2">
+        <label class="form-label small">Optional password (leave blank for unprotected)</label>
+        <input type="password" name="password" class="form-control form-control-sm" autocomplete="new-password">
+      </div>
+      <button class="btn btn-primary btn-sm">Share</button>
+      <?= $this->Form->end() ?>
     <?php endif; ?>
 
     <hr>

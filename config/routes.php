@@ -145,6 +145,16 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['POST']);
+        // M2-T13 share endpoint. Like `/delete`, this static-suffixed route
+        // MUST be declared BEFORE the parametrized `/cards/{id}` so it isn't
+        // shadowed. The id pattern is constrained to digits for the same
+        // reason as the qsos/cards delete routes — a future static segment
+        // (`/cards/recent`, …) added BEFORE this line would still match
+        // cleanly without ambiguity.
+        $builder->connect('/cards/{id}/share', ['controller' => 'Cards', 'action' => 'share'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
         $builder->connect('/cards/{id}', ['controller' => 'Cards', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])

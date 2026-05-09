@@ -135,4 +135,82 @@ class CardsController extends AppController
 
         return $this->redirect('/cards');
     }
+
+    /**
+     * Mint a public share slug for a private card (M2-T13).
+     *
+     * POST-only. Generates a 43-character URL-safe base64 slug from
+     * `random_bytes(32)` (256 bits of entropy → enumeration is computationally
+     * infeasible) and stores it on the row. If the operator supplies a non-empty
+     * `password` field we hash it with Argon2id via CakePHP's `DefaultPasswordHasher`
+     * and stash the hash in `share_password_hash`; the plaintext is never
+     * persisted. We also clear `share_revoked_at` so an operator who previously
+     * revoked a share can re-share without a separate "un-revoke" surface — the
+     * row gets a brand-new slug, which is the safer default (the old `/qsl/{slug}`
+     * URL stays 410 Gone).
+     *
+     * If a card is already actively shared (slug present, not revoked) we no-op
+     * with a flash and bounce back to the detail page rather than minting a new
+     * slug — re-running `share` should be idempotent for the user, and silently
+     * rotating the slug would invalidate any link they already handed out.
+     *
+     * Authorization mirrors `view`/`delete`: scope the query to `user_id =
+     * current identity` and `firstOrFail` so cross-user attempts surface as 404
+     * instead of leaking row existence. We use `set(..., ['guard' => false])`
+     * to assign the share fields directly — this is the documented CakePHP
+     * pattern for trusted controller-side writes that bypass the entity's
+     * `_accessible` mass-assignment guard.
+     *
+     * @param int $id Card id (route-bound).
+     * @return \Cake\Http\Response
+     */
+    public function share(int $id): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $cards = $this->fetchTable('Cards');
+        $card = $cards->find('active')
+            ->where(['Cards.id' => $id, 'Cards.user_id' => $userId])
+            ->firstOrFail();
+
+        // Idempotency guard: if the card is already actively shared, don't
+        // rotate the slug. Re-sharing after a revoke (slug present BUT
+        // revoked_at non-null) is allowed and falls through to mint a new
+        // slug — this is the only way an operator can re-share post-revoke.
+        if (!empty($card->share_slug) && empty($card->share_revoked_at)) {
+            $this->Flash->info('This card is already shared.');
+
+            return $this->redirect('/cards/' . $card->id);
+        }
+
+        // 256 bits of entropy. base64-encoding 32 raw bytes yields 44 chars
+        // including a single '=' pad; URL-safe transform + rtrim('=') gives
+        // a stable 43-char slug suitable for `/qsl/{slug}` URLs.
+        $slug = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+
+        $passwordHash = null;
+        $password = (string)$this->request->getData('password', '');
+        if ($password !== '') {
+            // Pin Argon2id explicitly — relying on PHP's PASSWORD_DEFAULT
+            // would silently change algorithm with PHP-version upgrades and
+            // we want share-link passwords to be stored under a known hasher.
+            $passwordHash = (new \Authentication\PasswordHasher\DefaultPasswordHasher(
+                ['hashType' => PASSWORD_ARGON2ID]
+            ))->hash($password);
+        }
+
+        // `set(..., ['guard' => false])` bypasses `_accessible` so a future
+        // tightening of the entity's mass-assignment surface (e.g. removing
+        // share_* from accessible to prevent guest-form leakage) won't silently
+        // break this trusted controller-side write.
+        $card->set('share_slug', $slug, ['guard' => false]);
+        $card->set('share_password_hash', $passwordHash, ['guard' => false]);
+        $card->set('share_revoked_at', null, ['guard' => false]);
+        $cards->saveOrFail($card);
+
+        $this->Flash->success('Card shared. Public link: /qsl/' . $slug);
+
+        return $this->redirect('/cards/' . $card->id);
+    }
 }
