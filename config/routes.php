@@ -51,14 +51,15 @@ return function (RouteBuilder $routes): void {
 
     $routes->scope('/', function (RouteBuilder $builder): void {
         /*
-         * Here, we are connecting '/' (base path) to a controller called 'Pages',
-         * its action called 'display', and we pass a param to select the view file
-         * to use (in this case, templates/Pages/home.php)...
+         * Public guest form (T19). The root URL renders the QSL generator
+         * form; POST /generate produces the rendered card (T20).
          */
-        $builder->connect('/', ['controller' => 'Pages', 'action' => 'display', 'home']);
+        $builder->connect('/', ['controller' => 'Public', 'action' => 'index']);
+        $builder->connect('/generate', ['controller' => 'Public', 'action' => 'generate'])
+            ->setMethods(['POST']);
 
         /*
-         * ...and connect the rest of 'Pages' controller's URLs.
+         * Skeleton Pages controller is kept for /pages/* helper URLs.
          */
         $builder->connect('/pages/*', 'Pages::display');
 
