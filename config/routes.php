@@ -246,6 +246,19 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET', 'POST']);
 
         /*
+         * M4-T15/T16: per-user profile + avatar upload.
+         *
+         * `/profile` is the form surface (GET renders + POST patches a fixed
+         * allow-list of fields); `/profile/avatar` is POST-only because GET
+         * to a destructive endpoint would let prefetchers / link-previews
+         * accidentally trigger an upload-with-empty-payload flash error.
+         */
+        $builder->connect('/profile', ['controller' => 'Profile', 'action' => 'index'])
+            ->setMethods(['GET', 'POST']);
+        $builder->connect('/profile/avatar', ['controller' => 'Profile', 'action' => 'uploadAvatar'])
+            ->setMethods(['POST']);
+
+        /*
          * Connect catchall routes for all controllers.
          *
          * The `fallbacks` method is a shortcut for

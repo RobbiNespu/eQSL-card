@@ -50,6 +50,7 @@ tmp/installed.lock
 webroot/files/uploads/*
 webroot/files/cards/*
 webroot/files/templates/*
+webroot/files/avatars/*
 !webroot/files/uploads/.gitkeep
 !webroot/files/uploads/.htaccess
 !webroot/files/cards/.gitkeep
@@ -57,6 +58,8 @@ webroot/files/templates/*
 !webroot/files/templates/.gitkeep
 !webroot/files/templates/.htaccess
 !webroot/files/templates/_demo-bg.jpg
+!webroot/files/avatars/.gitkeep
+!webroot/files/avatars/.htaccess
 !webroot/files/fonts/
 !webroot/files/fonts/*
 
