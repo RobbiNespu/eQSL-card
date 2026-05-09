@@ -255,6 +255,25 @@ return function (RouteBuilder $routes): void {
     $routes->prefix('Admin', function (\Cake\Routing\RouteBuilder $builder): void {
         $builder->connect('/upgrade', ['controller' => 'Upgrade', 'action' => 'index'])
             ->setMethods(['GET', 'POST']);
+
+        /*
+         * Template moderation queue (M3-T10/T11/T12). Listing the pending
+         * queue is GET; approve/reject are POST-only and pass the id.
+         * Approve/reject id is constrained to digits, matching the same
+         * ordering rule used elsewhere — a future static segment
+         * (`/templates/recent`, …) added BEFORE the parametrized routes
+         * still routes cleanly.
+         */
+        $builder->connect('/templates/pending', ['controller' => 'Templates', 'action' => 'pending'])
+            ->setMethods(['GET']);
+        $builder->connect('/templates/{id}/approve', ['controller' => 'Templates', 'action' => 'approve'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
+        $builder->connect('/templates/{id}/reject', ['controller' => 'Templates', 'action' => 'reject'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
     });
 
     $routes->scope('/install', function (\Cake\Routing\RouteBuilder $builder): void {
