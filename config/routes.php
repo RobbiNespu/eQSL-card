@@ -187,7 +187,7 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/templates/{id}/edit', ['controller' => 'Templates', 'action' => 'edit'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
-            ->setMethods(['GET', 'POST']);
+            ->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
         $builder->connect('/templates/{id}', ['controller' => 'Templates', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])

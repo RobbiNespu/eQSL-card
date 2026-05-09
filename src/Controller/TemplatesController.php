@@ -48,21 +48,35 @@ class TemplatesController extends AppController
     }
 
     /**
-     * New-template designer (M3-T2 scaffold).
+     * New-template designer + save handler (M3-T4).
      *
-     * Builds an in-memory `Template` entity with sane defaults (1500x1000
-     * canvas, empty fields array) and renders the shared designer view.
-     * No row is persisted until the user clicks Save (M3-T4 wires that).
+     * GET: builds an in-memory `Template` entity with sane defaults
+     * (1500x1000 canvas, empty fields array) and renders the shared designer
+     * view. POST: validates the submitted form (name, canvas dims) plus the
+     * `layout_json` payload via `TemplateLayoutValidator`, persists the row
+     * scoped to the current user, then redirects to `/templates/{id}/edit`.
+     * Validation failures re-render the form and surface errors via Flash.
      *
-     * @return null
+     * @return \Cake\Http\Response|null
      */
     public function add()
     {
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
         $templates = $this->fetchTable('Templates');
         $entity = $templates->newEmptyEntity();
         $entity->canvas_width = 1500;
         $entity->canvas_height = 1000;
         $entity->layout_json = json_encode(['fields' => []]);
+
+        if ($this->request->is('post')) {
+            $errors = $this->saveTemplate($entity, $userId, isNew: true);
+            if (empty($errors)) {
+                $this->Flash->success('Template created.');
+
+                return $this->redirect('/templates/' . $entity->id . '/edit');
+            }
+            $this->Flash->error(implode("\n", $errors));
+        }
 
         $this->set([
             'template' => $entity,
@@ -77,28 +91,35 @@ class TemplatesController extends AppController
     }
 
     /**
-     * Edit an existing user-owned template (M3-T2 scaffold).
+     * Edit an existing user-owned template + save handler (M3-T4).
      *
      * Scoped strictly to the current user's own rows: system templates and
      * public-approved templates are read-only via this action and must be
      * cloned first (M3-T8). Cross-user attempts surface as 404 via
-     * `firstOrFail` so we don't leak row existence.
+     * `firstOrFail` so we don't leak row existence. POST/PUT/PATCH validates
+     * + persists; GET re-renders the designer. Successful save redirects back
+     * to the edit URL so refresh stays idempotent.
      *
      * @param int $id Template id (route-bound).
-     * @return null
+     * @return \Cake\Http\Response|null
      */
     public function edit(int $id)
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();
         $templates = $this->fetchTable('Templates');
         $template = $templates->find()
-            ->where(['Templates.id' => $id])
-            ->where(['OR' => [
-                ['Templates.user_id' => $userId],
-                // (System and public-approved are read-only via this action;
-                // clone-and-edit lands in M3-T8.)
-            ]])
+            ->where(['Templates.id' => $id, 'Templates.user_id' => $userId])
             ->firstOrFail();
+
+        if ($this->request->is(['post', 'put', 'patch'])) {
+            $errors = $this->saveTemplate($template, $userId, isNew: false);
+            if (empty($errors)) {
+                $this->Flash->success('Template saved.');
+
+                return $this->redirect('/templates/' . $template->id . '/edit');
+            }
+            $this->Flash->error(implode("\n", $errors));
+        }
 
         $this->set([
             'template' => $template,
@@ -107,6 +128,57 @@ class TemplatesController extends AppController
         ]);
 
         return null;
+    }
+
+    /**
+     * Shared save pipeline for `add()` and `edit()`.
+     *
+     * Trims/normalises form input, enforces name/canvas bounds, runs the
+     * layout JSON through `TemplateLayoutValidator`, then persists. On the
+     * new-row path we stamp `user_id` from the authenticated identity (never
+     * from form input) so a user can't forge ownership.
+     *
+     * @param \Cake\Datasource\EntityInterface $entity Template entity to persist.
+     * @param int $userId Authenticated user id (used as ownership stamp on new rows).
+     * @param bool $isNew Whether this is a fresh insert vs an update.
+     * @return string[] Errors (empty on success).
+     */
+    private function saveTemplate(\Cake\Datasource\EntityInterface $entity, int $userId, bool $isNew): array
+    {
+        $data = $this->request->getData();
+        $name = trim((string)($data['name'] ?? ''));
+        $description = trim((string)($data['description'] ?? ''));
+        $canvasWidth = (int)($data['canvas_width'] ?? 1500);
+        $canvasHeight = (int)($data['canvas_height'] ?? 1000);
+        $layoutJson = (string)($data['layout_json'] ?? '{"fields":[]}');
+
+        if ($name === '' || mb_strlen($name) > 120) {
+            return ['Name is required (max 120 chars).'];
+        }
+        if ($canvasWidth < 100 || $canvasWidth > 5000 || $canvasHeight < 100 || $canvasHeight > 5000) {
+            return ['Canvas dimensions must be in 100..5000 px.'];
+        }
+
+        $layoutErrors = (new \App\Service\TemplateLayoutValidator())->validate($layoutJson, $canvasWidth, $canvasHeight);
+        if (!empty($layoutErrors)) {
+            return $layoutErrors;
+        }
+
+        $entity->set('name', $name);
+        $entity->set('description', $description);
+        $entity->set('canvas_width', $canvasWidth);
+        $entity->set('canvas_height', $canvasHeight);
+        $entity->set('layout_json', $layoutJson);
+        if ($isNew) {
+            $entity->set('user_id', $userId);
+        }
+
+        $templates = $this->fetchTable('Templates');
+        if (!$templates->save($entity)) {
+            return ['Database save failed: ' . json_encode($entity->getErrors())];
+        }
+
+        return [];
     }
 
     /**
