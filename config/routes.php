@@ -79,14 +79,31 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET', 'POST']);
 
         /*
-         * Logbook routes (M2-T2 onward).
-         * `index` is paginated list with search/filter; `view` is a placeholder
-         * that T3 (CRUD) will flesh out.
+         * Logbook routes (M2-T2/T3).
+         * `index` is paginated list with search/filter; `view` shows a single
+         * QSO; `add`/`edit`/`delete` are the manual CRUD surfaces.
+         *
+         * Static segments (`/new`, `/{id}/edit`, `/{id}/delete`) MUST be
+         * declared before the parametrized `/qsos/{id}` route, AND we
+         * additionally constrain the latter's `id` to digits so a stray order
+         * change in the future cannot cause `/qsos/new` to be matched as
+         * `view(id='new')`.
          */
         $builder->connect('/qsos', ['controller' => 'Qsos', 'action' => 'index'])
             ->setMethods(['GET']);
+        $builder->connect('/qsos/new', ['controller' => 'Qsos', 'action' => 'add'])
+            ->setMethods(['GET', 'POST']);
+        $builder->connect('/qsos/{id}/edit', ['controller' => 'Qsos', 'action' => 'edit'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
+        $builder->connect('/qsos/{id}/delete', ['controller' => 'Qsos', 'action' => 'delete'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
         $builder->connect('/qsos/{id}', ['controller' => 'Qsos', 'action' => 'view'])
             ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
             ->setMethods(['GET']);
 
         /*
