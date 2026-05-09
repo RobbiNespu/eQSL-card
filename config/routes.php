@@ -82,7 +82,7 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/', ['controller' => 'Install', 'action' => 'index'])->setMethods(['GET']);
         $builder->connect('/system-check', ['controller' => 'Install', 'action' => 'systemCheck'])->setMethods(['GET']);
         $builder->connect('/database', ['controller' => 'Install', 'action' => 'database'])->setMethods(['GET', 'POST']);
-        $builder->connect('/migrate', ['controller' => 'Install', 'action' => 'migrate'])->setMethods(['POST']);
+        $builder->connect('/migrate', ['controller' => 'Install', 'action' => 'migrate'])->setMethods(['GET', 'POST']);
         $builder->connect('/admin', ['controller' => 'Install', 'action' => 'admin'])->setMethods(['GET', 'POST']);
         $builder->connect('/complete', ['controller' => 'Install', 'action' => 'complete'])->setMethods(['GET']);
     });

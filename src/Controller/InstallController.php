@@ -51,15 +51,36 @@ class InstallController extends AppController
         new \PDO($dsn, $data['username'], $data['password'], [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]);
     }
 
-    public function migrate(): void
+    public function migrate()
     {
+        if ($this->request->is('post')) {
+            try {
+                (new \App\Service\Installer())->runMigrations();
+                $this->Flash->success('Schema applied.');
+                return $this->redirect('/install/admin');
+            } catch (\Throwable $e) {
+                $this->Flash->error('Migration failed: ' . $e->getMessage());
+            }
+        }
     }
 
-    public function admin(): void
+    public function admin()
     {
+        if ($this->request->is('post')) {
+            try {
+                $installer = new \App\Service\Installer();
+                $installer->createAdmin($this->request->getData());
+                $installer->seedDefaultTemplate(CONFIG . 'seeds/default_system_template.json');
+                $installer->lock(CONFIG . 'installed.lock');
+                return $this->redirect('/install/complete');
+            } catch (\Throwable $e) {
+                $this->Flash->error($e->getMessage());
+            }
+        }
     }
 
     public function complete(): void
     {
+        $this->set('loginUrl', '/login');
     }
 }
