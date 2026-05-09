@@ -109,6 +109,21 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
 
         /*
+         * Card library routes (M2-T7 ships index; T8 wires up view).
+         *
+         * The `/cards/{id}` route is connected here in advance so T8 only has
+         * to add the controller action. `id` is constrained to digits so any
+         * future static segment (`/cards/new`, `/cards/import`, …) added
+         * BEFORE this line will match cleanly without ambiguity.
+         */
+        $builder->connect('/cards', ['controller' => 'Cards', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/cards/{id}', ['controller' => 'Cards', 'action' => 'view'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['GET']);
+
+        /*
          * Connect catchall routes for all controllers.
          *
          * The `fallbacks` method is a shortcut for

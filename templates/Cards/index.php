@@ -1,0 +1,37 @@
+<h1><?= h($title) ?></h1>
+
+<?php if ($cards->count() === 0): ?>
+  <div class="alert alert-info">You haven't generated any cards yet. <a href="/qsos">Render one from a QSO &rarr;</a></div>
+<?php else: ?>
+  <div class="row g-3">
+    <?php foreach ($cards as $card): ?>
+      <div class="col-md-4">
+        <div class="card h-100">
+          <a href="/cards/<?= $card->id ?>">
+            <img src="/<?= h($card->png_path) ?>" class="card-img-top" alt="eQSL card preview" loading="lazy">
+          </a>
+          <div class="card-body">
+            <?php $qsoData = json_decode((string)$card->qso_data_json, true) ?: []; ?>
+            <h5 class="card-title"><?= h($qsoData['callsign'] ?? '—') ?></h5>
+            <p class="card-text small text-muted">
+              <?= h($qsoData['qso_datetime_utc'] ?? '') ?>
+              · <?= h($qsoData['band'] ?? '') ?>
+              · <?= h($qsoData['mode'] ?? '') ?>
+            </p>
+            <p>
+              <?php if ($card->share_revoked_at): ?>
+                <span class="badge bg-secondary">Share revoked</span>
+              <?php elseif ($card->share_slug): ?>
+                <span class="badge bg-success">Shared</span>
+              <?php else: ?>
+                <span class="badge bg-light text-dark">Private</span>
+              <?php endif; ?>
+            </p>
+          </div>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+
+  <nav class="mt-3"><?= $this->Paginator->numbers() ?></nav>
+<?php endif; ?>
