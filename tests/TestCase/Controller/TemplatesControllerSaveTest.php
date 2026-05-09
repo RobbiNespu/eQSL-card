@@ -110,4 +110,40 @@ final class TemplatesControllerSaveTest extends TestCase
         ]);
         $this->assertResponseCode(404);
     }
+
+    public function testMakePublicSetsFlagsAndQueuesForReview(): void
+    {
+        $userId = $this->loginAs();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/templates/new', [
+            'name' => 'PublicCandidate',
+            'canvas_width' => 1500,
+            'canvas_height' => 1000,
+            'layout_json' => json_encode(['fields' => []]),
+            'make_public' => '1',
+        ]);
+        $this->assertResponseCode(302);
+        $tpls = $this->getTableLocator()->get('Templates');
+        $row = $tpls->find()->where(['user_id' => $userId])->first();
+        $this->assertNotNull($row);
+        $this->assertTrue((bool)$row->is_public);
+        $this->assertFalse((bool)$row->is_approved, 'public must NOT auto-approve');
+    }
+
+    public function testWithoutMakePublicStaysPrivate(): void
+    {
+        $userId = $this->loginAs();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/templates/new', [
+            'name' => 'PrivateOne',
+            'canvas_width' => 1500,
+            'canvas_height' => 1000,
+            'layout_json' => json_encode(['fields' => []]),
+        ]);
+        $tpls = $this->getTableLocator()->get('Templates');
+        $row = $tpls->find()->where(['user_id' => $userId])->first();
+        $this->assertFalse((bool)$row->is_public);
+    }
 }

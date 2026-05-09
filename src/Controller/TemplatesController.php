@@ -296,7 +296,55 @@ class TemplatesController extends AppController
             error_log('[TemplateThumbnailRenderer] ' . $e->getMessage());
         }
 
+        // Handle "Make public" request — queues for admin moderation
+        $makePublic = !empty($this->request->getData('make_public'));
+        if ($makePublic && !$entity->is_public) {
+            $entity->set('is_public', true, ['guard' => false]);
+            $entity->set('is_approved', false, ['guard' => false]);
+            $templates->save($entity);
+
+            // Notify admins
+            $this->notifyAdminsOfPendingTemplate($entity);
+        }
+
         return [];
+    }
+
+    /**
+     * Notify admins via email that a user submitted a template for public review.
+     *
+     * Iterates every `users.role = 'admin'` row and sends a "pending review"
+     * mail using the `template_pending_review` view (both html + text). Failures
+     * are swallowed and logged: a flaky SMTP server must not block the user's
+     * save flow. In tests the mail transport is `debug://` (T3), so
+     * `Mailer::deliver()` is a no-op.
+     *
+     * @param \Cake\Datasource\EntityInterface $template Newly-public template.
+     * @return void
+     */
+    private function notifyAdminsOfPendingTemplate(\Cake\Datasource\EntityInterface $template): void
+    {
+        $admins = $this->fetchTable('Users')->find()
+            ->where(['role' => 'admin'])
+            ->all();
+
+        foreach ($admins as $admin) {
+            try {
+                $mailer = new \Cake\Mailer\Mailer('default');
+                $mailer->setTo($admin->email)
+                    ->setSubject('eQSL — template pending review: ' . $template->name)
+                    ->setEmailFormat('both')
+                    ->setViewVars([
+                        'templateName' => $template->name,
+                        'templateId' => $template->id,
+                        'submitterCallsign' => $this->Authentication->getIdentity()->getOriginalData()->callsign ?? '',
+                    ])
+                    ->viewBuilder()->setTemplate('template_pending_review');
+                $mailer->deliver();
+            } catch (\Throwable $e) {
+                error_log('[notify admin] ' . $e->getMessage());
+            }
+        }
     }
 
     /**

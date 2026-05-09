@@ -249,6 +249,11 @@ function designer(initial) {
             }
         },
 
+        // M3-T9 — opt-in "Make public" toggle. When checked, save() POSTs
+        // `make_public=1` and the controller flips `is_public=true,
+        // is_approved=false` so the template enters the admin moderation queue.
+        // We never auto-approve — that requires explicit admin action (M3-T11).
+        makePublic: false,
         async save() {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const url = this.mode === 'new' ? '/templates/new' : `/templates/${this.templateId}/edit`;
@@ -258,6 +263,9 @@ function designer(initial) {
             body.append('canvas_width', String(this.canvasWidth));
             body.append('canvas_height', String(this.canvasHeight));
             body.append('layout_json', JSON.stringify({ fields: this.fields }));
+            if (this.makePublic) {
+                body.append('make_public', '1');
+            }
             const r = await fetch(url, {
                 method: 'POST',
                 headers: {

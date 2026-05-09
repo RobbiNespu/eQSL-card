@@ -91,6 +91,12 @@
     </template>
 
     <hr>
+        <div class="form-check mb-3">
+          <input type="checkbox" class="form-check-input" id="makePublic" x-model="makePublic">
+          <label class="form-check-label small" for="makePublic">
+            Make this template public (will be reviewed by admin before appearing in the gallery)
+          </label>
+        </div>
     <button type="button" class="btn btn-primary" @click="save()">Save</button>
   </div>
 </div>
