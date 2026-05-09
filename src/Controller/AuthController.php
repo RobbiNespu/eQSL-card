@@ -113,21 +113,73 @@ class AuthController extends AppController
     }
 
     /**
-     * Forgot-password action stub (T17).
+     * Forgot-password.
      *
-     * @return void
+     * GET renders the email form. POST issues a single-use reset token via
+     * `PasswordResetService` and sends an email containing the reset link.
+     * The flash message intentionally does not reveal whether an account
+     * exists, to avoid leaking user-enumeration signal.
+     *
+     * @return \Cake\Http\Response|null
      */
-    public function forgot(): void
+    public function forgot()
     {
+        if ($this->request->is('post')) {
+            $email = (string)$this->request->getData('email');
+            $svc = new \App\Service\PasswordResetService();
+            $token = $svc->issue($email);
+            $link = (string)env('APP_BASE_URL', 'http://localhost:8080') . '/password/reset/' . $token;
+            $mailer = new \Cake\Mailer\Mailer('default');
+            $mailer->setTo($email)
+                ->setSubject('Reset your eQSL password')
+                ->setEmailFormat('both')
+                ->setViewVars(['link' => $link])
+                ->viewBuilder()->setTemplate('password_reset');
+            $mailer->deliver();
+            $this->Flash->success('If that email exists, a reset link has been sent.');
+
+            return $this->redirect('/login');
+        }
+
+        return null;
     }
 
     /**
-     * Reset-password action stub (T17).
+     * Reset-password.
+     *
+     * GET renders the new-password form (token is round-tripped to the
+     * action via the URL — no need to embed in a hidden field, but we do
+     * pass it to the view in case the template wants it).
+     *
+     * POST consumes the token via `PasswordResetService::consume`, which
+     * is single-shot. On a bad token we flash and bounce to /password/forgot.
+     * On success we set the user's password (the `_setPassword` mutator
+     * applies Argon2id from T5) and send them to /login.
      *
      * @param string $token Reset token from the password-reset email.
-     * @return void
+     * @return \Cake\Http\Response|null
      */
-    public function reset(string $token): void
+    public function reset(string $token)
     {
+        if ($this->request->is('post')) {
+            $svc = new \App\Service\PasswordResetService();
+            try {
+                $email = $svc->consume($token);
+            } catch (\Throwable $e) {
+                $this->Flash->error($e->getMessage());
+
+                return $this->redirect('/password/forgot');
+            }
+            $users = $this->fetchTable('Users');
+            $user = $users->find()->where(['email' => $email])->firstOrFail();
+            $user->password = (string)$this->request->getData('password');
+            $users->saveOrFail($user);
+            $this->Flash->success('Password updated. Please log in.');
+
+            return $this->redirect('/login');
+        }
+        $this->set('token', $token);
+
+        return null;
     }
 }
