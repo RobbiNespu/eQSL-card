@@ -17,6 +17,28 @@
 </div>
 
 <hr>
+<h2>Template</h2>
+<?php if (!empty($templates) && $templates->count() > 0): ?>
+  <div class="row g-2 mb-3">
+    <?php $first = true; ?>
+    <?php foreach ($templates as $t): ?>
+      <div class="col-md-3">
+        <label class="card p-2 d-block" style="cursor: pointer;">
+          <input type="radio" name="template_id" value="<?= $t->id ?>" <?= $first ? 'checked' : '' ?>>
+          <?php if ($t->thumbnail_path): ?>
+            <img src="/<?= h($t->thumbnail_path) ?>" alt="<?= h($t->name) ?>" class="img-fluid" loading="lazy">
+          <?php endif; ?>
+          <span class="d-block small mt-1"><strong><?= h($t->name) ?></strong></span>
+        </label>
+      </div>
+      <?php $first = false; ?>
+    <?php endforeach; ?>
+  </div>
+<?php else: ?>
+  <p class="text-muted">No templates available — please contact the operator.</p>
+<?php endif; ?>
+
+<hr>
 <h2>Background</h2>
 <div class="btn-group" role="group">
   <button type="button" class="btn btn-outline-primary" @click="mode='upload'" :class="mode==='upload' && 'active'">Upload</button>

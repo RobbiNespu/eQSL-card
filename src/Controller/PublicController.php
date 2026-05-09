@@ -30,7 +30,19 @@ class PublicController extends AppController
      */
     public function index(): void
     {
-        $this->set('title', 'Generate an eQSL');
+        $this->Authentication?->allowUnauthenticated(['index', 'generate', 'share', 'unlock']);
+        $templates = $this->fetchTable('Templates')->find()
+            ->where(['OR' => [
+                ['Templates.is_system' => true],
+                ['AND' => ['Templates.is_public' => true, 'Templates.is_approved' => true]],
+            ]])
+            ->orderBy(['Templates.is_system' => 'DESC', 'Templates.created_at' => 'DESC'])
+            ->all();
+
+        $this->set([
+            'title' => 'Generate an eQSL',
+            'templates' => $templates,
+        ]);
     }
 
     /**
@@ -221,8 +233,24 @@ class PublicController extends AppController
             ]));
         }
 
-        // Load the system template
-        $template = $this->fetchTable('Templates')->find()->where(['is_system' => true])->firstOrFail();
+        // Load the chosen template (with strict guest-allowed scope), or fall back to system
+        $templateId = (int)($data['template_id'] ?? 0);
+        $template = null;
+        if ($templateId > 0) {
+            // Must be public-approved or system
+            $template = $this->fetchTable('Templates')->find()
+                ->where(['Templates.id' => $templateId])
+                ->where(['OR' => [
+                    ['Templates.is_system' => true],
+                    ['AND' => ['Templates.is_public' => true, 'Templates.is_approved' => true]],
+                ]])
+                ->first();
+        }
+        if (empty($template)) {
+            $template = $this->fetchTable('Templates')->find()
+                ->where(['is_system' => true])
+                ->firstOrFail();
+        }
         $layout = json_decode($template->layout_json, true);
 
         // Build QSO data
