@@ -18,6 +18,7 @@ namespace App\Test\TestCase;
 
 use App\Application;
 use App\Middleware\InstallationCheckMiddleware;
+use Authentication\Middleware\AuthenticationMiddleware;
 use Cake\Core\Configure;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
 use Cake\Http\MiddlewareQueue;
@@ -84,5 +85,7 @@ class ApplicationTest extends TestCase
         $this->assertInstanceOf(InstallationCheckMiddleware::class, $middleware->current());
         $middleware->seek(3);
         $this->assertInstanceOf(RoutingMiddleware::class, $middleware->current());
+        $middleware->seek(4);
+        $this->assertInstanceOf(AuthenticationMiddleware::class, $middleware->current());
     }
 }

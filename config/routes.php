@@ -63,6 +63,21 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/pages/*', 'Pages::display');
 
         /*
+         * Authentication routes (T14).
+         */
+        $builder->connect('/register', ['controller' => 'Auth', 'action' => 'register'])
+            ->setMethods(['GET', 'POST']);
+        $builder->connect('/login', ['controller' => 'Auth', 'action' => 'login'])
+            ->setMethods(['GET', 'POST']);
+        $builder->connect('/logout', ['controller' => 'Auth', 'action' => 'logout'])
+            ->setMethods(['POST']);
+        $builder->connect('/password/forgot', ['controller' => 'Auth', 'action' => 'forgot'])
+            ->setMethods(['GET', 'POST']);
+        $builder->connect('/password/reset/:token', ['controller' => 'Auth', 'action' => 'reset'])
+            ->setPass(['token'])
+            ->setMethods(['GET', 'POST']);
+
+        /*
          * Connect catchall routes for all controllers.
          *
          * The `fallbacks` method is a shortcut for
