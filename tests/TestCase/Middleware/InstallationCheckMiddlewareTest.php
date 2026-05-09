@@ -68,6 +68,28 @@ final class InstallationCheckMiddlewareTest extends TestCase
         $this->assertSame(200, $resp->getStatusCode());
     }
 
+    public function testInstallRoutes404AfterLockExists(): void
+    {
+        touch($this->lockFile);
+        $mw = new InstallationCheckMiddleware($this->lockFile);
+        $req = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/install/admin']);
+        $handler = $this->makeHandler();
+
+        $resp = $mw->process($req, $handler);
+        $this->assertSame(404, $resp->getStatusCode());
+    }
+
+    public function testInstallIndexAlso404sAfterLock(): void
+    {
+        touch($this->lockFile);
+        $mw = new InstallationCheckMiddleware($this->lockFile);
+        $req = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/install']);
+        $handler = $this->makeHandler();
+
+        $resp = $mw->process($req, $handler);
+        $this->assertSame(404, $resp->getStatusCode());
+    }
+
     private function makeHandler(): RequestHandlerInterface
     {
         return new class implements RequestHandlerInterface {

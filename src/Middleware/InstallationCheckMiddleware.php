@@ -18,10 +18,18 @@ final class InstallationCheckMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $path = $request->getUri()->getPath();
-        if (file_exists($this->lockFilePath)) {
+        $installed = file_exists($this->lockFilePath);
+        $isInstallPath = $path === '/install' || str_starts_with($path, '/install/');
+
+        if ($installed) {
+            if ($isInstallPath) {
+                return (new Response())->withStatus(404);
+            }
             return $handler->handle($request);
         }
-        if ($path === '/install' || str_starts_with($path, '/install/') || $path === '/health') {
+
+        // Not installed
+        if ($isInstallPath || $path === '/health') {
             return $handler->handle($request);
         }
         return (new Response())->withStatus(302)->withHeader('Location', '/install');
