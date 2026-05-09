@@ -82,3 +82,14 @@ if (!file_exists($testInstallLock)) {
     touch($testInstallLock);
 }
 Configure::write('Installation.lockFile', $testInstallLock);
+
+// Clear rate-limit cache between phpunit runs so RateLimitMiddleware starts
+// from a clean count. Without this, accumulated state from prior runs (or
+// across processes sharing TMP) can trip 429s in tests that exercise login
+// or generate endpoints.
+$rateLimitDir = TMP . 'cache/rate_limits';
+if (is_dir($rateLimitDir)) {
+    foreach (glob($rateLimitDir . '/*') ?: [] as $f) {
+        @unlink($f);
+    }
+}
