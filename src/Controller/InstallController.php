@@ -12,6 +12,9 @@ class InstallController extends AppController
 
     public function systemCheck(): void
     {
+        $report = (new \App\Service\SystemCheck())->run();
+        $allPass = !in_array(false, array_column($report, 'ok'), true);
+        $this->set(compact('report', 'allPass'));
     }
 
     public function database(): void
