@@ -1,0 +1,49 @@
+# Brainstorming session files (visual companion server output)
+.superpowers/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+config/app_local.php
+config/installed.lock
+
+# Build artefacts
+dist/
+node_modules/
+vendor/
+
+# CakePHP runtime (will exist once the app is scaffolded)
+tmp/cache/*
+tmp/sessions/*
+tmp/tests/*
+tmp/logs/*
+logs/*
+!tmp/cache/.gitkeep
+!tmp/sessions/.gitkeep
+!logs/.gitkeep
+
+# User-generated files (live on the host, not in the repo)
+webroot/files/uploads/*
+webroot/files/cards/*
+webroot/files/templates/*
+!webroot/files/uploads/.gitkeep
+!webroot/files/cards/.gitkeep
+!webroot/files/templates/.gitkeep
+!webroot/files/templates/_demo-bg.jpg
+!webroot/files/fonts/
+
+# PHP / Composer
+composer.phar
+
+# Coverage
+coverage/
+.phpunit.cache/
+.phpunit.result.cache
