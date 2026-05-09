@@ -16,7 +16,8 @@ config/app_local.php
 config/installed.lock
 
 # Build artefacts
-dist/
+dist/*
+!dist/.gitkeep
 node_modules/
 vendor/
 
