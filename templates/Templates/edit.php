@@ -1,5 +1,6 @@
 <?php $this->start('script'); ?>
 <script src="<?= $this->Url->build('/js/vendor/fabric.min.js') ?>"></script>
+<script src="<?= $this->Url->build('/js/designer-helpers.js') ?>"></script>
 <script src="<?= $this->Url->build('/js/designer.js') ?>" defer></script>
 <?php $this->end(); ?>
 

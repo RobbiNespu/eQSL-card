@@ -23,9 +23,11 @@ function designer(initial) {
         description: initial.description || '',
         canvasWidth: initial.canvasWidth || 1500,
         canvasHeight: initial.canvasHeight || 1000,
-        fields: (() => {
-            try { return JSON.parse(initial.layoutJson).fields || []; } catch (e) { return []; }
-        })(),
+        fields: (window.designerHelpers || {}).parseLayoutJson
+            ? window.designerHelpers.parseLayoutJson(initial.layoutJson).fields
+            : (() => {
+                try { return JSON.parse(initial.layoutJson).fields || []; } catch (e) { return []; }
+            })(),
         selectedField: null,
         fabricCanvas: null,
         // Index → fabric.Textbox. We rely on indices (not object identity)
@@ -101,17 +103,11 @@ function designer(initial) {
         },
 
         fontFamilyFor(filename) {
-            // Designer-side preview only. Server-side renderer (M3-T7+)
-            // loads the actual TTF; here we just pick a CSS family that
-            // looks roughly right so the operator can judge proportions.
-            const map = {
-                'Inter-Regular.ttf': 'Inter, sans-serif',
-                'Inter-Bold.ttf': 'Inter, sans-serif',
-                'RobotoSlab-Regular.ttf': '"Roboto Slab", serif',
-                'JetBrainsMono-Regular.ttf': '"JetBrains Mono", monospace',
-                'Cinzel-Regular.ttf': 'Cinzel, serif',
-            };
-            return map[filename] || 'sans-serif';
+            // Delegates to the pure helper module (M3-T16) so the same
+            // mapping is unit-testable under Node without a DOM. Falls back
+            // to a hard 'sans-serif' if the helpers script failed to load.
+            const helpers = window.designerHelpers;
+            return helpers ? helpers.fontFamilyFor(filename) : 'sans-serif';
         },
 
         handleSelection(obj) {
@@ -262,7 +258,9 @@ function designer(initial) {
             body.append('description', this.description || '');
             body.append('canvas_width', String(this.canvasWidth));
             body.append('canvas_height', String(this.canvasHeight));
-            body.append('layout_json', JSON.stringify({ fields: this.fields }));
+            body.append('layout_json', (window.designerHelpers && window.designerHelpers.serializeLayout)
+                ? window.designerHelpers.serializeLayout(this.fields)
+                : JSON.stringify({ fields: this.fields }));
             if (this.makePublic) {
                 body.append('make_public', '1');
             }
