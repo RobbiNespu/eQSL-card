@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Model\Table;
 
 use Cake\Datasource\EntityInterface;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
@@ -49,6 +50,25 @@ class CardsTable extends Table
             ->allowEmptyString('share_password_hash');
 
         return $validator;
+    }
+
+    /**
+     * Custom finder: only cards that have NOT been soft-deleted.
+     *
+     * Soft-delete (M2-T9) sets `cards.deleted_at`. The schema-level row stays
+     * for forensics and storage cleanup (deferred to M4 admin sweep tools), so
+     * any user-facing list/detail surface MUST hide rows where `deleted_at` is
+     * non-null. Wrapping the predicate in a finder keeps the list of "where
+     * to filter" auditable in one place — every controller that reads a
+     * user's card library should use `find('active')`.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Base query.
+     * @param array $options Reserved for future use (unused today).
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    public function findActive(SelectQuery $query, array $options = []): SelectQuery
+    {
+        return $query->where([$this->getAlias() . '.deleted_at IS' => null]);
     }
 
     public function buildRules(RulesChecker $rules): RulesChecker

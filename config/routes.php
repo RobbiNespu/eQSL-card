@@ -118,6 +118,15 @@ return function (RouteBuilder $routes): void {
          */
         $builder->connect('/cards', ['controller' => 'Cards', 'action' => 'index'])
             ->setMethods(['GET']);
+        // `/cards/{id}/delete` (M2-T9 soft-delete) MUST be declared BEFORE
+        // the parametrized `/cards/{id}` route — otherwise CakePHP would
+        // greedily match `view(id='123/delete')` (or with the digit pattern,
+        // simply fail). The id pattern is constrained to digits for the same
+        // reason as the qsos delete route.
+        $builder->connect('/cards/{id}/delete', ['controller' => 'Cards', 'action' => 'delete'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
         $builder->connect('/cards/{id}', ['controller' => 'Cards', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])

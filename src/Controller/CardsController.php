@@ -41,7 +41,9 @@ class CardsController extends AppController
     public function index(): void
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();
-        $query = $this->fetchTable('Cards')->find()
+        // `find('active')` filters rows where `deleted_at` is non-null so
+        // soft-deleted cards (M2-T9) drop out of the user's library listing.
+        $query = $this->fetchTable('Cards')->find('active')
             ->where(['Cards.user_id' => $userId])
             ->contain(['Templates'])
             ->orderBy(['Cards.created_at' => 'DESC']);
@@ -71,7 +73,9 @@ class CardsController extends AppController
     public function view(int $id): void
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();
-        $card = $this->fetchTable('Cards')->find()
+        // Soft-deleted rows must 404 from the detail surface too — using the
+        // `active` finder keeps that policy in one place (CardsTable).
+        $card = $this->fetchTable('Cards')->find('active')
             ->where(['Cards.id' => $id, 'Cards.user_id' => $userId])
             ->contain(['Templates', 'Uploads'])
             ->firstOrFail();
@@ -89,5 +93,46 @@ class CardsController extends AppController
             'shareUrl' => $shareUrl,
             'title' => 'eQSL — ' . ($qsoData['callsign'] ?? '#' . $card->id),
         ]);
+    }
+
+    /**
+     * Soft-delete a card (M2-T9).
+     *
+     * POST-only. Sets `cards.deleted_at` on the row instead of removing it,
+     * so the artefact (PNG/PDF on disk + the audit row) survives until the
+     * M4 admin sweep tools garbage-collect storage. We deliberately keep the
+     * scope tight to `user_id = current identity`, which means a guessed-id
+     * attack against another user's card surfaces as 404 (firstOrFail) rather
+     * than 403 — this matches the existing pattern in `view()` and avoids
+     * leaking row existence.
+     *
+     * `deleted_at` is intentionally absent from `Card::_accessible`, so we
+     * assign it directly on the entity and `saveOrFail` to bypass the mass-
+     * assignment guard while still running validation/rules. Storage cleanup
+     * is NOT triggered here; that's deferred to M4 (admin sweep tools).
+     *
+     * @param int $id Card id (route-bound).
+     * @return \Cake\Http\Response
+     */
+    public function delete(int $id): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $cards = $this->fetchTable('Cards');
+        $card = $cards->find()
+            ->where(['Cards.id' => $id, 'Cards.user_id' => $userId])
+            ->firstOrFail();
+
+        // Soft-delete: set deleted_at on the card row.
+        // Storage cleanup (the actual PNG/PDF files) is deferred to M4 admin
+        // sweep tools — this endpoint is the user-facing "remove from my
+        // library" surface, not a hard purge.
+        $card->deleted_at = \Cake\I18n\DateTime::now();
+        $cards->saveOrFail($card);
+
+        $this->Flash->success('Card deleted.');
+
+        return $this->redirect('/cards');
     }
 }
