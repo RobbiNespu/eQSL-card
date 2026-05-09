@@ -28,6 +28,19 @@ rsync -a --delete \
   --include='webroot/files/uploads/.gitkeep' \
   --exclude='webroot/files/cards/*' \
   --include='webroot/files/cards/.gitkeep' \
+  --exclude='tmp/cache/*' \
+  --exclude='tmp/sessions/*' \
+  --exclude='tmp/tests/*' \
+  --exclude='tmp/installed.lock' \
+  --exclude='tmp/debug_kit.sqlite' \
+  --exclude='logs/*.log' \
+  --include='tmp/cache/.gitkeep' \
+  --include='tmp/cache/models/.gitkeep' \
+  --include='tmp/cache/persistent/.gitkeep' \
+  --include='tmp/cache/views/.gitkeep' \
+  --include='tmp/sessions/.gitkeep' \
+  --include='tmp/tests/.gitkeep' \
+  --include='logs/.gitkeep' \
   "${ROOT}/" "${STAGE}/"
 
 # Make sure vendor/ exists with prod deps only
