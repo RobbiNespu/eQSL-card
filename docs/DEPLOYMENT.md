@@ -164,3 +164,45 @@ security salt.
 | Mail not sending | Host blocks outbound SMTP | Use the host's SMTP relay; configure in `config/app_local.php`. |
 
 For anything else: `tail -f logs/error.log`.
+
+---
+
+## 10. Troubleshooting (detailed)
+
+### "/" redirects in a loop or returns blank
+
+- Check that `config/app_local.php` exists and contains valid DB credentials.
+- Confirm `tmp/`, `logs/`, and `webroot/files/` are writable (cPanel File Manager → Permissions → 0775 for directories).
+- Tail `logs/error.log` for the first failure.
+
+### `/install` returns 404 after deploy
+
+- The installer locks itself once complete. To re-run, FTP-delete `config/installed.lock` (only do this on a fresh empty database — re-running on an existing DB will create a duplicate admin user).
+
+### "Class 'PDO' not found"
+
+- Your shared-host PHP doesn't have `pdo_mysql` enabled. Most cPanel hosts let you enable it under **PHP Selector → Extensions**.
+
+### Generated cards have no text overlaid
+
+- The `webroot/files/fonts/` directory was not uploaded. Re-upload the release zip and verify `Inter-Regular.ttf`, `Cinzel-Regular.ttf`, etc. exist on disk.
+- Verify the `gd` extension is compiled with FreeType: `php -r "var_dump(gd_info()['FreeType Support']);"` should print `bool(true)`.
+
+### "MysqlAdapter::TEXT_LONG" error during install
+
+- Your host runs MySQL 5.6 or older — upgrade to MySQL 5.7+ or MariaDB 10.x. The `templates.layout_json` LONGTEXT column requires it.
+
+### Mail isn't sending
+
+- Visit `/admin/settings` (admin only) and verify SMTP host/user/password/from. Many shared hosts block outbound port 25; use port 587 with TLS.
+
+---
+
+## 11. Common cPanel quirks
+
+- **Document root:** cPanel typically maps your domain to `public_html/`. Extract the release zip directly into `public_html/` (not a subfolder).
+- **Hidden file visibility:** cPanel File Manager hides dotfiles by default. Enable "Show Hidden Files" in Settings before uploading or you'll miss `.htaccess` and `.editorconfig`.
+- **PHP version:** cPanel's "MultiPHP Manager" must point your domain at PHP 8.1 (not the system default).
+- **Mod_rewrite:** Some discount hosts disable it by default. The installer's first step verifies routing — if it returns 404, contact support.
+- **Symlinks:** Some hosts disable `symlink()`. The recommended subfolder layout (app outside `public_html/`) requires it; if disabled, fall back to placing the entire app inside `public_html/` with the bundled `.htaccess` deny rules.
+- **Cron:** Not required by this app (no background workers), but if you want admin cleanup tools to run on a schedule, you can wire `bin/cake` calls via cPanel cron once SSH is available — for now run via `/admin/cleanup`.
