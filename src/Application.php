@@ -72,6 +72,12 @@ class Application extends BaseApplication
                 'cacheTime' => Configure::read('Asset.cacheTime'),
             ]))
 
+            // Redirect to the install wizard until the lock file exists.
+            // Must run before RoutingMiddleware so we never resolve a controller on a fresh repo.
+            ->add(new \App\Middleware\InstallationCheckMiddleware(
+                Configure::read('Installation.lockFile', CONFIG . 'installed.lock')
+            ))
+
             // Add routing middleware.
             // If you have a large number of routes connected, turning on routes
             // caching in production could improve performance.

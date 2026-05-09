@@ -73,3 +73,12 @@ ConnectionHelper::addTestAliases();
 // (new SchemaLoader())->loadSqlFiles('./tests/schema.sql', 'test');
 
 (new Migrator())->run();
+
+// Point InstallationCheckMiddleware at a per-run temp lock so integration
+// tests skip the redirect to /install. The middleware reads this Configure
+// key when set, otherwise falls back to CONFIG . 'installed.lock'.
+$testInstallLock = TMP . 'installed.lock';
+if (!file_exists($testInstallLock)) {
+    touch($testInstallLock);
+}
+Configure::write('Installation.lockFile', $testInstallLock);

@@ -40,6 +40,7 @@ tmp/logs/*
 logs/*
 !logs/.gitkeep
 tmp/debug_kit.sqlite
+tmp/installed.lock
 
 # User-generated files (live on the host, not in the repo)
 webroot/files/uploads/*
