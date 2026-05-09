@@ -31,15 +31,29 @@
     </div>
 
     <h3>Add a field</h3>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('{callsign}')">Their callsign</button>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('{operator_callsign}')">My callsign</button>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('{qso_datetime_utc:Y-m-d H:i}')">Date/Time UTC</button>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('{band}')">Band</button>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('{mode}')">Mode</button>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('{frequency_mhz}')">Frequency</button>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('{rst_sent}')">RST sent</button>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('{rst_received}')">RST received</button>
-    <button type="button" class="btn btn-outline-primary btn-sm mb-1" @click="addField('Custom text')">Custom text</button>
+    <details class="mb-1" open>
+      <summary class="small fw-bold">Operator &amp; QSO basics</summary>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{operator_callsign}')">My callsign</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{callsign}')">Their callsign</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{operator_name}')">Operator name</button>
+    </details>
+    <details class="mb-1">
+      <summary class="small fw-bold">Time &amp; frequency</summary>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{qso_datetime_utc:Y-m-d H:i}')">Date/time UTC</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{frequency_mhz} MHz')">Frequency</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{band}')">Band</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{mode}')">Mode</button>
+    </details>
+    <details class="mb-1">
+      <summary class="small fw-bold">Signal report</summary>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('RST sent: {rst_sent}')">RST sent</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('RST recv: {rst_received}')">RST received</button>
+    </details>
+    <details class="mb-1">
+      <summary class="small fw-bold">Custom</summary>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('Custom text')">Plain text</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{notes}')">QSO notes</button>
+    </details>
   </div>
 
   <div class="col-md-6">
@@ -51,7 +65,7 @@
     <h2>Selected field</h2>
     <template x-if="selectedField">
       <div>
-        <div class="mb-2"><label class="form-label small">Text / placeholder</label><input class="form-control" x-model="selectedField.text" @input="syncFieldToCanvas()"></div>
+        <div class="mb-2"><label class="form-label small">Text / placeholder</label><input class="form-control" x-model="selectedField.placeholder" @input="syncFieldToCanvas()"></div>
         <div class="mb-2"><label class="form-label small">Font size</label><input type="number" class="form-control" x-model.number="selectedField.size" @input="syncFieldToCanvas()"></div>
         <div class="mb-2"><label class="form-label small">Color</label><input type="color" class="form-control form-control-color" x-model="selectedField.color" @input="syncFieldToCanvas()"></div>
         <div class="mb-2"><label class="form-label small">Font</label>
@@ -71,6 +85,6 @@
     </template>
 
     <hr>
-    <button type="button" class="btn btn-primary" @click="save()">Save (M3-T4 wires this)</button>
+    <button type="button" class="btn btn-primary" @click="save()">Save</button>
   </div>
 </div>
