@@ -20,6 +20,8 @@ dist/*
 !dist/.gitkeep
 node_modules/
 vendor/
+!webroot/js/vendor/
+!webroot/js/vendor/*.js
 
 # CakePHP runtime (will exist once the app is scaffolded)
 tmp/cache/*
