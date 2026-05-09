@@ -79,6 +79,17 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET', 'POST']);
 
         /*
+         * Logbook routes (M2-T2 onward).
+         * `index` is paginated list with search/filter; `view` is a placeholder
+         * that T3 (CRUD) will flesh out.
+         */
+        $builder->connect('/qsos', ['controller' => 'Qsos', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/qsos/{id}', ['controller' => 'Qsos', 'action' => 'view'])
+            ->setPass(['id'])
+            ->setMethods(['GET']);
+
+        /*
          * Connect catchall routes for all controllers.
          *
          * The `fallbacks` method is a shortcut for
