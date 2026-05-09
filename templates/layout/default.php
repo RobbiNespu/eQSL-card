@@ -7,6 +7,7 @@
 <title><?= $this->fetch('title') ?: 'eQSL Card' ?></title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="<?= $this->Url->build('/css/app.css') ?>">
+<?= $this->fetch('meta') ?>
 </head>
 <body class="bg-light">
 <nav class="navbar navbar-expand bg-white border-bottom">

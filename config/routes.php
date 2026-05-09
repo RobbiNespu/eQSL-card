@@ -161,6 +161,28 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
 
         /*
+         * M2-T14: Public share landing.
+         *
+         * `/qsl/{slug}` resolves a 43-char URL-safe base64 slug to a public
+         * share page. The slug pattern is strict (43 chars from the URL-safe
+         * base64 alphabet) — anything else 404s at the routing layer before
+         * touching the controller.
+         *
+         * `/qsl/{slug}/unlock` is the password-gate target M2-T15 will fully
+         * implement; the route + a stub controller action exist now so the
+         * `share()` redirect for password-protected cards has a valid
+         * destination today.
+         */
+        $builder->connect('/qsl/{slug}', ['controller' => 'Public', 'action' => 'share'])
+            ->setPass(['slug'])
+            ->setPatterns(['slug' => '[A-Za-z0-9_\-]{43}'])
+            ->setMethods(['GET']);
+        $builder->connect('/qsl/{slug}/unlock', ['controller' => 'Public', 'action' => 'unlock'])
+            ->setPass(['slug'])
+            ->setPatterns(['slug' => '[A-Za-z0-9_\-]{43}'])
+            ->setMethods(['GET', 'POST']);
+
+        /*
          * Connect catchall routes for all controllers.
          *
          * The `fallbacks` method is a shortcut for

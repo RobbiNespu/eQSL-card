@@ -20,7 +20,7 @@ class PublicController extends AppController
     {
         parent::initialize();
         $this->loadComponent('Authentication.Authentication');
-        $this->Authentication->allowUnauthenticated(['index', 'generate']);
+        $this->Authentication->allowUnauthenticated(['index', 'generate', 'share', 'unlock']);
     }
 
     /**
@@ -31,6 +31,87 @@ class PublicController extends AppController
     public function index(): void
     {
         $this->set('title', 'Generate an eQSL');
+    }
+
+    /**
+     * Public share landing (M2-T14).
+     *
+     * Anonymous-accessible page that resolves a 43-char share slug to a
+     * non-deleted card and renders the embedded card image + downloads.
+     *
+     * Three branches:
+     *  - 404 if the slug doesn't match any active (non-soft-deleted) card.
+     *  - 410 Gone if the share was revoked — search engines will deindex.
+     *  - Redirect to `/qsl/{slug}/unlock` if a password is set and the
+     *    visitor hasn't unlocked this slug in their session yet.
+     *
+     * Otherwise renders `share.php` with the QSO data, operator callsign,
+     * PNG/PDF download links, and OG meta tags.
+     *
+     * @param string $slug 43-char URL-safe base64 slug (constrained by route).
+     * @return mixed
+     */
+    public function share(string $slug)
+    {
+        $card = $this->fetchTable('Cards')->find('active')
+            ->where(['Cards.share_slug' => $slug])
+            ->contain(['Users'])
+            ->first();
+
+        if (!$card) {
+            throw new \Cake\Http\Exception\NotFoundException('Share not found.');
+        }
+
+        if ($card->share_revoked_at) {
+            $this->setResponse($this->getResponse()->withStatus(410));
+            $this->set([
+                'title' => 'Share revoked',
+                'qsoData' => null,
+                'card' => null,
+                'reason' => 'This share was revoked on ' . $card->share_revoked_at->format('Y-m-d') . '.',
+                'operatorCallsign' => null,
+            ]);
+            $this->render('share_gone');
+
+            return null;
+        }
+
+        if ($card->share_password_hash) {
+            // Per-slug session cookie unlocks — once unlocked, subsequent
+            // visits within the same session skip the gate.
+            $unlocked = $this->request->getSession()->read("share.unlocked.{$slug}", false);
+            if (!$unlocked) {
+                return $this->redirect('/qsl/' . $slug . '/unlock');
+            }
+        }
+
+        $qsoData = json_decode((string)$card->qso_data_json, true) ?: [];
+        $operatorCallsign = (string)($card->user->callsign ?? $qsoData['operator_callsign'] ?? '');
+
+        $this->set([
+            'title' => 'eQSL — ' . ($qsoData['callsign'] ?? '#' . $card->id) . ' confirmed by ' . $operatorCallsign,
+            'card' => $card,
+            'qsoData' => $qsoData,
+            'operatorCallsign' => $operatorCallsign,
+            'shareSlug' => $slug,
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Stub unlock action (M2-T14).
+     *
+     * The full action body is delivered by M2-T15. This stub exists so the
+     * `redirect('/qsl/{slug}/unlock')` issued by `share()` for password-
+     * protected cards has a route + controller method to land on. The route
+     * itself is connected in `config/routes.php`.
+     *
+     * @param string $slug 43-char URL-safe base64 slug (constrained by route).
+     * @return void
+     */
+    public function unlock(string $slug): void
+    {
     }
 
     /**
