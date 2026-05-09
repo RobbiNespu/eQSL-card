@@ -309,6 +309,23 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
         $builder->connect('/audit', ['controller' => 'Audit', 'action' => 'index'])
             ->setMethods(['GET']);
+
+        /*
+         * Cleanup tools (M4-T9/T10/T11). `index` renders a dry-run preview
+         * (counts + 5-row sample) of (a) guest cards older than `?days=` and
+         * (b) orphaned uploads not referenced by any card and older than the
+         * same cutoff. The two POST surfaces actually delete the rows + their
+         * on-disk files and log a `cleanup.*` audit event. Static-suffixed
+         * `/purge-guests` and `/prune-uploads` routes are declared with
+         * explicit method restrictions so a GET to either endpoint can never
+         * trigger a destructive action.
+         */
+        $builder->connect('/cleanup', ['controller' => 'Cleanup', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/cleanup/purge-guests', ['controller' => 'Cleanup', 'action' => 'purgeGuests'])
+            ->setMethods(['POST']);
+        $builder->connect('/cleanup/prune-uploads', ['controller' => 'Cleanup', 'action' => 'pruneUploads'])
+            ->setMethods(['POST']);
     });
 
     $routes->scope('/install', function (\Cake\Routing\RouteBuilder $builder): void {

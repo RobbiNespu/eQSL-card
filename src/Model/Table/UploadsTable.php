@@ -25,6 +25,11 @@ class UploadsTable extends Table
 
         $this->belongsTo('Users');
         $this->belongsTo('GuestVisits');
+        // M4-T10: orphan-uploads sweep walks `Uploads.notMatching('Cards', …)` to
+        // find rows referenced by no card. The reciprocal `Cards.belongsTo
+        // Uploads` association already exists (M2 schema); we add the inverse
+        // here so the cleanup query has the join target it needs.
+        $this->hasMany('Cards');
     }
 
     public function validationDefault(Validator $validator): Validator
