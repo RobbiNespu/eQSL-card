@@ -396,9 +396,11 @@ Replace the `<php>` block in `phpunit.xml.dist` with:
     <ini name="memory_limit" value="-1"/>
     <env name="FIXTURE_SCHEMA_METADATA" value="./tests/schema.php"/>
     <env name="DATABASE_TEST_URL" value="sqlite:///:memory:"/>
-    <env name="EMAIL_TRANSPORT_DEFAULT_URL" value="null:"/>
+    <env name="EMAIL_TRANSPORT_DEFAULT_URL" value="debug://localhost"/>
 </php>
 ```
+
+The `debug://` scheme maps to `Cake\Mailer\Transport\DebugTransport`, which silently swallows sent messages — the right behavior for tests. (`null:` is NOT a valid CakePHP 5 transport scheme and would throw `BadMethodCallException` the first time any test sends email.)
 
 This means tests run against an in-memory SQLite database — no MySQL container needed for unit/integration tests.
 
@@ -418,7 +420,7 @@ final class SmokeTest extends TestCase
 {
     public function testFrameworkBoots(): void
     {
-        $this->assertSame('8.1', substr(PHP_VERSION, 0, 3) === '8.1' ? '8.1' : substr(PHP_VERSION, 0, 3));
+        $this->assertSame('8.1', substr(PHP_VERSION, 0, 3), 'PHP runtime must be 8.1.x');
         $this->assertTrue(extension_loaded('gd'), 'GD must be available');
         $this->assertTrue(extension_loaded('pdo_sqlite'), 'pdo_sqlite must be available for tests');
     }
