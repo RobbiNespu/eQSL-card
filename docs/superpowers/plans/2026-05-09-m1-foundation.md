@@ -236,12 +236,16 @@ Expected log line: `Robbi Nespu <robbinespu@gmail.com>`. No co-author trailer in
 Run (the composer container brings its own PHP, then we move into our php container):
 ```bash
 docker run --rm -v "$PWD":/app -w /app composer:2 \
-  create-project --prefer-dist --no-install cakephp/app:^5.0 .skeleton-tmp
+  create-project --prefer-dist --no-install --no-scripts cakephp/app:5.2.* .skeleton-tmp
 rsync -a --exclude='.git' .skeleton-tmp/ ./
 rm -rf .skeleton-tmp
 ```
 
 Expected: `composer.json`, `bin/cake`, `src/Application.php`, `webroot/index.php`, etc. now exist at the repo root.
+
+**Why `5.2.*` not `^5.0`:** `cakephp/app:^5.0` floats to the latest 5.x, which is 5.3.x at time of writing — and 5.3 requires PHP 8.2. The spec (§3) mandates PHP 8.1 strict, so we pin to `5.2.*` (the highest 5.x line still on PHP 8.1).
+
+**Why `--no-scripts`:** the skeleton's post-install hook (`App\Console\Installer::postInstall`) tries to use `Cake\Utility\Security` to auto-generate a salt, but with `--no-install` the autoloader isn't ready yet, so the script crashes. We skip post-install here and seed the salt manually in Step 5.
 
 - [ ] **Step 2: Add the four extra Composer requirements**
 
@@ -309,7 +313,10 @@ return [
 
 - [ ] **Step 5: Adjust `config/app_local.php` for Docker dev**
 
-CakePHP's skeleton already creates a `config/app_local.php`. Replace its `Datasources.default` block with one that reads from the env vars set in `docker-compose.yml`:
+Because Step 1 used `--no-scripts`, the auto-salt step was skipped. The skeleton ships `config/app_local.example.php` (note: the skeleton spells it `example`, our installer template at `config/app_local.php.example` is a different file). Copy it to `config/app_local.php` and:
+
+1. Set the `Security.salt` to a 64-char dev value (any random string is fine — file is gitignored, prod salt is created fresh by the installer in Task 13).
+2. Replace the `Datasources.default` block with one that reads from the env vars set in `docker-compose.yml`:
 
 ```php
 'Datasources' => [
