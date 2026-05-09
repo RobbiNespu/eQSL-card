@@ -304,6 +304,219 @@ class QsosController extends AppController
     }
 
     /**
+     * Render-from-QSO flow (M2-T10).
+     *
+     * GET shows a template+background picker for the given QSO; POST renders a
+     * card from that QSO's data, persists it with `qso_id` set and the QSO
+     * snapshot stored in `qso_data_json`, and redirects to /cards/{newId}.
+     *
+     * Same render plumbing as `PublicController::generate` (T20): pre-decode
+     * pixel-count guard against image bombs, content-hash dedup of the
+     * post-optimize JPEG, single-shot CardRenderer + wrapPdf. Where this flow
+     * differs is template selection — instead of forcing the system template,
+     * the user picks from system/own/public-approved templates — and
+     * background source — they can re-use one of their previous uploads OR
+     * upload a fresh image.
+     *
+     * The `qso_data_json` snapshot is what the card will show forever; if the
+     * user later edits or deletes the underlying QSO the rendered card stays
+     * truthful to the moment it was generated.
+     *
+     * @param int $id QSO primary key.
+     * @return \Cake\Http\Response|null Redirect on POST, null on GET form render.
+     */
+    public function renderCard(int $id): ?\Cake\Http\Response
+    {
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $qsos = $this->fetchTable('Qsos');
+        $qso = $qsos->find()->where(['id' => $id, 'user_id' => $userId])->firstOrFail();
+
+        // Templates the user is allowed to pick from: system templates ship
+        // with the install, the user's own templates, and any public template
+        // an admin has approved. `is_system DESC` floats the bundled templates
+        // to the top of the picker.
+        $templates = $this->fetchTable('Templates')->find()
+            ->where(['OR' => [
+                ['Templates.is_system' => true],
+                ['Templates.user_id' => $userId],
+                ['AND' => ['Templates.is_public' => true, 'Templates.is_approved' => true]],
+            ]])
+            ->orderBy(['Templates.is_system' => 'DESC', 'Templates.created_at' => 'DESC']);
+
+        $existingUploads = $this->fetchTable('Uploads')->find()
+            ->where(['user_id' => $userId])
+            ->orderBy(['created_at' => 'DESC'])
+            ->limit(20);
+
+        if ($this->request->is('post')) {
+            $data = $this->request->getData();
+            $templateId = (int)($data['template_id'] ?? 0);
+            $template = $this->fetchTable('Templates')->get($templateId);
+
+            $uploadId = (int)($data['upload_id'] ?? 0);
+            if ($uploadId === 0) {
+                // Fresh upload path — same hardening as PublicController::generate
+                // (T20): refuse pixel bombs BEFORE GD has a chance to decode.
+                $tmpUpload = $this->resolveBackgroundUpload();
+
+                $bgInfo = @getimagesize($tmpUpload);
+                if ($bgInfo === false) {
+                    @unlink($tmpUpload);
+                    throw new \Cake\Http\Exception\BadRequestException('Background is not a valid image.');
+                }
+                if ($bgInfo[0] * $bgInfo[1] > 50_000_000) {
+                    @unlink($tmpUpload);
+                    throw new \Cake\Http\Exception\BadRequestException('Image dimensions exceed allowed limit.');
+                }
+
+                $optimizer = new \App\Service\ImageOptimizer(maxWidth: 2000, maxHeight: 1500, quality: 82);
+                $tmpDest = tempnam(sys_get_temp_dir(), 'eqsl_opt_');
+                $info = $optimizer->optimize($tmpUpload, $tmpDest);
+                @unlink($tmpUpload);
+
+                // Content-addressed dedup: the same picture uploaded twice
+                // collapses to one row + one file on disk.
+                $sha = $info['sha256_hash'];
+                $uploadsDir = WWW_ROOT . 'files/uploads/';
+                if (!is_dir($uploadsDir)) {
+                    mkdir($uploadsDir, 0o775, true);
+                }
+                $finalPath = $uploadsDir . $sha . '.jpg';
+                if (is_file($finalPath)) {
+                    @unlink($tmpDest);
+                } else {
+                    rename($tmpDest, $finalPath);
+                }
+
+                $uploads = $this->fetchTable('Uploads');
+                $upload = $uploads->find()->where(['sha256_hash' => $sha])->first();
+                if (!$upload) {
+                    $upload = $uploads->saveOrFail($uploads->newEntity([
+                        'user_id' => $userId,
+                        'original_filename' => 'qso-render.jpg',
+                        'storage_path' => 'files/uploads/' . $sha . '.jpg',
+                        'mime_type' => 'image/jpeg',
+                        'width_px' => $info['width_px'],
+                        'height_px' => $info['height_px'],
+                        'file_size_bytes' => $info['file_size_bytes'],
+                        'sha256_hash' => $sha,
+                    ]));
+                }
+            } else {
+                // Re-use one of the user's previous uploads. The `user_id`
+                // predicate is the authorization check — picking another
+                // user's upload id 404s before any disk access.
+                $upload = $this->fetchTable('Uploads')->find()
+                    ->where(['id' => $uploadId, 'user_id' => $userId])
+                    ->firstOrFail();
+                $finalPath = WWW_ROOT . $upload->storage_path;
+            }
+
+            $layout = json_decode((string)$template->layout_json, true) ?: [];
+            $qsoData = $this->qsoToRenderData($qso);
+
+            $renderer = new \App\Service\CardRenderer(WWW_ROOT . 'files/fonts/');
+            $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
+            $pngPath = WWW_ROOT . 'files/cards/' . $uuid . '.png';
+            $pdfPath = WWW_ROOT . 'files/cards/' . $uuid . '.pdf';
+            if (!is_dir(dirname($pngPath))) {
+                mkdir(dirname($pngPath), 0o775, true);
+            }
+            $renderer->renderPng(
+                ['canvas_width' => $template->canvas_width, 'canvas_height' => $template->canvas_height,
+                 'fields' => $layout['fields'] ?? []],
+                $finalPath, $qsoData, $pngPath
+            );
+            $renderer->wrapPdf($pngPath, $pdfPath, $template->canvas_width, $template->canvas_height);
+
+            $cards = $this->fetchTable('Cards');
+            $card = $cards->saveOrFail($cards->newEntity([
+                'user_id' => $userId,
+                'qso_id' => $qso->id,
+                'template_id' => $template->id,
+                'upload_id' => $upload->id,
+                // Snapshot the QSO at render time. Edits/deletes to the
+                // underlying QSO row must NEVER mutate a card that's already
+                // been issued (cards are historical artefacts).
+                'qso_data_json' => json_encode($qsoData, JSON_UNESCAPED_SLASHES),
+                'png_path' => 'files/cards/' . $uuid . '.png',
+                'pdf_path' => 'files/cards/' . $uuid . '.pdf',
+            ]));
+
+            $this->Flash->success('Card rendered.');
+
+            return $this->redirect('/cards/' . $card->id);
+        }
+
+        $this->set([
+            'qso' => $qso,
+            'templates' => $templates,
+            'existingUploads' => $existingUploads,
+            'title' => 'Render eQSL for ' . $qso->call_worked,
+        ]);
+        // Action is named `renderCard` (because `render` collides with the
+        // base controller's `render()`), but the URL segment is `/render` and
+        // the template lives at `templates/Qsos/render.php` — keep the user-
+        // facing surface consistent with the route by selecting the view
+        // explicitly.
+        $this->render('render');
+
+        return null;
+    }
+
+    /**
+     * Move the request's `background_upload` file to a tempdir scratch path.
+     *
+     * @return string Absolute path to the temp file caller must clean up.
+     * @throws \Cake\Http\Exception\BadRequestException When no usable upload was provided.
+     */
+    private function resolveBackgroundUpload(): string
+    {
+        $upload = $this->request->getUploadedFile('background_upload');
+        if ($upload && $upload->getError() === UPLOAD_ERR_OK) {
+            $tmp = tempnam(sys_get_temp_dir(), 'eqsl_');
+            $upload->moveTo($tmp);
+
+            return $tmp;
+        }
+        throw new \Cake\Http\Exception\BadRequestException('Pick an existing background or upload a new image.');
+    }
+
+    /**
+     * Project a Qso entity onto the placeholder shape consumed by CardRenderer.
+     *
+     * Mirrors the keys produced by `PublicController::buildQsoData` so the
+     * same templates render correctly for both guest and logged-in flows.
+     * `operator_callsign` is sourced from the authenticated identity (the
+     * "my callsign" template field), not from the QSO row.
+     *
+     * @param object $qso Loaded Qso entity (typed loosely so the doc can stay
+     *                    near the controller without a hard import).
+     * @return array<string,string>
+     */
+    private function qsoToRenderData(object $qso): array
+    {
+        $identity = $this->Authentication->getIdentity();
+        // Authentication identity wraps the underlying entity — `getOriginalData()`
+        // is the canonical way to reach back to the User entity for fields the
+        // identity interface itself doesn't expose.
+        $userEntity = method_exists($identity, 'getOriginalData') ? $identity->getOriginalData() : $identity;
+
+        return [
+            'callsign'           => (string)$qso->call_worked,
+            'operator_callsign'  => (string)($userEntity->callsign ?? ''),
+            'qso_datetime_utc'   => $qso->qso_datetime_utc?->format('Y-m-d H:i:s') ?? '',
+            'frequency_mhz'      => (string)($qso->frequency_mhz ?? ''),
+            'band'               => (string)($qso->band ?? ''),
+            'mode'               => (string)($qso->mode ?? ''),
+            'rst_sent'           => (string)($qso->rst_sent ?? ''),
+            'rst_received'       => (string)($qso->rst_received ?? ''),
+            'operator_name'      => (string)($qso->operator_name ?? ''),
+            'notes'              => (string)($qso->notes ?? ''),
+        ];
+    }
+
+    /**
      * Hard-delete a QSO owned by the current user.
      *
      * POST-only (enforced by `allowMethod`) so a stray GET cannot wipe a row.

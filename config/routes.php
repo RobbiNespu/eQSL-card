@@ -103,6 +103,14 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['POST']);
+        // M2-T10: render-from-QSO. Static segment `/render` MUST be declared
+        // BEFORE the parametrized `/qsos/{id}` route so it isn't shadowed.
+        // The controller action is named `renderCard` because `render` collides
+        // with `Cake\Controller\Controller::render()`.
+        $builder->connect('/qsos/{id}/render', ['controller' => 'Qsos', 'action' => 'renderCard'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['GET', 'POST']);
         $builder->connect('/qsos/{id}', ['controller' => 'Qsos', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
