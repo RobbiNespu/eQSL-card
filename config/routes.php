@@ -155,6 +155,14 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['POST']);
+        // M2-T16 revoke endpoint. Same ordering rule as `/share` and `/delete`:
+        // static-suffixed routes MUST come BEFORE the parametrized `/cards/{id}`
+        // so they aren't shadowed; the digit pattern guards against future
+        // static segments accidentally matching this slot.
+        $builder->connect('/cards/{id}/revoke', ['controller' => 'Cards', 'action' => 'revoke'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
         $builder->connect('/cards/{id}', ['controller' => 'Cards', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])

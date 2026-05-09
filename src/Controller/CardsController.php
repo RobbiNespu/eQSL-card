@@ -213,4 +213,62 @@ class CardsController extends AppController
 
         return $this->redirect('/cards/' . $card->id);
     }
+
+    /**
+     * Revoke a previously-minted share link (M2-T16).
+     *
+     * POST-only. Stamps `share_revoked_at` with the current timestamp; the
+     * `share_slug` itself is left intact so the public `/qsl/{slug}` route
+     * (M2-T14) continues to recognise the slug and respond with 410 Gone
+     * rather than 404 Not Found — preserving the "this link existed and was
+     * intentionally revoked" signal for anyone holding the URL.
+     *
+     * Idempotency / no-op surfaces:
+     *  - Card never had a slug → flash info, redirect (no row change).
+     *  - Card already has `share_revoked_at` → flash info, redirect (no
+     *    row change). Stamping a fresh timestamp on every re-POST would
+     *    rewrite history; the original revoke moment is the truthful one.
+     *
+     * Authorization mirrors `view`/`delete`/`share`: scope by `user_id` and
+     * `firstOrFail` so cross-user attempts surface as 404 instead of leaking
+     * row existence. Re-sharing post-revoke is handled by `share()` (which
+     * mints a brand-new slug), so this endpoint deliberately does NOT clear
+     * `share_revoked_at` — the only path back to a working public URL is to
+     * mint a new slug, never to silently un-revoke the old one.
+     *
+     * @param int $id Card id (route-bound).
+     * @return \Cake\Http\Response
+     */
+    public function revoke(int $id): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $cards = $this->fetchTable('Cards');
+        $card = $cards->find('active')
+            ->where(['Cards.id' => $id, 'Cards.user_id' => $userId])
+            ->firstOrFail();
+
+        if (empty($card->share_slug)) {
+            $this->Flash->info('This card was never shared.');
+
+            return $this->redirect('/cards/' . $card->id);
+        }
+
+        if ($card->share_revoked_at) {
+            $this->Flash->info('Share already revoked.');
+
+            return $this->redirect('/cards/' . $card->id);
+        }
+
+        // `set(..., ['guard' => false])` bypasses `_accessible` for the same
+        // reason as `share()` — this is a trusted controller-side write that
+        // should not depend on the entity's mass-assignment surface.
+        $card->set('share_revoked_at', \Cake\I18n\DateTime::now(), ['guard' => false]);
+        $cards->saveOrFail($card);
+
+        $this->Flash->success('Share link revoked.');
+
+        return $this->redirect('/cards/' . $card->id);
+    }
 }
