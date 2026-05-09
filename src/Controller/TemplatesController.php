@@ -305,6 +305,20 @@ class TemplatesController extends AppController
 
             // Notify admins
             $this->notifyAdminsOfPendingTemplate($entity);
+
+            // M4-T3: Audit the moderation request. This fires only on the
+            // false→true transition so a no-op edit (already public) doesn't
+            // spam the audit log. Audit failures must never break the save.
+            try {
+                (new \App\Service\AuditLogger())->log(
+                    event: 'template.public_requested',
+                    actorUserId: $userId,
+                    target: ['type' => 'Templates', 'id' => (int)$entity->id],
+                    metadata: ['name' => (string)$entity->name],
+                );
+            } catch (\Throwable $e) {
+                error_log('audit: ' . $e->getMessage());
+            }
         }
 
         return [];

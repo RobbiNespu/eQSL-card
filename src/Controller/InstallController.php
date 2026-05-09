@@ -69,9 +69,24 @@ class InstallController extends AppController
         if ($this->request->is('post')) {
             try {
                 $installer = new \App\Service\Installer();
-                $installer->createAdmin($this->request->getData());
+                $entity = $installer->createAdmin($this->request->getData());
                 $installer->seedDefaultTemplate(CONFIG . 'seeds/default_system_template.json');
                 $installer->lock(CONFIG . 'installed.lock');
+
+                // M4-T3: Audit the install completion. The freshly-created
+                // admin is the actor — this is the first row in the install's
+                // audit_logs table and anchors who provisioned the system.
+                // Audit failures must never break the install handoff.
+                try {
+                    (new \App\Service\AuditLogger())->log(
+                        event: 'installer.completed',
+                        actorUserId: isset($entity->id) ? (int)$entity->id : null,
+                        metadata: ['admin_email' => (string)($entity->email ?? '')],
+                    );
+                } catch (\Throwable $e) {
+                    error_log('audit: ' . $e->getMessage());
+                }
+
                 return $this->redirect('/install/complete');
             } catch (\Throwable $e) {
                 $this->Flash->error($e->getMessage());

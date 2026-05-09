@@ -413,7 +413,9 @@ class QsosController extends AppController
 
             // Hand off to the shared renderer helper (also used by the bulk
             // render endpoint M2-T11). Keeps the persistence + GD plumbing in
-            // one place so both surfaces produce identical card rows.
+            // one place so both surfaces produce identical card rows. Audit
+            // logging lives inside the helper so both interactive and bulk
+            // paths emit exactly one `card.generated` row per card.
             $cardId = $this->renderQsoCard($userId, (int)$qso->id, (int)$template->id, (int)$upload->id);
 
             $this->Flash->success('Card rendered.');
@@ -634,6 +636,21 @@ class QsosController extends AppController
             'png_path' => 'files/cards/' . $uuid . '.png',
             'pdf_path' => 'files/cards/' . $uuid . '.pdf',
         ]));
+
+        // M4-T3: Audit each card produced. Lives in the helper so both the
+        // interactive `renderCard` action and the bulk render endpoints
+        // emit exactly one `card.generated` row per card. Audit failures
+        // must never break the user-facing render flow.
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'card.generated',
+                actorUserId: $userId,
+                target: ['type' => 'Cards', 'id' => (int)$card->id],
+                metadata: ['source' => 'qso_render', 'qso_id' => (int)$qso->id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
 
         return $card->id;
     }

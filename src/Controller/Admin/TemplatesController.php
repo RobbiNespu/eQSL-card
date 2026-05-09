@@ -60,12 +60,19 @@ class TemplatesController extends AppController
         $tpl->set('is_approved', true, ['guard' => false]);
         $tpls->saveOrFail($tpl);
 
-        // Lightweight audit until M4 audit_logs lands
-        error_log(sprintf(
-            '[moderation] approved template id=%d by admin id=%d',
-            $tpl->id,
-            $this->Authentication->getIdentity()->getIdentifier()
-        ));
+        // M4-T3: replace the placeholder error_log() shim with a real
+        // audit_logs row. Audit failures must never break the moderation
+        // flow, so we wrap and swallow.
+        $adminId = $this->Authentication->getIdentity()->getIdentifier();
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'template.approved',
+                actorUserId: $adminId,
+                target: ['type' => 'Templates', 'id' => (int)$tpl->id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
 
         $this->Flash->success('Template approved.');
 
@@ -86,12 +93,20 @@ class TemplatesController extends AppController
         // is_approved stays false; submitter can re-edit and re-submit
         $tpls->saveOrFail($tpl);
 
-        error_log(sprintf(
-            '[moderation] rejected template id=%d by admin id=%d reason=%s',
-            $tpl->id,
-            $this->Authentication->getIdentity()->getIdentifier(),
-            $reason
-        ));
+        // M4-T3: persist the rejection as an audit row. The reason text
+        // (admin's free-form comment) goes into metadata so the audit
+        // viewer can surface it to future reviewers without a join.
+        $adminId = $this->Authentication->getIdentity()->getIdentifier();
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'template.rejected',
+                actorUserId: $adminId,
+                target: ['type' => 'Templates', 'id' => (int)$tpl->id],
+                metadata: ['reason' => $reason],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
 
         $this->Flash->success('Template rejected.' . ($reason !== '' ? " Reason: {$reason}" : ''));
 

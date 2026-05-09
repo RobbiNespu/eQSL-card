@@ -131,6 +131,19 @@ class CardsController extends AppController
         $card->deleted_at = \Cake\I18n\DateTime::now();
         $cards->saveOrFail($card);
 
+        // M4-T3: Audit the soft-delete. Failures must NOT abort the user's
+        // action — log to error_log and move on so audit infra issues never
+        // break a user-facing flow.
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'card.deleted',
+                actorUserId: $userId,
+                target: ['type' => 'Cards', 'id' => $card->id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
         $this->Flash->success('Card deleted.');
 
         return $this->redirect('/cards');
@@ -209,6 +222,19 @@ class CardsController extends AppController
         $card->set('share_revoked_at', null, ['guard' => false]);
         $cards->saveOrFail($card);
 
+        // M4-T3: Audit the share. Metadata records whether a password gate
+        // was set, but never the password (or hash) itself.
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'card.shared',
+                actorUserId: $userId,
+                target: ['type' => 'Cards', 'id' => $card->id],
+                metadata: ['has_password' => $passwordHash !== null],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
         $this->Flash->success('Card shared. Public link: /qsl/' . $slug);
 
         return $this->redirect('/cards/' . $card->id);
@@ -266,6 +292,17 @@ class CardsController extends AppController
         // should not depend on the entity's mass-assignment surface.
         $card->set('share_revoked_at', \Cake\I18n\DateTime::now(), ['guard' => false]);
         $cards->saveOrFail($card);
+
+        // M4-T3: Audit the revoke. The slug stays in the row but is now 410.
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'card.revoked',
+                actorUserId: $userId,
+                target: ['type' => 'Cards', 'id' => $card->id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
 
         $this->Flash->success('Share link revoked.');
 

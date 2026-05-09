@@ -282,6 +282,20 @@ class PublicController extends AppController
             'pdf_path' => 'files/cards/' . $uuid . '.pdf',
         ]));
 
+        // M4-T3: Audit guest card generation. Tracked by guest_visit_id since
+        // anonymous users have no user identity. Failures must never abort
+        // the user-facing render flow.
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'card.generated',
+                actorGuestVisitId: $visit->id,
+                target: ['type' => 'Cards', 'id' => $card->id],
+                metadata: ['source' => 'public_generate'],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
         $this->set(['cardId' => $card->id, 'pngUrl' => '/' . $card->png_path, 'pdfUrl' => '/' . $card->pdf_path]);
         $this->render('preview');
         return null;
