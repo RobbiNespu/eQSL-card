@@ -111,6 +111,16 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['GET', 'POST']);
+        // M2-T11: bulk render endpoints. Two POST surfaces — the first mints a
+        // session-scoped job token + renders chunk #1, subsequent calls supply
+        // the token to render the next chunk. Both routes are declared BEFORE
+        // the parametrized `/qsos/{id}` route so the static `bulk-render`
+        // segment cannot be matched as `view(id='bulk-render')`.
+        $builder->connect('/qsos/bulk-render', ['controller' => 'Qsos', 'action' => 'bulkRender'])
+            ->setMethods(['POST']);
+        $builder->connect('/qsos/bulk-render/{token}/next', ['controller' => 'Qsos', 'action' => 'bulkRenderNext'])
+            ->setPass(['token'])
+            ->setMethods(['POST']);
         $builder->connect('/qsos/{id}', ['controller' => 'Qsos', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])

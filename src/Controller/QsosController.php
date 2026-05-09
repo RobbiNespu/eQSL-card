@@ -409,43 +409,16 @@ class QsosController extends AppController
                 $upload = $this->fetchTable('Uploads')->find()
                     ->where(['id' => $uploadId, 'user_id' => $userId])
                     ->firstOrFail();
-                $finalPath = WWW_ROOT . $upload->storage_path;
             }
 
-            $layout = json_decode((string)$template->layout_json, true) ?: [];
-            $qsoData = $this->qsoToRenderData($qso);
-
-            $renderer = new \App\Service\CardRenderer(WWW_ROOT . 'files/fonts/');
-            $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
-            $pngPath = WWW_ROOT . 'files/cards/' . $uuid . '.png';
-            $pdfPath = WWW_ROOT . 'files/cards/' . $uuid . '.pdf';
-            if (!is_dir(dirname($pngPath))) {
-                mkdir(dirname($pngPath), 0o775, true);
-            }
-            $renderer->renderPng(
-                ['canvas_width' => $template->canvas_width, 'canvas_height' => $template->canvas_height,
-                 'fields' => $layout['fields'] ?? []],
-                $finalPath, $qsoData, $pngPath
-            );
-            $renderer->wrapPdf($pngPath, $pdfPath, $template->canvas_width, $template->canvas_height);
-
-            $cards = $this->fetchTable('Cards');
-            $card = $cards->saveOrFail($cards->newEntity([
-                'user_id' => $userId,
-                'qso_id' => $qso->id,
-                'template_id' => $template->id,
-                'upload_id' => $upload->id,
-                // Snapshot the QSO at render time. Edits/deletes to the
-                // underlying QSO row must NEVER mutate a card that's already
-                // been issued (cards are historical artefacts).
-                'qso_data_json' => json_encode($qsoData, JSON_UNESCAPED_SLASHES),
-                'png_path' => 'files/cards/' . $uuid . '.png',
-                'pdf_path' => 'files/cards/' . $uuid . '.pdf',
-            ]));
+            // Hand off to the shared renderer helper (also used by the bulk
+            // render endpoint M2-T11). Keeps the persistence + GD plumbing in
+            // one place so both surfaces produce identical card rows.
+            $cardId = $this->renderQsoCard($userId, (int)$qso->id, (int)$template->id, (int)$upload->id);
 
             $this->Flash->success('Card rendered.');
 
-            return $this->redirect('/cards/' . $card->id);
+            return $this->redirect('/cards/' . $cardId);
         }
 
         $this->set([
@@ -462,6 +435,207 @@ class QsosController extends AppController
         $this->render('render');
 
         return null;
+    }
+
+    /**
+     * Bulk-render entry point (M2-T11).
+     *
+     * Accepts a list of `qso_ids`, one `template_id`, and one `upload_id`,
+     * mints a session-scoped job token, kicks off the FIRST chunk (up to 5
+     * cards) synchronously, and returns a JSON `{job_token, done, total,
+     * finished, card_ids}` payload. The frontend is expected to poll the
+     * `bulkRenderNext` endpoint until `finished === true`.
+     *
+     * Why chunking at all: shared hosts cap individual PHP requests at ~30s,
+     * and rendering is GD-bound. Slicing the job into 5-card chunks keeps each
+     * HTTP call comfortably under the limit without depending on a worker
+     * queue we cannot deploy on shared hosting.
+     *
+     * Why the session as the job store: it's per-user (so cross-tenant theft
+     * is impossible), it's free (no extra table), and it auto-expires when
+     * the user logs out. The trade-off is that a logout mid-job orphans the
+     * job — acceptable for an interactive UI flow.
+     *
+     * @return mixed Null with JSON view configured; `setResponse` may shape a 4xx.
+     */
+    public function bulkRender(): mixed
+    {
+        $this->request->allowMethod('post');
+        // Session fixation hardening — fresh job, fresh session id.
+        $this->request->getSession()->renew();
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+
+        $data = $this->request->getData();
+        $qsoIds = array_map('intval', (array)($data['qso_ids'] ?? []));
+        $templateId = (int)($data['template_id'] ?? 0);
+        $uploadId = (int)($data['upload_id'] ?? 0);
+
+        if (empty($qsoIds) || $templateId === 0 || $uploadId === 0) {
+            $this->setResponse($this->getResponse()->withStatus(400));
+            $this->set(['error' => 'qso_ids, template_id, and upload_id are required.']);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['error']);
+
+            return null;
+        }
+
+        $token = bin2hex(random_bytes(16));
+        $this->request->getSession()->write("bulk_render.{$token}", [
+            'user_id' => $userId,
+            'qso_ids' => $qsoIds,
+            'template_id' => $templateId,
+            'upload_id' => $uploadId,
+            'cursor' => 0,
+            'card_ids' => [],
+        ]);
+
+        return $this->processBulkRenderChunk($token);
+    }
+
+    /**
+     * Render the next chunk of an in-flight bulk job (M2-T11).
+     *
+     * Idempotent on a per-cursor basis — the session record is the single
+     * source of truth for `cursor`, and the job is deleted from the session
+     * once `finished` flips, so a stale poll after completion 404s.
+     *
+     * @param string $token The opaque job token returned by `bulkRender()`.
+     * @return mixed Null with JSON view configured.
+     */
+    public function bulkRenderNext(string $token): mixed
+    {
+        $this->request->allowMethod('post');
+
+        return $this->processBulkRenderChunk($token);
+    }
+
+    /**
+     * Render up to 5 QSOs from the given job, advance the cursor, return JSON.
+     *
+     * Per-card failures are recorded as `null` in `card_ids` rather than
+     * aborting the whole job — a single bad QSO shouldn't poison the rest of
+     * the batch. Authorization is enforced by comparing the job's `user_id`
+     * to the current identity.
+     *
+     * @param string $token The job token to advance.
+     * @return mixed Null with JSON view configured.
+     */
+    private function processBulkRenderChunk(string $token): mixed
+    {
+        $session = $this->request->getSession();
+        $job = $session->read("bulk_render.{$token}");
+        if (!$job) {
+            $this->setResponse($this->getResponse()->withStatus(404));
+            $this->set(['error' => 'job not found']);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['error']);
+
+            return null;
+        }
+
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        if ($job['user_id'] !== $userId) {
+            // Defense in depth: session is per-user already, but a hostile
+            // session-share scenario should still bounce.
+            $this->setResponse($this->getResponse()->withStatus(403));
+            $this->set(['error' => 'forbidden']);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['error']);
+
+            return null;
+        }
+
+        $chunk = array_slice($job['qso_ids'], $job['cursor'], 5);
+        foreach ($chunk as $qsoId) {
+            try {
+                $cardId = $this->renderQsoCard($userId, (int)$qsoId, $job['template_id'], $job['upload_id']);
+                $job['card_ids'][] = $cardId;
+            } catch (\Throwable $e) {
+                // Mark this slot as failed and keep going; the UI can surface
+                // the null entries to the user without losing successful cards.
+                $job['card_ids'][] = null;
+            }
+        }
+        $job['cursor'] += count($chunk);
+        $finished = $job['cursor'] >= count($job['qso_ids']);
+
+        if ($finished) {
+            $session->delete("bulk_render.{$token}");
+        } else {
+            $session->write("bulk_render.{$token}", $job);
+        }
+
+        $this->set([
+            'job_token' => $token,
+            'done' => $job['cursor'],
+            'total' => count($job['qso_ids']),
+            'finished' => $finished,
+            'card_ids' => $job['card_ids'],
+        ]);
+        $this->viewBuilder()->setClassName('Json');
+        $this->viewBuilder()->setOption('serialize', ['job_token', 'done', 'total', 'finished', 'card_ids']);
+
+        return null;
+    }
+
+    /**
+     * Render a single QSO into a Card row + on-disk PNG/PDF.
+     *
+     * Shared between the interactive `renderCard` action (M2-T10) and the
+     * bulk render endpoints (M2-T11). All callers MUST have already verified
+     * the upload belongs to `$userId` (we re-check via the predicate here, so
+     * a foreign upload id 404s before any GD work runs).
+     *
+     * @param int $userId Authenticated user id.
+     * @param int $qsoId QSO primary key.
+     * @param int $templateId Template primary key (system, owned, or public-approved).
+     * @param int $uploadId Upload primary key (must belong to `$userId`).
+     * @return int The newly persisted Card primary key.
+     */
+    private function renderQsoCard(int $userId, int $qsoId, int $templateId, int $uploadId): int
+    {
+        $qsos = $this->fetchTable('Qsos');
+        $qso = $qsos->find()->where(['id' => $qsoId, 'user_id' => $userId])->firstOrFail();
+        $template = $this->fetchTable('Templates')->get($templateId);
+        $upload = $this->fetchTable('Uploads')->find()
+            ->where(['id' => $uploadId, 'user_id' => $userId])
+            ->firstOrFail();
+
+        $finalPath = WWW_ROOT . $upload->storage_path;
+        $layout = json_decode((string)$template->layout_json, true) ?: [];
+        $qsoData = $this->qsoToRenderData($qso);
+
+        $renderer = new \App\Service\CardRenderer(WWW_ROOT . 'files/fonts/');
+        $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $pngPath = WWW_ROOT . 'files/cards/' . $uuid . '.png';
+        $pdfPath = WWW_ROOT . 'files/cards/' . $uuid . '.pdf';
+        if (!is_dir(dirname($pngPath))) {
+            mkdir(dirname($pngPath), 0o775, true);
+        }
+        $renderer->renderPng(
+            ['canvas_width' => $template->canvas_width, 'canvas_height' => $template->canvas_height,
+             'fields' => $layout['fields'] ?? []],
+            $finalPath,
+            $qsoData,
+            $pngPath
+        );
+        $renderer->wrapPdf($pngPath, $pdfPath, $template->canvas_width, $template->canvas_height);
+
+        $cards = $this->fetchTable('Cards');
+        $card = $cards->saveOrFail($cards->newEntity([
+            'user_id' => $userId,
+            'qso_id' => $qso->id,
+            'template_id' => $template->id,
+            'upload_id' => $upload->id,
+            // Snapshot the QSO at render time. Edits/deletes to the
+            // underlying QSO row must NEVER mutate a card that's already
+            // been issued (cards are historical artefacts).
+            'qso_data_json' => json_encode($qsoData, JSON_UNESCAPED_SLASHES),
+            'png_path' => 'files/cards/' . $uuid . '.png',
+            'pdf_path' => 'files/cards/' . $uuid . '.pdf',
+        ]));
+
+        return $card->id;
     }
 
     /**
