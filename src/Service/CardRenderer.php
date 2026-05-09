@@ -54,6 +54,20 @@ final class CardRenderer
         ];
     }
 
+    public function wrapPdf(string $pngPath, string $destinationPath, int $widthPx, int $heightPx): void
+    {
+        // Convert pixels @ 300 DPI to mm: 1 inch = 25.4 mm; px / 300 * 25.4
+        $widthMm  = $widthPx  / 300 * 25.4;
+        $heightMm = $heightPx / 300 * 25.4;
+
+        $pdf = new \FPDF($widthMm > $heightMm ? 'L' : 'P', 'mm', [$widthMm, $heightMm]);
+        $pdf->SetMargins(0, 0, 0);
+        $pdf->SetAutoPageBreak(false);
+        $pdf->AddPage();
+        $pdf->Image($pngPath, 0, 0, $widthMm, $heightMm, 'PNG');
+        $pdf->Output('F', $destinationPath);
+    }
+
     private function drawField(\GdImage $canvas, array $field, array $qso): void
     {
         $text = $this->resolver->resolve((string)$field['placeholder'], $qso);

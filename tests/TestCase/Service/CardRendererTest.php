@@ -72,4 +72,24 @@ final class CardRendererTest extends TestCase
         (new CardRenderer(WWW_ROOT . 'files/fonts/'))
             ->renderPng($template, $bg, [], $this->tmp . '/card.png');
     }
+
+    public function testWrapsPngIntoPdf(): void
+    {
+        $bg = $this->tmp . '/bg.jpg';
+        $img = imagecreatetruecolor(1500, 1000);
+        imagejpeg($img, $bg);
+        imagedestroy($img);
+
+        $template = ['canvas_width' => 1500, 'canvas_height' => 1000, 'fields' => []];
+        $renderer = new CardRenderer(WWW_ROOT . 'files/fonts/');
+
+        $png = $this->tmp . '/card.png';
+        $pdf = $this->tmp . '/card.pdf';
+        $renderer->renderPng($template, $bg, [], $png);
+        $renderer->wrapPdf($png, $pdf, $template['canvas_width'], $template['canvas_height']);
+
+        $this->assertFileExists($pdf);
+        $bytes = file_get_contents($pdf);
+        $this->assertStringStartsWith('%PDF-', (string)$bytes);
+    }
 }
