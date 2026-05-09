@@ -18,9 +18,12 @@ namespace App\Test\TestCase;
 
 use App\Application;
 use App\Middleware\InstallationCheckMiddleware;
+use App\Middleware\RateLimitMiddleware;
 use Authentication\Middleware\AuthenticationMiddleware;
 use Cake\Core\Configure;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
+use Cake\Http\Middleware\BodyParserMiddleware;
+use Cake\Http\Middleware\CsrfProtectionMiddleware;
 use Cake\Http\MiddlewareQueue;
 use Cake\Routing\Middleware\AssetMiddleware;
 use Cake\Routing\Middleware\RoutingMiddleware;
@@ -87,5 +90,11 @@ class ApplicationTest extends TestCase
         $this->assertInstanceOf(RoutingMiddleware::class, $middleware->current());
         $middleware->seek(4);
         $this->assertInstanceOf(AuthenticationMiddleware::class, $middleware->current());
+        $middleware->seek(5);
+        $this->assertInstanceOf(BodyParserMiddleware::class, $middleware->current());
+        $middleware->seek(6);
+        $this->assertInstanceOf(CsrfProtectionMiddleware::class, $middleware->current());
+        $middleware->seek(7);
+        $this->assertInstanceOf(RateLimitMiddleware::class, $middleware->current());
     }
 }

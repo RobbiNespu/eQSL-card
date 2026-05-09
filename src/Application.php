@@ -106,7 +106,13 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             // https://book.cakephp.org/5/en/security/csrf.html#cross-site-request-forgery-csrf-middleware
             ->add(new CsrfProtectionMiddleware([
                 'httponly' => true,
-            ]));
+            ]))
+
+            // Rate limiting for sensitive endpoints (after CSRF so we don't
+            // burn budget on requests with bogus tokens).
+            ->add(new \App\Middleware\RateLimitMiddleware(
+                new \App\Service\RateLimiter(TMP . 'cache/rate_limits')
+            ));
 
         return $middlewareQueue;
     }
