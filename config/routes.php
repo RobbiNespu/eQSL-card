@@ -356,6 +356,16 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['POST']);
         $builder->connect('/cleanup/prune-uploads', ['controller' => 'Cleanup', 'action' => 'pruneUploads'])
             ->setMethods(['POST']);
+
+        /*
+         * App settings UI (M4-T17/T18). Single GET/POST surface — GET renders
+         * the form pre-populated from the AppSettings runtime loader, POST
+         * applies the fixed allow-list of keys and PRG-redirects back to the
+         * form. Access control lives in `Admin\SettingsController::beforeFilter()`
+         * (admin role required), matching the rest of the Admin prefix.
+         */
+        $builder->connect('/settings', ['controller' => 'Settings', 'action' => 'index'])
+            ->setMethods(['GET', 'POST']);
     });
 
     $routes->scope('/install', function (\Cake\Routing\RouteBuilder $builder): void {
