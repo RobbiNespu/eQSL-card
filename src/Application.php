@@ -74,6 +74,11 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             // and make an error page/response
             ->add(new ErrorHandlerMiddleware(Configure::read('Error'), $this))
 
+            // Default security headers (CSP, X-Frame-Options, etc.). Sits right
+            // after ErrorHandlerMiddleware so error responses are also hardened,
+            // and before AssetMiddleware so static assets pick up the headers.
+            ->add(new \App\Middleware\SecurityHeadersMiddleware())
+
             // Handle plugin/theme assets like CakePHP normally does.
             ->add(new AssetMiddleware([
                 'cacheTime' => Configure::read('Asset.cacheTime'),
