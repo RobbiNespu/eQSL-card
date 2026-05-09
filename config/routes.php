@@ -79,6 +79,23 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET', 'POST']);
 
         /*
+         * M4-T14: email verification endpoints.
+         *
+         * The static `/resend` route MUST be declared BEFORE the parametrized
+         * `/email/verify/{token}` route, otherwise CakePHP would greedily
+         * match `verify(token='resend')` against the literal `/resend` path.
+         * The token pattern is additionally constrained to the 43-char
+         * URL-safe base64 alphabet that `EmailVerificationService::issue()`
+         * always emits, so anything else 404s at the routing layer.
+         */
+        $builder->connect('/email/verify/resend', ['controller' => 'Auth', 'action' => 'resendVerification'])
+            ->setMethods(['POST']);
+        $builder->connect('/email/verify/{token}', ['controller' => 'Auth', 'action' => 'verify'])
+            ->setPass(['token'])
+            ->setPatterns(['token' => '[A-Za-z0-9_\-]{43}'])
+            ->setMethods(['GET']);
+
+        /*
          * Logbook routes (M2-T2/T3).
          * `index` is paginated list with search/filter; `view` shows a single
          * QSO; `add`/`edit`/`delete` are the manual CRUD surfaces.
