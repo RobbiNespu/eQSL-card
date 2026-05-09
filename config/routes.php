@@ -184,6 +184,12 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
         $builder->connect('/templates/new', ['controller' => 'Templates', 'action' => 'add'])
             ->setMethods(['GET', 'POST']);
+        // M3-T5: designer background uploader. Static segment MUST be declared
+        // BEFORE the parametrized `/templates/{id}` view route so it isn't
+        // matched as `view(id='upload-background')` — same ordering rule we
+        // use for /qsos and /cards static-suffixed routes.
+        $builder->connect('/templates/upload-background', ['controller' => 'Templates', 'action' => 'uploadBackground'])
+            ->setMethods(['POST']);
         $builder->connect('/templates/{id}/edit', ['controller' => 'Templates', 'action' => 'edit'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])

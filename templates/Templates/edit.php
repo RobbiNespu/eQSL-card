@@ -57,6 +57,12 @@
   </div>
 
   <div class="col-md-6">
+    <div class="mb-2">
+      <label class="form-label small">Preview background (optional)</label>
+      <input type="file" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp"
+             @change="uploadBackground($event.target.files[0])">
+      <p class="form-text small">Used only for visual reference while designing. The actual background is chosen at render time.</p>
+    </div>
     <canvas x-ref="canvas" width="900" height="600" style="border: 1px solid #ccc; background: #f8f9fa;"></canvas>
     <p class="text-muted small mt-2">Preview at fit-to-screen. Final render is at <span x-text="canvasWidth"></span> &times; <span x-text="canvasHeight"></span> px.</p>
   </div>

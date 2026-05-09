@@ -192,6 +192,63 @@ function designer(initial) {
             this.fabricCanvas?.requestRenderAll();
         },
 
+        // M3-T5 — designer preview background. The URL is preview-only:
+        // templates stay background-agnostic per spec §6.4, so we don't
+        // serialise `backgroundUrl` into `layout_json`. The upload itself
+        // does land in the user's `uploads` library and can be reused at
+        // render time.
+        backgroundUrl: null,
+
+        async uploadBackground(file) {
+            if (!file) return;
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const fd = new FormData();
+            fd.append('background_upload', file);
+            const r = await fetch('/templates/upload-background', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrf, 'Accept': 'application/json' },
+                body: fd,
+                credentials: 'same-origin',
+            });
+            if (!r.ok) {
+                const t = await r.text();
+                alert('Upload failed: ' + t);
+                return;
+            }
+            const data = await r.json();
+            this.backgroundUrl = data.url;
+            this.applyBackground();
+        },
+
+        applyBackground() {
+            if (!this.backgroundUrl || !this.fabricCanvas) return;
+            // Fabric v5 exposes `fabric.Image.fromURL(url, cb)`; the v6 UMD
+            // build we vendored returns a Promise. Tolerating both keeps the
+            // upgrade path open (same shape as initFabric's namespace probe).
+            const FabricNS = fabric.fabric || fabric;
+            const Image = FabricNS.Image || FabricNS.FabricImage;
+            const promise = Image.fromURL ? Image.fromURL(this.backgroundUrl) : null;
+            const set = (img) => {
+                // Scale background to fit the design space (canvasWidth ×
+                // canvasHeight). The viewport zoom applied in
+                // applyViewportScale() handles the on-screen shrink, so we
+                // do NOT compose pre-zoom and post-zoom scaling here.
+                img.scaleX = this.canvasWidth / img.width;
+                img.scaleY = this.canvasHeight / img.height;
+                if (this.fabricCanvas.setBackgroundImage) {
+                    this.fabricCanvas.setBackgroundImage(img, () => this.fabricCanvas.requestRenderAll());
+                } else if ('backgroundImage' in this.fabricCanvas) {
+                    this.fabricCanvas.backgroundImage = img;
+                    this.fabricCanvas.requestRenderAll();
+                }
+            };
+            if (promise && typeof promise.then === 'function') {
+                promise.then(set);
+            } else {
+                Image.fromURL(this.backgroundUrl, set);
+            }
+        },
+
         async save() {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const url = this.mode === 'new' ? '/templates/new' : `/templates/${this.templateId}/edit`;

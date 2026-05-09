@@ -192,6 +192,112 @@ class TemplatesController extends AppController
      * @param int $id Template id (route-bound).
      * @return void
      */
+    /**
+     * Designer preview-background uploader (M3-T5).
+     *
+     * Accepts a single image (`background_upload`), runs it through
+     * `ImageOptimizer` (re-encode strips EXIF + caps at 2000x1500), and
+     * persists a row in `uploads` owned by the current user — the same flow
+     * the guest form (M1) and render-from-QSO (M2-T10) use, just with a
+     * `user_id` stamp instead of `guest_visit_id`. Returns JSON with the
+     * persisted upload id + a `/files/uploads/...` URL the designer JS uses
+     * to set the Fabric canvas background image.
+     *
+     * Rationale: a designer-uploaded background lives in the user's regular
+     * upload library so it can be reused at render time without re-uploading.
+     * Templates themselves stay background-agnostic per spec §6.4 — the
+     * designer doesn't persist `backgroundUrl` on save.
+     *
+     * Hardening (matches PublicController::generate / QsosController::renderCard):
+     * 1. POST-only (route + allowMethod).
+     * 2. `getimagesize` on the raw upload before decode → reject non-images.
+     * 3. Pixel-count guard (>50M px) before optimizer touches GD — image-bomb defense.
+     * 4. Dedup by post-optimize sha256 so repeat uploads don't blow up disk.
+     *
+     * @return \Cake\Http\Response|null
+     */
+    public function uploadBackground()
+    {
+        $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+
+        $upload = $this->request->getUploadedFile('background_upload');
+        if (!$upload || $upload->getError() !== UPLOAD_ERR_OK) {
+            $this->setResponse($this->getResponse()->withStatus(400));
+            $this->set(['error' => 'background_upload required']);
+            $this->viewBuilder()->setClassName('Json')->setOption('serialize', ['error']);
+
+            return null;
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'eqsl_dbg_');
+        $upload->moveTo($tmp);
+
+        // T7 hardening: image-bomb defense — reject ridiculous pixel counts BEFORE decode.
+        $info = @getimagesize($tmp);
+        if ($info === false) {
+            @unlink($tmp);
+            $this->setResponse($this->getResponse()->withStatus(400));
+            $this->set(['error' => 'Not a valid image']);
+            $this->viewBuilder()->setClassName('Json')->setOption('serialize', ['error']);
+
+            return null;
+        }
+        if ($info[0] * $info[1] > 50_000_000) {
+            @unlink($tmp);
+            $this->setResponse($this->getResponse()->withStatus(400));
+            $this->set(['error' => 'Image too large']);
+            $this->viewBuilder()->setClassName('Json')->setOption('serialize', ['error']);
+
+            return null;
+        }
+
+        $optimizer = new \App\Service\ImageOptimizer(maxWidth: 2000, maxHeight: 1500, quality: 82);
+        $tmpDest = tempnam(sys_get_temp_dir(), 'eqsl_dbg_opt_');
+        $details = $optimizer->optimize($tmp, $tmpDest);
+        @unlink($tmp);
+
+        $sha = $details['sha256_hash'];
+        $uploadsDir = WWW_ROOT . 'files/uploads/';
+        if (!is_dir($uploadsDir)) {
+            mkdir($uploadsDir, 0o775, true);
+        }
+        $finalPath = $uploadsDir . $sha . '.jpg';
+        // Dedup by post-optimize hash: if the byte-identical file already
+        // lives on disk we drop the scratch copy and reuse the existing row.
+        if (is_file($finalPath)) {
+            @unlink($tmpDest);
+        } else {
+            rename($tmpDest, $finalPath);
+        }
+
+        $uploads = $this->fetchTable('Uploads');
+        $row = $uploads->find()->where(['sha256_hash' => $sha])->first();
+        if (!$row) {
+            $row = $uploads->saveOrFail($uploads->newEntity([
+                'user_id' => $userId,
+                'original_filename' => 'designer-bg.jpg',
+                'storage_path' => 'files/uploads/' . $sha . '.jpg',
+                'mime_type' => 'image/jpeg',
+                'width_px' => $details['width_px'],
+                'height_px' => $details['height_px'],
+                'file_size_bytes' => $details['file_size_bytes'],
+                'sha256_hash' => $sha,
+            ]));
+        }
+
+        $this->set([
+            'upload_id' => $row->id,
+            'storage_path' => $row->storage_path,
+            'url' => '/' . $row->storage_path,
+            'width_px' => $row->width_px,
+            'height_px' => $row->height_px,
+        ]);
+        $this->viewBuilder()->setClassName('Json')->setOption('serialize', ['upload_id', 'storage_path', 'url', 'width_px', 'height_px']);
+
+        return null;
+    }
+
     public function view(int $id): void
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();
