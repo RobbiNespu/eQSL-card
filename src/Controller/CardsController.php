@@ -49,4 +49,45 @@ class CardsController extends AppController
         $cards = $this->paginate($query, ['limit' => 20]);
         $this->set(['cards' => $cards, 'title' => 'My eQSL cards']);
     }
+
+    /**
+     * Single-card detail view (M2-T8).
+     *
+     * Scoped by `user_id` so a user cannot peek at another operator's card via
+     * a guessed id — the query simply 404s. We `contain` Templates and Uploads
+     * because the view surfaces template name and the original background-image
+     * filename. `qso_data_json` is decoded once here so the template stays free
+     * of decoding logic; if the column is malformed JSON we fall back to an
+     * empty array rather than 500ing.
+     *
+     * Share state is derived locally: an active share has a `share_slug` and
+     * no `share_revoked_at`. Once revoked, the slug stays in the row (so the
+     * public `/qsl/{slug}` route can return 410 Gone) but we no longer surface
+     * a "Public link" — instead we show a historic revoke notice.
+     *
+     * @param int $id Card id (route-bound).
+     * @return void
+     */
+    public function view(int $id): void
+    {
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $card = $this->fetchTable('Cards')->find()
+            ->where(['Cards.id' => $id, 'Cards.user_id' => $userId])
+            ->contain(['Templates', 'Uploads'])
+            ->firstOrFail();
+
+        $qsoData = json_decode((string)$card->qso_data_json, true) ?: [];
+
+        $shareUrl = null;
+        if ($card->share_slug && !$card->share_revoked_at) {
+            $shareUrl = '/qsl/' . $card->share_slug;
+        }
+
+        $this->set([
+            'card' => $card,
+            'qso' => $qsoData,
+            'shareUrl' => $shareUrl,
+            'title' => 'eQSL — ' . ($qsoData['callsign'] ?? '#' . $card->id),
+        ]);
+    }
 }
