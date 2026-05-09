@@ -50,6 +50,7 @@ webroot/files/templates/*
 !webroot/files/templates/.gitkeep
 !webroot/files/templates/_demo-bg.jpg
 !webroot/files/fonts/
+!webroot/files/fonts/*
 
 # PHP / Composer
 composer.phar
