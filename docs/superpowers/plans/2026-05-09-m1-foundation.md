@@ -462,6 +462,8 @@ All migrations follow the spec's data model (Section 6). Order matters because o
 
 - [ ] **Step 1: Write `20260509000001_CreateUsers.php`**
 
+The `role` column is an ENUM on MariaDB but SQLite (used by the test fixture) has no native ENUM type, so we branch on the adapter:
+
 ```php
 <?php
 declare(strict_types=1);
@@ -472,11 +474,16 @@ final class CreateUsers extends AbstractMigration
 {
     public function change(): void
     {
+        $isSqlite = $this->getAdapter()->getAdapterType() === 'sqlite';
+        $roleColumn = $isSqlite
+            ? ['type' => 'string', 'options' => ['limit' => 16]]
+            : ['type' => 'enum', 'options' => ['values' => ['admin', 'user']]];
+
         $this->table('users')
             ->addColumn('name', 'string', ['limit' => 120])
             ->addColumn('email', 'string', ['limit' => 190])
             ->addColumn('password_hash', 'string', ['limit' => 255])
-            ->addColumn('role', 'enum', ['values' => ['admin', 'user']])
+            ->addColumn('role', $roleColumn['type'], $roleColumn['options'])
             ->addColumn('callsign', 'string', ['limit' => 20])
             ->addColumn('qth', 'string', ['limit' => 120, 'null' => true])
             ->addColumn('grid_square', 'string', ['limit' => 10, 'null' => true])
@@ -492,6 +499,8 @@ final class CreateUsers extends AbstractMigration
     }
 }
 ```
+
+The `'admin'`/`'user'` invariant is enforced at the ORM layer in Task 5's `UsersTable::validationDefault()` either way, so SQLite's lack of native ENUM is harmless.
 
 - [ ] **Step 2: Write `20260509000002_CreateGuestVisits.php`**
 
