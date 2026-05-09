@@ -299,6 +299,16 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['POST']);
+
+        /*
+         * All-cards browser (M4-T7) and audit log viewer (M4-T8). Both are
+         * read-only GET surfaces gated by the admin role check in their
+         * respective controller `beforeFilter()`s.
+         */
+        $builder->connect('/cards', ['controller' => 'Cards', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/audit', ['controller' => 'Audit', 'action' => 'index'])
+            ->setMethods(['GET']);
     });
 
     $routes->scope('/install', function (\Cake\Routing\RouteBuilder $builder): void {
