@@ -206,6 +206,19 @@ return function (RouteBuilder $routes): void {
         $builder->fallbacks();
     });
 
+    /*
+     * Admin-only surfaces (M2-T18). The `prefix('Admin', …)` scope makes
+     * `/admin/upgrade` resolve to `App\Controller\Admin\UpgradeController`
+     * with templates at `templates/Admin/Upgrade/`. Access control lives in
+     * the controller's `beforeFilter()` (admin role required); anonymous
+     * users hit the Authentication middleware first and get redirected to
+     * `/login`.
+     */
+    $routes->prefix('Admin', function (\Cake\Routing\RouteBuilder $builder): void {
+        $builder->connect('/upgrade', ['controller' => 'Upgrade', 'action' => 'index'])
+            ->setMethods(['GET', 'POST']);
+    });
+
     $routes->scope('/install', function (\Cake\Routing\RouteBuilder $builder): void {
         $builder->connect('/', ['controller' => 'Install', 'action' => 'index'])->setMethods(['GET']);
         $builder->connect('/system-check', ['controller' => 'Install', 'action' => 'systemCheck'])->setMethods(['GET']);
