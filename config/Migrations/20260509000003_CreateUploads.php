@@ -3,6 +3,15 @@ declare(strict_types=1);
 
 use Migrations\AbstractMigration;
 
+/**
+ * Background images. The unique sha256_hash constraint deduplicates the
+ * physical file on disk: when two users upload the same image, only one
+ * `uploads` row exists, owned by the first uploader. Subsequent users'
+ * `cards` rows reference the same upload — `uploads.user_id` is "who
+ * first introduced this background to the system", NOT "who has rights
+ * to use it." On hard-delete of the first uploader, `user_id` becomes
+ * NULL but the row remains so other users' cards keep rendering.
+ */
 final class CreateUploads extends AbstractMigration
 {
     public function change(): void

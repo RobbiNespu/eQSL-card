@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 use Migrations\AbstractMigration;
-use Phinx\Db\Adapter\MysqlAdapter;
+use Migrations\Db\Adapter\MysqlAdapter;
 
 final class CreateTemplates extends AbstractMigration
 {
@@ -25,7 +25,7 @@ final class CreateTemplates extends AbstractMigration
             ->addIndex('user_id')
             ->addIndex(['is_public', 'is_approved'])
             ->addIndex('is_system')
-            ->addForeignKey('user_id', 'users', 'id', ['delete' => 'CASCADE', 'update' => 'CASCADE'])
+            ->addForeignKey('user_id', 'users', 'id', ['delete' => 'SET_NULL', 'update' => 'CASCADE'])
             ->create();
     }
 }

@@ -12,8 +12,8 @@ final class CreateUsers extends AbstractMigration
         // enforced at the ORM layer in T5. MariaDB still gets a real ENUM.
         $isSqlite = $this->getAdapter()->getAdapterType() === 'sqlite';
         $roleColumn = $isSqlite
-            ? ['type' => 'string', 'options' => ['limit' => 16]]
-            : ['type' => 'enum', 'options' => ['values' => ['admin', 'user']]];
+            ? ['type' => 'string', 'options' => ['limit' => 16, 'default' => 'user']]
+            : ['type' => 'enum', 'options' => ['values' => ['admin', 'user'], 'default' => 'user']];
 
         $this->table('users')
             ->addColumn('name', 'string', ['limit' => 120])
