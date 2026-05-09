@@ -110,8 +110,10 @@ services:
       - DATABASE_URL=mysql://eqsl:eqsl@db:3306/eqsl?encoding=utf8mb4
       - EMAIL_TRANSPORT_DEFAULT_URL=smtp://mailhog:1025
     depends_on:
-      - db
-      - mailhog
+      db:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
 
   nginx:
     image: nginx:1.27-alpine
@@ -133,16 +135,27 @@ services:
     volumes:
       - dbdata:/var/lib/mysql
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   mailhog:
-    image: mailhog/mailhog:latest
+    image: mailhog/mailhog:v1.0.1
     ports:
       - "8025:8025"
 
 volumes:
   dbdata: {}
 ```
+
+Three deliberate divergences from a naive first draft, all driven by code-review feedback during T1 execution:
+- `mailhog` pinned to `v1.0.1` (avoid `:latest` drift on a stale image).
+- `db` exposes `127.0.0.1:3306:3306` (loopback-only — don't expose dev DB to LAN).
+- `db` has a healthcheck and `php` waits on `condition: service_healthy` (`depends_on` alone doesn't wait for MySQL readiness; without this, migrations after `docker compose up` flake).
 
 - [ ] **Step 5: Write `.dockerignore`**
 
