@@ -169,6 +169,31 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
 
         /*
+         * Template designer routes (M3-T2 scaffold).
+         *
+         * `/templates/new` and `/templates/{id}/edit` both render the shared
+         * designer view (`templates/Templates/edit.php`); the controller
+         * passes a `mode` flag so the Alpine factory knows whether to POST
+         * to add or edit (real save lands in M3-T4). Static segments are
+         * declared BEFORE the parametrized `/templates/{id}` view route
+         * (matching the qsos/cards ordering rule), and `id` is constrained
+         * to digits so a future `/templates/gallery` (or similar) added
+         * later still routes cleanly.
+         */
+        $builder->connect('/templates', ['controller' => 'Templates', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/templates/new', ['controller' => 'Templates', 'action' => 'add'])
+            ->setMethods(['GET', 'POST']);
+        $builder->connect('/templates/{id}/edit', ['controller' => 'Templates', 'action' => 'edit'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['GET', 'POST']);
+        $builder->connect('/templates/{id}', ['controller' => 'Templates', 'action' => 'view'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['GET']);
+
+        /*
          * M2-T14: Public share landing.
          *
          * `/qsl/{slug}` resolves a 43-char URL-safe base64 slug to a public
