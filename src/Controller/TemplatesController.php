@@ -178,6 +178,27 @@ class TemplatesController extends AppController
             return ['Database save failed: ' . json_encode($entity->getErrors())];
         }
 
+        // Render thumbnail (best-effort; failure does not fail the save)
+        try {
+            $renderer = new \App\Service\CardRenderer(WWW_ROOT . 'files/fonts/');
+            $thumb = new \App\Service\TemplateThumbnailRenderer(
+                $renderer,
+                WWW_ROOT . 'files/templates/',
+                WWW_ROOT . 'files/templates/_demo-bg.jpg'
+            );
+            $template = [
+                'canvas_width' => $entity->canvas_width,
+                'canvas_height' => $entity->canvas_height,
+                'fields' => json_decode((string)$entity->layout_json, true)['fields'] ?? [],
+            ];
+            $relPath = $thumb->render($entity->id, $template);
+            $entity->set('thumbnail_path', $relPath, ['guard' => false]);
+            $templates->save($entity);
+        } catch (\Throwable $e) {
+            // Log but don't fail the save
+            error_log('[TemplateThumbnailRenderer] ' . $e->getMessage());
+        }
+
         return [];
     }
 
