@@ -78,21 +78,38 @@ class AuthController extends AppController
     }
 
     /**
-     * Login action stub (T16).
+     * Login.
      *
-     * @return void
+     * On a successful authentication result, redirect to `?redirect=` if
+     * present, otherwise `/`. On a POST that did not authenticate, flash
+     * "Invalid email or password" and re-render the form. GET simply
+     * renders the form.
+     *
+     * @return \Cake\Http\Response|null
      */
-    public function login(): void
+    public function login()
     {
+        $result = $this->Authentication->getResult();
+        if ($result?->isValid()) {
+            return $this->redirect($this->request->getQuery('redirect') ?? '/');
+        }
+        if ($this->request->is('post') && (!$result || !$result->isValid())) {
+            $this->Flash->error('Invalid email or password');
+        }
+
+        return null;
     }
 
     /**
-     * Logout action stub (T16).
+     * Logout. Clears the session via Authentication and redirects to /login.
      *
-     * @return void
+     * @return \Cake\Http\Response|null
      */
-    public function logout(): void
+    public function logout()
     {
+        $this->Authentication->logout();
+
+        return $this->redirect('/login');
     }
 
     /**

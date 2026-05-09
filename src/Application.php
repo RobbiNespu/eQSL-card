@@ -136,16 +136,29 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             'queryParam' => 'redirect',
         ]);
 
-        $fields = [
+        // Form authenticator: which POST field carries the username/password.
+        $formFields = [
+            'username' => 'email',
+            'password' => 'password',
+        ];
+        // Password identifier: which DB column matches the username, and
+        // which DB column holds the hash.
+        $identifierFields = [
             'username' => 'email',
             'password' => 'password_hash',
         ];
 
-        $service->loadIdentifier('Authentication.Password', compact('fields'));
+        // Authentication 3.3+ wants identifier config passed directly to the
+        // authenticator that needs it; the old loadIdentifier() pathway is
+        // deprecated. Session reads the already-stored identity from the
+        // session and needs no identifier of its own.
         $service->loadAuthenticator('Authentication.Session');
         $service->loadAuthenticator('Authentication.Form', [
-            'fields' => $fields,
+            'fields' => $formFields,
             'loginUrl' => '/login',
+            'identifier' => [
+                'Authentication.Password' => ['fields' => $identifierFields],
+            ],
         ]);
 
         return $service;
