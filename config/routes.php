@@ -253,6 +253,13 @@ return function (RouteBuilder $routes): void {
      * `/login`.
      */
     $routes->prefix('Admin', function (\Cake\Routing\RouteBuilder $builder): void {
+        // M4-T5: dashboard root. Admin landing page with counts, storage
+        // usage, and the most recent audit-log rows. Declared first so
+        // `/admin` resolves cleanly regardless of which Admin/* surfaces
+        // get added later.
+        $builder->connect('/', ['controller' => 'Dashboard', 'action' => 'index'])
+            ->setMethods(['GET']);
+
         $builder->connect('/upgrade', ['controller' => 'Upgrade', 'action' => 'index'])
             ->setMethods(['GET', 'POST']);
 
