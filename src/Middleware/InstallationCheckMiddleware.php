@@ -21,7 +21,7 @@ final class InstallationCheckMiddleware implements MiddlewareInterface
         if (file_exists($this->lockFilePath)) {
             return $handler->handle($request);
         }
-        if (str_starts_with($path, '/install') || $path === '/health') {
+        if ($path === '/install' || str_starts_with($path, '/install/') || $path === '/health') {
             return $handler->handle($request);
         }
         return (new Response())->withStatus(302)->withHeader('Location', '/install');

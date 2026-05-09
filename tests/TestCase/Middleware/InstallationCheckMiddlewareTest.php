@@ -46,6 +46,17 @@ final class InstallationCheckMiddlewareTest extends TestCase
         $this->assertSame(200, $resp->getStatusCode());
     }
 
+    public function testRedirectsInstallPrefixLookalike(): void
+    {
+        $mw = new InstallationCheckMiddleware($this->lockFile);
+        $req = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/install-evil']);
+        $handler = $this->makeHandler();
+
+        $resp = $mw->process($req, $handler);
+        $this->assertSame(302, $resp->getStatusCode());
+        $this->assertSame('/install', $resp->getHeaderLine('Location'));
+    }
+
     public function testPassesThroughWhenLockExists(): void
     {
         touch($this->lockFile);
