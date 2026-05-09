@@ -31,6 +31,7 @@
   <?= $this->fetch('content') ?>
 </main>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="<?= $this->Url->build('/js/app.js') ?>" defer></script>
 <?= $this->fetch('script') ?>
 </body>

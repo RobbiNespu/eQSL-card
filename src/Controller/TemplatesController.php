@@ -34,17 +34,49 @@ class TemplatesController extends AppController
     }
 
     /**
-     * Stub for M3-T7 (gallery: My / Public / System tabs).
+     * Template gallery (M3-T7) — three tabs: Mine / Public / System.
      *
-     * Today this just renders a placeholder; M3-T7 wires the three-tab grid
-     * with thumbnail rendering. Keeping the action present (and the route
-     * already connected) means the gallery task is purely view + query work.
+     * `mine` lists every template owned by the current user (any visibility
+     * state) so they can keep editing in-progress drafts. `public` lists
+     * curated public templates (`is_public AND is_approved`) authored by
+     * other users — capped at 60 to keep the page light until pagination
+     * lands. `system` lists the seeded system templates available to all
+     * users for cloning. Sorted newest-first so freshly-saved work surfaces
+     * at the top of `mine` without scrolling.
      *
      * @return void
      */
     public function index(): void
     {
-        $this->set('title', 'Templates');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $templates = $this->fetchTable('Templates');
+
+        $mine = $templates->find()
+            ->where(['Templates.user_id' => $userId])
+            ->orderBy(['Templates.created_at' => 'DESC'])
+            ->all();
+
+        $public = $templates->find()
+            ->where([
+                'Templates.is_public' => true,
+                'Templates.is_approved' => true,
+                'Templates.user_id IS NOT' => $userId,
+            ])
+            ->orderBy(['Templates.created_at' => 'DESC'])
+            ->limit(60)
+            ->all();
+
+        $system = $templates->find()
+            ->where(['Templates.is_system' => true])
+            ->orderBy(['Templates.created_at' => 'DESC'])
+            ->all();
+
+        $this->set([
+            'mine' => $mine,
+            'public' => $public,
+            'system' => $system,
+            'title' => 'Templates',
+        ]);
     }
 
     /**
