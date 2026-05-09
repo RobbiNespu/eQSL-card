@@ -476,8 +476,8 @@ final class CreateUsers extends AbstractMigration
     {
         $isSqlite = $this->getAdapter()->getAdapterType() === 'sqlite';
         $roleColumn = $isSqlite
-            ? ['type' => 'string', 'options' => ['limit' => 16]]
-            : ['type' => 'enum', 'options' => ['values' => ['admin', 'user']]];
+            ? ['type' => 'string', 'options' => ['limit' => 16, 'default' => 'user']]
+            : ['type' => 'enum', 'options' => ['values' => ['admin', 'user'], 'default' => 'user']];
 
         $this->table('users')
             ->addColumn('name', 'string', ['limit' => 120])
@@ -535,6 +535,15 @@ declare(strict_types=1);
 
 use Migrations\AbstractMigration;
 
+/**
+ * Background images. The unique sha256_hash constraint deduplicates the
+ * physical file on disk: when two users upload the same image, only one
+ * `uploads` row exists, owned by the first uploader. Subsequent users'
+ * `cards` rows reference the same upload — `uploads.user_id` is "who
+ * first introduced this background to the system", NOT "who has rights
+ * to use it." On hard-delete of the first uploader, `user_id` becomes
+ * NULL but the row remains so other users' cards keep rendering.
+ */
 final class CreateUploads extends AbstractMigration
 {
     public function change(): void
@@ -590,13 +599,15 @@ final class CreateTemplates extends AbstractMigration
             ->addIndex('user_id')
             ->addIndex(['is_public', 'is_approved'])
             ->addIndex('is_system')
-            ->addForeignKey('user_id', 'users', 'id', ['delete' => 'CASCADE', 'update' => 'CASCADE'])
+            ->addForeignKey('user_id', 'users', 'id', ['delete' => 'SET_NULL', 'update' => 'CASCADE'])
             ->create();
     }
 }
 ```
 
-Add `use Phinx\Db\Adapter\MysqlAdapter;` at the top of the file.
+Add `use Migrations\Db\Adapter\MysqlAdapter;` at the top of the file. (Use the `Migrations\` namespace, not `Phinx\` — `cakephp/migrations` ships its own adapter; coupling to the direct dependency rather than a transitive one keeps us safe across major version bumps.)
+
+`templates.user_id` deletes as `SET_NULL` (matching spec §6.4 "NULL = system template"). A `CASCADE` here would deadlock with `cards.template_id` `RESTRICT` whenever an admin hard-deletes a user who owns a template that has at least one card. (Use the `Migrations\` namespace, not `Phinx\` — `cakephp/migrations` ships its own adapter; coupling to the direct dependency rather than a transitive one keeps us safe across major version bumps.)
 
 - [ ] **Step 5: Write `20260509000005_CreateCards.php`**
 
