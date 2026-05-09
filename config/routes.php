@@ -281,6 +281,24 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['POST']);
+
+        /*
+         * Users CRUD (M4-T6). List with `?q=` search, edit role, soft-delete.
+         * Static-suffixed `/edit` and `/delete` routes use the same digit-only
+         * id pattern as the rest of the codebase so a future static segment
+         * (e.g. `/users/import`) can be slotted in BEFORE these without
+         * accidentally being shadowed by `view(id='import')`-style matches.
+         */
+        $builder->connect('/users', ['controller' => 'Users', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/users/{id}/edit', ['controller' => 'Users', 'action' => 'edit'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
+        $builder->connect('/users/{id}/delete', ['controller' => 'Users', 'action' => 'delete'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
     });
 
     $routes->scope('/install', function (\Cake\Routing\RouteBuilder $builder): void {
