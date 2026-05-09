@@ -194,6 +194,116 @@ class QsosController extends AppController
     }
 
     /**
+     * Two-stage ADIF/CSV import flow (M2-T6).
+     *
+     * Stage 1 (GET, or POST without file): render the upload form.
+     * Stage 2 (POST with file `adif_csv`): parse the upload, run a light-weight
+     *   pre-flight duplicate scan, stash the parsed records under a per-request
+     *   token in the session, and render a summary view that lets the user
+     *   confirm or bail out.
+     * Stage 3 (POST with `confirm_token`): pull the stashed records back out
+     *   of the session and batch-insert them inside a single transaction. The
+     *   `qsos.qsos_dedup_idx` unique index (enforced via the table's
+     *   `isUnique` rule, M2-T1) means duplicates fail to save and we count
+     *   them as `skipped`. Save failures from validation also fall into
+     *   `skipped` so the user sees a single count instead of an opaque crash.
+     *
+     * `user_id` is set explicitly from the authenticated identity AFTER
+     * `newEntity`, so a hostile payload that ships `user_id` is silently
+     * dropped (also locked in `_accessible`).
+     *
+     * @return \Cake\Http\Response|null Redirect on confirm/expiry; null while
+     *   rendering upload or summary.
+     */
+    public function import(): ?\Cake\Http\Response
+    {
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $qsos = $this->fetchTable('Qsos');
+
+        // Stage 3: confirm and batch-insert.
+        if ($this->request->is('post') && $this->request->getData('confirm_token')) {
+            $token = (string)$this->request->getData('confirm_token');
+            $records = (array)$this->request->getSession()->read("import.{$token}");
+            if (empty($records)) {
+                $this->Flash->error('Import session expired. Please re-upload.');
+
+                return $this->redirect('/qsos/import');
+            }
+            $inserted = 0;
+            $skipped = 0;
+            $qsos->getConnection()->transactional(function () use ($qsos, $records, $userId, &$inserted, &$skipped): void {
+                foreach ($records as $rec) {
+                    $entity = $qsos->newEntity($rec);
+                    $entity->user_id = $userId;
+                    if ($qsos->save($entity)) {
+                        $inserted++;
+                    } else {
+                        // Duplicate (qsos_dedup_idx) or validation failure.
+                        $skipped++;
+                    }
+                }
+            });
+            $this->request->getSession()->delete("import.{$token}");
+            $this->Flash->success("Imported {$inserted} QSOs ({$skipped} skipped as duplicates or invalid).");
+
+            return $this->redirect('/qsos');
+        }
+
+        // Stage 2: parse uploaded file and show summary.
+        if ($this->request->is('post')) {
+            $upload = $this->request->getUploadedFile('adif_csv');
+            if (!$upload || $upload->getError() !== UPLOAD_ERR_OK) {
+                $this->Flash->error('Please choose an ADIF (.adi) or CSV (.csv) file.');
+                $this->set('stage', 'upload');
+
+                return null;
+            }
+            $content = (string)$upload->getStream()->getContents();
+            $name = strtolower((string)$upload->getClientFilename());
+
+            $isAdif = str_ends_with($name, '.adi') || str_ends_with($name, '.adif');
+            $parser = $isAdif ? new \App\Service\AdifParser() : new \App\Service\CsvParser();
+            $result = $parser->parse($content);
+
+            // Pre-flight duplicate count. Full conflict detection happens at
+            // insert time (the unique index is the source of truth); this is
+            // just to give the user a heads-up in the summary.
+            $duplicateCount = 0;
+            foreach ($result['records'] as $rec) {
+                $exists = $qsos->find()->where([
+                    'user_id' => $userId,
+                    'call_worked' => strtoupper(trim((string)$rec['call_worked'])),
+                    'qso_datetime_utc' => $rec['qso_datetime_utc'],
+                    'band IS' => $rec['band'] ?? null,
+                ])->count();
+                if ($exists > 0) {
+                    $duplicateCount++;
+                }
+            }
+
+            $token = bin2hex(random_bytes(8));
+            $this->request->getSession()->write("import.{$token}", $result['records']);
+
+            $this->set([
+                'stage' => 'summary',
+                'valid' => count($result['records']),
+                'invalid' => $result['invalid'],
+                'duplicates' => $duplicateCount,
+                'errors' => $result['errors'],
+                'token' => $token,
+                'sample' => array_slice($result['records'], 0, 5),
+            ]);
+
+            return null;
+        }
+
+        // Stage 1: upload form.
+        $this->set('stage', 'upload');
+
+        return null;
+    }
+
+    /**
      * Hard-delete a QSO owned by the current user.
      *
      * POST-only (enforced by `allowMethod`) so a stray GET cannot wipe a row.

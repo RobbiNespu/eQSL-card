@@ -93,6 +93,8 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
         $builder->connect('/qsos/new', ['controller' => 'Qsos', 'action' => 'add'])
             ->setMethods(['GET', 'POST']);
+        $builder->connect('/qsos/import', ['controller' => 'Qsos', 'action' => 'import'])
+            ->setMethods(['GET', 'POST']);
         $builder->connect('/qsos/{id}/edit', ['controller' => 'Qsos', 'action' => 'edit'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
