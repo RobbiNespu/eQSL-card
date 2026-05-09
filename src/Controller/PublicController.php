@@ -100,18 +100,53 @@ class PublicController extends AppController
     }
 
     /**
-     * Stub unlock action (M2-T14).
+     * Public share password gate (M2-T15).
      *
-     * The full action body is delivered by M2-T15. This stub exists so the
-     * `redirect('/qsl/{slug}/unlock')` issued by `share()` for password-
-     * protected cards has a route + controller method to land on. The route
-     * itself is connected in `config/routes.php`.
+     * GET renders the password form. POST verifies the supplied password
+     * against the card's Argon2id `share_password_hash`; on a match we
+     * write a per-slug session flag (`share.unlocked.{slug}`) so the
+     * subsequent redirect into `share()` skips the gate, and bounce the
+     * visitor back to `/qsl/{slug}`. Wrong passwords flash an error and
+     * re-render the form.
+     *
+     * Edge cases:
+     *  - Unknown slug → 404 (consistent with `share()`).
+     *  - Revoked share or no password set → redirect to `/qsl/{slug}` so
+     *    the share action surfaces the right state (410 Gone or open
+     *    landing page) instead of duplicating that logic here.
      *
      * @param string $slug 43-char URL-safe base64 slug (constrained by route).
-     * @return void
+     * @return mixed
      */
-    public function unlock(string $slug): void
+    public function unlock(string $slug)
     {
+        $card = $this->fetchTable('Cards')->find('active')
+            ->where(['Cards.share_slug' => $slug])
+            ->first();
+
+        if (!$card) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+        if ($card->share_revoked_at || !$card->share_password_hash) {
+            // No password protection — redirect to share page (which handles gone/no-pw)
+            return $this->redirect('/qsl/' . $slug);
+        }
+
+        if ($this->request->is('post')) {
+            $password = (string)$this->request->getData('password', '');
+            $hasher = new \Authentication\PasswordHasher\DefaultPasswordHasher(['hashType' => PASSWORD_ARGON2ID]);
+            if ($hasher->check($password, $card->share_password_hash)) {
+                $this->request->getSession()->write("share.unlocked.{$slug}", true);
+                return $this->redirect('/qsl/' . $slug);
+            }
+            $this->Flash->error('Incorrect password.');
+        }
+
+        $this->set([
+            'title' => 'Password required',
+            'slug' => $slug,
+        ]);
+        return null;
     }
 
     /**
