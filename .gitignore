@@ -39,6 +39,7 @@ tmp/tests/*
 tmp/logs/*
 logs/*
 !logs/.gitkeep
+!logs/.htaccess
 tmp/debug_kit.sqlite
 tmp/installed.lock
 
@@ -47,8 +48,11 @@ webroot/files/uploads/*
 webroot/files/cards/*
 webroot/files/templates/*
 !webroot/files/uploads/.gitkeep
+!webroot/files/uploads/.htaccess
 !webroot/files/cards/.gitkeep
+!webroot/files/cards/.htaccess
 !webroot/files/templates/.gitkeep
+!webroot/files/templates/.htaccess
 !webroot/files/templates/_demo-bg.jpg
 !webroot/files/fonts/
 !webroot/files/fonts/*
