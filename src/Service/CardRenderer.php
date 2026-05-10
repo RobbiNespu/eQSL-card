@@ -133,9 +133,9 @@ final class CardRenderer
 
     /**
      * Paint a thin translucent band at the bottom and write the credit
-     * lines left-aligned in JetBrainsMono — small, terminal-styled. Font
-     * size scales with canvas height so 1500x1000 cards and 800x600
-     * thumbnails both look right.
+     * lines centered in JetBrainsMono — small, terminal-styled. Font size
+     * scales with canvas height so 1500x1000 cards and 800x600 thumbnails
+     * both look right.
      */
     private function drawCreditFooter(\GdImage $canvas, int $width, int $height): void
     {
@@ -159,16 +159,15 @@ final class CardRenderer
             $this->creditFooterLines
         );
 
-        // Smaller geek-mode sizing: ~1.1% of canvas height per line,
-        // tighter line-height, 6px top/bottom padding, 12px left gutter.
+        // Geek-mode sizing: ~1.1% of canvas height per line, tighter
+        // line-height, 6px top/bottom padding.
         $fontSize = max(9.0, $height * 0.011);
         $lineHeight = (int)round($fontSize * 1.35);
         $vPad = 6;
-        $leftGutter = 12;
         $bandHeight = ($lineHeight * count($lines)) + ($vPad * 2);
         $bandTop = $height - $bandHeight;
 
-        // Slightly more transparent band so the background still peeks through —
+        // Slightly transparent band so the background still peeks through —
         // less "watermark", more "subtle stamp".
         $bandColor = imagecolorallocatealpha($canvas, 0, 0, 0, 80); // ~69% opaque
         imagefilledrectangle($canvas, 0, $bandTop, $width, $height, $bandColor);
@@ -178,8 +177,12 @@ final class CardRenderer
         $textColor = imagecolorallocate($canvas, 220, 230, 220);
 
         foreach ($lines as $i => $line) {
+            // Center horizontally using imagettfbbox to measure pixel width.
+            $bbox = imagettfbbox($fontSize, 0, $fontPath, $line);
+            $textWidth = abs($bbox[2] - $bbox[0]);
+            $x = max(8, (int)round(($width - $textWidth) / 2));
             $y = $bandTop + $vPad + ($i * $lineHeight) + (int)round($fontSize);
-            imagettftext($canvas, $fontSize, 0, $leftGutter, $y, $textColor, $fontPath, $line);
+            imagettftext($canvas, $fontSize, 0, $x, $y, $textColor, $fontPath, $line);
         }
     }
 
