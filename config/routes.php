@@ -58,6 +58,10 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/generate', ['controller' => 'Public', 'action' => 'generate'])
             ->setMethods(['POST']);
 
+        // Logged-in user landing page. Anonymous hits redirect to /login.
+        $builder->connect('/dashboard', ['controller' => 'Dashboard', 'action' => 'index'])
+            ->setMethods(['GET']);
+
         /*
          * Skeleton Pages controller is kept for /pages/* helper URLs.
          */
