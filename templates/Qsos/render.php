@@ -23,29 +23,29 @@
 </div>
 
 <h2>Background</h2>
-<?php if ($existingUploads->count() > 0): ?>
-  <p>Pick one of your previous backgrounds, or upload a new image:</p>
-  <div class="row g-2 mb-3">
-    <?php foreach ($existingUploads as $u): ?>
-      <div class="col-md-2">
-        <label>
-          <input type="radio" name="upload_id" value="<?= (int)$u->id ?>">
-          <img src="/<?= h($u->storage_path) ?>" alt="" class="img-thumbnail" loading="lazy">
-        </label>
-      </div>
-    <?php endforeach; ?>
+<p class="text-muted small">Pick "site default" to use the global default image, reuse one of your previous uploads, or attach a new image below.</p>
+<div class="row g-2 mb-3">
+  <div class="col-md-2">
+    <label class="d-block text-center">
+      <input type="radio" name="upload_id" value="0" checked>
+      <div class="border rounded p-3 small text-muted">Site default</div>
+    </label>
+  </div>
+  <?php foreach ($existingUploads as $u): ?>
     <div class="col-md-2">
-      <label>
-        <input type="radio" name="upload_id" value="0" checked>
-        <span>Upload new</span>
+      <label class="d-block text-center">
+        <input type="radio" name="upload_id" value="<?= (int)$u->id ?>">
+        <img src="/<?= h($u->storage_path) ?>" alt="" class="img-thumbnail" loading="lazy">
       </label>
     </div>
-  </div>
-<?php else: ?>
-  <input type="hidden" name="upload_id" value="0">
-<?php endif; ?>
+  <?php endforeach; ?>
+</div>
 
-<input type="file" name="background_upload" accept="image/jpeg,image/png,image/webp" class="form-control mb-3">
+<details class="mb-3">
+  <summary class="small">Or upload a new image instead</summary>
+  <input type="file" name="background_upload" accept="image/jpeg,image/png,image/webp" class="form-control mt-2">
+  <p class="form-text small">Selecting a file here overrides the radio choice above and saves the upload to your library for re-use.</p>
+</details>
 
 <button class="btn btn-primary">Generate eQSL</button>
 <a class="btn btn-link" href="/qsos/<?= (int)$qso->id ?>">Cancel</a>

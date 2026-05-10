@@ -690,7 +690,26 @@ class QsosController extends AppController
 
             return $tmp;
         }
-        throw new \Cake\Http\Exception\BadRequestException('Pick an existing background or upload a new image.');
+
+        // No file supplied — fall back to the same chain as the guest flow:
+        // admin-override default → bundled demo bg. Returned path is a temp
+        // copy so the caller's @unlink doesn't delete the source.
+        $candidates = [
+            WWW_ROOT . 'files/templates/_default-bg.jpg',
+            WWW_ROOT . 'files/templates/_demo-bg.jpg',
+        ];
+        foreach ($candidates as $abs) {
+            if (is_file($abs)) {
+                $tmp = tempnam(sys_get_temp_dir(), 'eqsl_');
+                copy($abs, $tmp);
+
+                return $tmp;
+            }
+        }
+
+        throw new \Cake\Http\Exception\BadRequestException(
+            'No background available — pick an existing one, upload a new image, or have admin set a default.'
+        );
     }
 
     /**
