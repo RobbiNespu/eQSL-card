@@ -87,4 +87,55 @@ final class RateLimitMiddlewareUnlockTest extends TestCase
             $this->assertSame(200, $resp->getStatusCode());
         }
     }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function nonPublicIpProvider(): iterable
+    {
+        yield 'IPv4 loopback' => ['127.0.0.1'];
+        yield 'IPv6 loopback' => ['::1'];
+        yield 'Docker bridge gateway' => ['172.20.0.1'];
+        yield 'RFC1918 10/8' => ['10.0.0.42'];
+        yield 'RFC1918 192.168/16' => ['192.168.1.100'];
+        yield 'IPv6 link-local' => ['fe80::1'];
+        yield 'invalid empty' => [''];
+        yield 'invalid garbage' => ['not-an-ip'];
+    }
+
+    /**
+     * @dataProvider nonPublicIpProvider
+     */
+    public function testNonPublicIpsBypassLoginRateLimit(string $ip): void
+    {
+        $mw = $this->makeMiddleware();
+        // /login is configured at 5/15min — without the bypass, the 11th hit
+        // would 429. With the bypass, every hit from a non-public IP passes.
+        for ($i = 0; $i < 11; $i++) {
+            $req = ServerRequestFactory::fromGlobals([
+                'REQUEST_METHOD' => 'POST',
+                'REQUEST_URI' => '/login',
+                'REMOTE_ADDR' => $ip,
+            ]);
+            $resp = $mw->process($req, $this->passThruHandler());
+            $this->assertSame(200, $resp->getStatusCode(), "non-public IP $ip attempt #$i should not be limited");
+        }
+    }
+
+    public function testPublicIpStillRateLimitedOnLogin(): void
+    {
+        $mw = $this->makeMiddleware();
+        for ($i = 0; $i < 5; $i++) {
+            $req = ServerRequestFactory::fromGlobals([
+                'REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/login', 'REMOTE_ADDR' => '8.8.8.8',
+            ]);
+            $resp = $mw->process($req, $this->passThruHandler());
+            $this->assertSame(200, $resp->getStatusCode());
+        }
+        $req = ServerRequestFactory::fromGlobals([
+            'REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/login', 'REMOTE_ADDR' => '8.8.8.8',
+        ]);
+        $resp = $mw->process($req, $this->passThruHandler());
+        $this->assertSame(429, $resp->getStatusCode());
+    }
 }

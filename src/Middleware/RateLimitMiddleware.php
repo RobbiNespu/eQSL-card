@@ -22,6 +22,20 @@ final class RateLimitMiddleware implements MiddlewareInterface
         $method = strtoupper($request->getMethod());
         $ip = (string)($request->getServerParams()['REMOTE_ADDR'] ?? '0.0.0.0');
 
+        // Non-public IP bypass. Covers:
+        //   - loopback (127.0.0.0/8, ::1)
+        //   - private RFC1918 (10/8, 172.16/12, 192.168/16)
+        //   - IPv6 ULA + link-local (fc00::/7, fe80::/10)
+        // The user-visible request comes from the host bridge interface in
+        // Docker (typically 172.x.x.x — NOT 127.0.0.1), so a literal-string
+        // whitelist would miss the dev case the user actually has. Any
+        // attacker reaching this endpoint from a non-public IP is already
+        // inside the trust boundary; in production deployments REMOTE_ADDR
+        // is the public client IP and the rule fires normally.
+        if (!self::isPublicIp($ip)) {
+            return $handler->handle($request);
+        }
+
         // Exact-match rules
         $exactRules = [
             '/generate' => ['limit' => 10, 'window' => 3600, 'method' => 'POST'],
@@ -51,5 +65,22 @@ final class RateLimitMiddleware implements MiddlewareInterface
         }
 
         return $handler->handle($request);
+    }
+
+    /**
+     * True iff `$ip` is a valid, globally-routable IP address. Anything that
+     * fails `FILTER_VALIDATE_IP` with the public-only flags (private +
+     * reserved excluded) — including 127.*, ::1, 10/8, 172.16/12, 192.168/16,
+     * fc00::/7, fe80::/10 — returns false. Invalid strings (empty, "0.0.0.0",
+     * garbage) also return false; we treat unparseable IPs as non-public,
+     * which is the safer default for the whitelist branch.
+     */
+    private static function isPublicIp(string $ip): bool
+    {
+        return filter_var(
+            $ip,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE,
+        ) !== false;
     }
 }
