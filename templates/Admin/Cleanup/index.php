@@ -66,3 +66,71 @@
     </div>
   </div>
 </div>
+
+<?php
+$fmtBytes = static function (int $b): string {
+    if ($b <= 0) {
+        return '0 B';
+    }
+    if ($b < 1024) {
+        return $b . ' B';
+    }
+    if ($b < 1024 * 1024) {
+        return round($b / 1024, 1) . ' KB';
+    }
+    return round($b / 1024 / 1024, 2) . ' MB';
+};
+?>
+
+<h2 class="mt-5">Filesystem maintenance</h2>
+<p class="text-muted">Wipe the on-disk caches, log files, and active sessions. Files are
+removed from <code>tmp/cache/</code>, <code>logs/</code>, and <code>tmp/sessions/</code>
+respectively. <code>.gitkeep</code> markers and subdirectory structure are preserved.</p>
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h3 class="h5">Cache</h3>
+      <p class="display-6"><?= h($cacheStats['count']) ?></p>
+      <p class="text-muted small"><?= h($fmtBytes($cacheStats['bytes'])) ?> on disk</p>
+      <?= $this->Form->create(null, ['url' => '/admin/cleanup/cache']) ?>
+      <button class="btn btn-warning"
+              <?= $cacheStats['count'] === 0 ? 'disabled' : '' ?>
+              onclick="return confirm('Delete <?= h($cacheStats['count']) ?> cache files? Cake will rebuild them on the next request.')">
+        Clear cache
+      </button>
+      <?= $this->Form->end() ?>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h3 class="h5">Logs</h3>
+      <p class="display-6"><?= h($logStats['count']) ?></p>
+      <p class="text-muted small"><?= h($fmtBytes($logStats['bytes'])) ?> on disk</p>
+      <?= $this->Form->create(null, ['url' => '/admin/cleanup/logs']) ?>
+      <button class="btn btn-warning"
+              <?= $logStats['count'] === 0 ? 'disabled' : '' ?>
+              onclick="return confirm('Delete <?= h($logStats['count']) ?> log files?')">
+        Clear logs
+      </button>
+      <?= $this->Form->end() ?>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h3 class="h5">Sessions</h3>
+      <p class="display-6"><?= h($sessionStats['count']) ?></p>
+      <p class="text-muted small"><?= h($fmtBytes($sessionStats['bytes'])) ?> on disk</p>
+      <p class="text-danger small"><strong>Warning:</strong> this signs out every user (including you).</p>
+      <?= $this->Form->create(null, ['url' => '/admin/cleanup/sessions']) ?>
+      <button class="btn btn-danger"
+              <?= $sessionStats['count'] === 0 ? 'disabled' : '' ?>
+              onclick="return confirm('Drop <?= h($sessionStats['count']) ?> active sessions and force every user (including you) to sign in again?')">
+        Drop sessions
+      </button>
+      <?= $this->Form->end() ?>
+    </div>
+  </div>
+</div>

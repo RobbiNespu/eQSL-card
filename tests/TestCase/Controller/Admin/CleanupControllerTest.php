@@ -171,4 +171,104 @@ final class CleanupControllerTest extends TestCase
         $log = $audit->find()->where(['event' => 'cleanup.orphan_uploads_pruned'])->first();
         $this->assertNotNull($log);
     }
+
+    /**
+     * Helper: seed a throwaway file inside a tmp directory so the cleanup
+     * actions have something concrete to delete and so we can assert it's
+     * gone afterwards. Returns [absolutePath, basename].
+     *
+     * @return array{0:string, 1:string}
+     */
+    private function seedFile(string $dir, string $suffix = '.tmp'): array
+    {
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        $name = 'cleanup-test-' . uniqid('', true) . $suffix;
+        $abs = $dir . DIRECTORY_SEPARATOR . $name;
+        file_put_contents($abs, "test\n");
+
+        return [$abs, $name];
+    }
+
+    public function testCacheActionDeletesFilesAndPreservesGitkeep(): void
+    {
+        $this->loginAs('admin');
+
+        [$victim, $vBase] = $this->seedFile(TMP . 'cache' . DIRECTORY_SEPARATOR . 'persistent');
+        $keep = TMP . 'cache' . DIRECTORY_SEPARATOR . 'persistent' . DIRECTORY_SEPARATOR . '.gitkeep';
+        if (!file_exists($keep)) {
+            file_put_contents($keep, '');
+        }
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/admin/cleanup/cache');
+        $this->assertRedirect('/admin/cleanup');
+
+        $this->assertFileDoesNotExist($victim);
+        $this->assertFileExists($keep);
+
+        $audit = $this->getTableLocator()->get('AuditLogs');
+        $log = $audit->find()->where(['event' => 'cleanup.cache_cleared'])->first();
+        $this->assertNotNull($log);
+    }
+
+    public function testLogsActionDeletesOnlyLogFiles(): void
+    {
+        $this->loginAs('admin');
+
+        [$logFile] = $this->seedFile(LOGS, '.log');
+        // A non-`.log` file in LOGS shouldn't be touched (the action filters
+        // by extension to keep collateral damage away from anything else
+        // someone might have parked there).
+        [$bystander] = $this->seedFile(LOGS, '.txt');
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/admin/cleanup/logs');
+        $this->assertRedirect('/admin/cleanup');
+
+        $this->assertFileDoesNotExist($logFile);
+        $this->assertFileExists($bystander);
+        @unlink($bystander);
+
+        $audit = $this->getTableLocator()->get('AuditLogs');
+        $log = $audit->find()->where(['event' => 'cleanup.logs_cleared'])->first();
+        $this->assertNotNull($log);
+    }
+
+    public function testSessionsActionDeletesFilesAndSignsOut(): void
+    {
+        $this->loginAs('admin');
+
+        [$sess] = $this->seedFile(TMP . 'sessions');
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/admin/cleanup/sessions');
+        // Forced logout → redirected to /login with a marker query string.
+        $this->assertRedirectContains('/login');
+
+        $this->assertFileDoesNotExist($sess);
+
+        $audit = $this->getTableLocator()->get('AuditLogs');
+        $log = $audit->find()->where(['event' => 'cleanup.sessions_cleared'])->first();
+        $this->assertNotNull($log);
+    }
+
+    public function testGetMethodsRejectedOnFilesystemActions(): void
+    {
+        $this->loginAs('admin');
+
+        // Should be 405 since each route is restricted to POST.
+        $this->get('/admin/cleanup/cache');
+        $this->assertResponseError();
+
+        $this->get('/admin/cleanup/logs');
+        $this->assertResponseError();
+
+        $this->get('/admin/cleanup/sessions');
+        $this->assertResponseError();
+    }
 }

@@ -103,8 +103,91 @@ class CleanupController extends AppController
                 ->orderBy(['Uploads.created_at' => 'ASC'])
                 ->limit(5)
                 ->all(),
+            'cacheStats' => $this->dirStats([
+                TMP . 'cache',
+                TMP . 'cache' . DIRECTORY_SEPARATOR . 'models',
+                TMP . 'cache' . DIRECTORY_SEPARATOR . 'persistent',
+                TMP . 'cache' . DIRECTORY_SEPARATOR . 'views',
+            ]),
+            'logStats' => $this->dirStats([LOGS], ['log']),
+            'sessionStats' => $this->dirStats([TMP . 'sessions']),
             'title' => 'Admin · Cleanup',
         ]);
+    }
+
+    /**
+     * Count + total-size of files under the supplied directories. Skips
+     * `.gitkeep` files (we want to keep them) and recursing into hidden dirs.
+     *
+     * @param string[] $dirs Absolute directory paths.
+     * @param string[]|null $extensionsAllow When supplied, only files with one
+     *        of these extensions count (e.g. `['log']` for log files).
+     * @return array{count:int, bytes:int}
+     */
+    private function dirStats(array $dirs, ?array $extensionsAllow = null): array
+    {
+        $count = 0;
+        $bytes = 0;
+        foreach ($dirs as $dir) {
+            if (!is_dir($dir)) {
+                continue;
+            }
+            foreach (glob($dir . '/*') ?: [] as $path) {
+                if (!is_file($path)) {
+                    continue;
+                }
+                $base = basename($path);
+                if ($base === '.gitkeep') {
+                    continue;
+                }
+                if ($extensionsAllow !== null) {
+                    $ext = strtolower(pathinfo($base, PATHINFO_EXTENSION));
+                    if (!in_array($ext, $extensionsAllow, true)) {
+                        continue;
+                    }
+                }
+                $count++;
+                $bytes += (int)@filesize($path);
+            }
+        }
+        return ['count' => $count, 'bytes' => $bytes];
+    }
+
+    /**
+     * Delete files matching `dirStats`'s rules under the supplied dirs. Used
+     * by the three filesystem-cleanup actions below. Returns the deletion
+     * count for audit/Flash messaging.
+     *
+     * @param string[] $dirs
+     * @param string[]|null $extensionsAllow
+     */
+    private function deleteFilesUnder(array $dirs, ?array $extensionsAllow = null): int
+    {
+        $deleted = 0;
+        foreach ($dirs as $dir) {
+            if (!is_dir($dir)) {
+                continue;
+            }
+            foreach (glob($dir . '/*') ?: [] as $path) {
+                if (!is_file($path)) {
+                    continue;
+                }
+                $base = basename($path);
+                if ($base === '.gitkeep') {
+                    continue;
+                }
+                if ($extensionsAllow !== null) {
+                    $ext = strtolower(pathinfo($base, PATHINFO_EXTENSION));
+                    if (!in_array($ext, $extensionsAllow, true)) {
+                        continue;
+                    }
+                }
+                if (@unlink($path)) {
+                    $deleted++;
+                }
+            }
+        }
+        return $deleted;
     }
 
     /**
@@ -198,5 +281,101 @@ class CleanupController extends AppController
         $this->Flash->success("Pruned {$deleted} orphaned uploads older than {$days} days.");
 
         return $this->redirect('/admin/cleanup');
+    }
+
+    /**
+     * POST /admin/cleanup/cache — wipe everything under `tmp/cache/*` (excluding
+     * `.gitkeep` markers) and call CakePHP's Cache::clearAll() so any in-memory
+     * caches drop too. Safe to run any time; CakePHP rebuilds caches on next
+     * request. Useful when stale config/translations files become unreadable
+     * (the classic root-vs-www-data uid bug surfaced as 'Permission denied').
+     */
+    public function cache()
+    {
+        $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+
+        $deleted = $this->deleteFilesUnder([
+            TMP . 'cache',
+            TMP . 'cache' . DIRECTORY_SEPARATOR . 'models',
+            TMP . 'cache' . DIRECTORY_SEPARATOR . 'persistent',
+            TMP . 'cache' . DIRECTORY_SEPARATOR . 'views',
+        ]);
+
+        try {
+            \Cake\Cache\Cache::clearAll();
+        } catch (\Throwable $e) {
+            error_log('cache::clearAll: ' . $e->getMessage());
+        }
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'cleanup.cache_cleared',
+                actorUserId: $userId,
+                metadata: ['files_removed' => $deleted],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        $this->Flash->success("Cache cleared ({$deleted} files removed).");
+        return $this->redirect('/admin/cleanup');
+    }
+
+    /**
+     * POST /admin/cleanup/logs — delete all .log files under LOGS/. Safe; the
+     * file logger reopens its target on the next emit.
+     */
+    public function logs()
+    {
+        $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+
+        $deleted = $this->deleteFilesUnder([LOGS], ['log']);
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'cleanup.logs_cleared',
+                actorUserId: $userId,
+                metadata: ['files_removed' => $deleted],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        $this->Flash->success("Logs cleared ({$deleted} files removed).");
+        return $this->redirect('/admin/cleanup');
+    }
+
+    /**
+     * POST /admin/cleanup/sessions — delete every active CakePHP file session
+     * under tmp/sessions/. Forces a logout for every signed-in user, including
+     * the admin running this. We re-auth ourselves explicitly via
+     * `Authentication->logout()` so the redirect lands on /login cleanly.
+     */
+    public function sessions()
+    {
+        $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+
+        $deleted = $this->deleteFilesUnder([TMP . 'sessions']);
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'cleanup.sessions_cleared',
+                actorUserId: $userId,
+                metadata: ['files_removed' => $deleted],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        // Audit row is already persisted; safe to drop our own session next.
+        $this->Authentication->logout();
+
+        // Can't Flash because the session we'd Flash into is gone — use a
+        // query string instead, which the login page can show as a banner if
+        // we add support; for now just redirect.
+        return $this->redirect('/login?signed_out=cleanup');
     }
 }

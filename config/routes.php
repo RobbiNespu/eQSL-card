@@ -376,6 +376,18 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/cleanup/prune-uploads', ['controller' => 'Cleanup', 'action' => 'pruneUploads'])
             ->setMethods(['POST']);
 
+        // Filesystem maintenance: nuke cache files + Cake's in-memory caches,
+        // truncate logs, drop active sessions. Each is POST-only so a stray
+        // GET (link prefetch, link preview, accidental refresh) cannot trigger
+        // destruction. /sessions also signs the calling admin out — handled
+        // inside the controller.
+        $builder->connect('/cleanup/cache', ['controller' => 'Cleanup', 'action' => 'cache'])
+            ->setMethods(['POST']);
+        $builder->connect('/cleanup/logs', ['controller' => 'Cleanup', 'action' => 'logs'])
+            ->setMethods(['POST']);
+        $builder->connect('/cleanup/sessions', ['controller' => 'Cleanup', 'action' => 'sessions'])
+            ->setMethods(['POST']);
+
         /*
          * App settings UI (M4-T17/T18). Single GET/POST surface — GET renders
          * the form pre-populated from the AppSettings runtime loader, POST
