@@ -26,6 +26,12 @@ final class ImageLicense
         'cc_by_sa_4_0' => 'CC BY-SA 4.0',
         'cc_by_nc_4_0' => 'CC BY-NC 4.0',
         'cc_by_nd_4_0' => 'CC BY-ND 4.0',
+        // Stock-photo platform licenses. Each platform issues its own
+        // proprietary license — none are Creative Commons. Added here so
+        // attribution is explicit instead of forcing 'permission_granted'.
+        'pixabay_license' => 'Pixabay Content License',
+        'unsplash_license' => 'Unsplash License',
+        'pexels_license' => 'Pexels License',
         'permission_granted' => 'Used with permission',
         'fair_use' => 'Fair use / fair dealing',
         'all_rights_reserved' => 'All rights reserved (proceed with caution)',
