@@ -300,14 +300,14 @@ return [
             'log' => false,
 
             /*
-             * Set identifier quoting to true if you are using reserved words or
-             * special characters in your table or column names. Enabling this
-             * setting will result in queries built using the Query Builder having
-             * identifiers quoted when creating SQL. It should be noted that this
-             * decreases performance because each query needs to be traversed and
-             * manipulated before being executed.
+             * Identifier quoting is REQUIRED for this app: `app_settings.key`
+             * uses `key` as a column name, which is a reserved word in MySQL /
+             * MariaDB. Without quoting, every read of /admin/settings (and
+             * every AppSettings::get) throws a SQL syntax error on real DBs.
+             * SQLite (used in the test suite) does not reserve `key` so tests
+             * pass without this — production absolutely needs it.
              */
-            'quoteIdentifiers' => false,
+            'quoteIdentifiers' => true,
 
             /*
              * During development, if using MySQL < 5.6, uncommenting the
