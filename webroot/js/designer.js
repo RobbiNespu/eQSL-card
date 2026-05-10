@@ -5,10 +5,11 @@
  * keeps the Alpine `fields` array authoritative for the JSON payload, and
  * mirrors selection / drag / size / colour edits in both directions.
  *
- * The canvas element is a fixed 900×600 viewport, but the design space is
- * `canvasWidth × canvasHeight` (default 1500×1000). We apply a uniform
- * `setZoom` so coordinates stored in JSON are always in design space — that
- * keeps the server-side renderer (M3-T7+) trivial: no display scaling fudge.
+ * The on-screen preview is fit-to-column — we read the wrapper's clientWidth
+ * (capped at 600px tall) and uniformly `setZoom` to scale the design space
+ * (`canvasWidth × canvasHeight`, default 1500×1000) into that rectangle.
+ * Coordinates stored in JSON are always in design space so the server-side
+ * renderer (M3-T7+) stays trivial: no display scaling fudge.
  *
  * `initial.layoutJson` is a string (CakePHP hands us the raw column). A
  * malformed legacy value should not blow up the page; we degrade to an
@@ -37,7 +38,19 @@ function designer(initial) {
 
         init() {
             // Defer until the <canvas x-ref="canvas"> element is mounted.
-            this.$nextTick(() => this.initFabric());
+            this.$nextTick(() => {
+                this.initFabric();
+                // Re-fit the canvas to its column on viewport changes. 120ms
+                // debounce is fast enough to feel live during a drag-resize
+                // without flooding Fabric with re-zoom work mid-drag.
+                let resizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => {
+                        if (this.fabricCanvas) this.applyViewportScale();
+                    }, 120);
+                });
+            });
         },
 
         initFabric() {
@@ -73,9 +86,16 @@ function designer(initial) {
         },
 
         applyViewportScale() {
-            const ratioW = 900 / this.canvasWidth;
-            const ratioH = 600 / this.canvasHeight;
-            const ratio = Math.min(ratioW, ratioH);
+            // Fit the on-screen canvas to its column. The wrapper ref is set
+            // by the edit.php template; if it's missing (legacy markup) we
+            // fall back to 900 so the designer still renders rather than
+            // crashing on a null clientWidth read.
+            const wrap = this.$refs.canvasWrap;
+            const targetW = (wrap && wrap.clientWidth) || 900;
+            // Cap on-screen height so a very wide viewport doesn't make the
+            // canvas taller than the side panels next to it.
+            const targetH = 600;
+            const ratio = Math.min(targetW / this.canvasWidth, targetH / this.canvasHeight);
             this.fabricCanvas.setZoom(ratio);
             this.fabricCanvas.setWidth(this.canvasWidth * ratio);
             this.fabricCanvas.setHeight(this.canvasHeight * ratio);

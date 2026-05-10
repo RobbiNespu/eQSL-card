@@ -64,8 +64,10 @@
              @change="uploadBackground($event.target.files[0])">
       <p class="form-text small">Used only for visual reference while designing. The actual background is chosen at render time.</p>
     </div>
-    <canvas x-ref="canvas" width="900" height="600" style="border: 1px solid #ccc; background: #f8f9fa;"></canvas>
-    <p class="text-muted small mt-2">Preview at fit-to-screen. Final render is at <span x-text="canvasWidth"></span> &times; <span x-text="canvasHeight"></span> px.</p>
+    <div x-ref="canvasWrap" style="width: 100%; line-height: 0; overflow: hidden;">
+      <canvas x-ref="canvas" style="border: 1px solid #ccc; background: #f8f9fa; max-width: 100%; display: block;"></canvas>
+    </div>
+    <p class="text-muted small mt-2">Preview at fit-to-column. Final render is at <span x-text="canvasWidth"></span> &times; <span x-text="canvasHeight"></span> px.</p>
   </div>
 
   <div class="col-md-3">
