@@ -449,6 +449,9 @@ class QsosController extends AppController
                 $upload = $this->fetchTable('Uploads')->find()
                     ->where(['id' => $uploadId, 'user_id' => $userId])
                     ->firstOrFail();
+                // Use the row's stored attribution for library re-use.
+                $authorName = $upload->author_name;
+                $license = $upload->license;
             }
 
             // Hand off to the shared renderer helper (also used by the bulk
@@ -456,7 +459,15 @@ class QsosController extends AppController
             // one place so both surfaces produce identical card rows. Audit
             // logging lives inside the helper so both interactive and bulk
             // paths emit exactly one `card.generated` row per card.
-            $cardId = $this->renderQsoCard($userId, (int)$qso->id, (int)$template->id, (int)$upload->id);
+            //
+            // We pass the freshly-computed $authorName/$license so the
+            // attribution line reflects the current context (admin defaults
+            // for fallbacks, form values for new uploads, row values for
+            // re-use) — bypasses any stale data on dedup-matched upload rows.
+            $cardId = $this->renderQsoCard(
+                $userId, (int)$qso->id, (int)$template->id, (int)$upload->id,
+                $authorName, $license
+            );
 
             $this->Flash->success('Card rendered.');
 
@@ -632,10 +643,22 @@ class QsosController extends AppController
      * @param int $qsoId QSO primary key.
      * @param int $templateId Template primary key (system, owned, or public-approved).
      * @param int $uploadId Upload primary key (must belong to `$userId`).
+     * @param string|null $authorOverride When set, used for the attribution
+     *        footer line instead of the upload row's stored author_name. Lets
+     *        the interactive renderCard action express "the admin's
+     *        configured default-bg attribution" or "the form-supplied values"
+     *        without writing them onto an existing dedup-matched upload row.
+     * @param string|null $licenseOverride Same idea for the license code.
      * @return int The newly persisted Card primary key.
      */
-    private function renderQsoCard(int $userId, int $qsoId, int $templateId, int $uploadId): int
-    {
+    private function renderQsoCard(
+        int $userId,
+        int $qsoId,
+        int $templateId,
+        int $uploadId,
+        ?string $authorOverride = null,
+        ?string $licenseOverride = null,
+    ): int {
         $qsos = $this->fetchTable('Qsos');
         $qso = $qsos->find()->where(['id' => $qsoId, 'user_id' => $userId])->firstOrFail();
         $template = $this->fetchTable('Templates')->get($templateId);
@@ -654,9 +677,13 @@ class QsosController extends AppController
         if (!is_dir(dirname($pngPath))) {
             mkdir(dirname($pngPath), 0o775, true);
         }
+        // Override > row value > null. This lets renderCard ship freshly-
+        // computed attribution (admin defaults / form values) past any stale
+        // values on a dedup-matched upload row, while bulk render — which
+        // doesn't pass overrides — keeps using the row's stored attribution.
         $attributionLine = \App\Service\ImageLicense::formatLine(
-            $upload->author_name ?? null,
-            $upload->license ?? null,
+            $authorOverride ?? ($upload->author_name ?? null),
+            $licenseOverride ?? ($upload->license ?? null),
             (string)($qsoData['operator_callsign'] ?? '')
         );
         $renderer->renderPng(

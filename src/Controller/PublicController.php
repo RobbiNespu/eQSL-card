@@ -286,9 +286,15 @@ class PublicController extends AppController
         if (!is_dir(dirname($pngPath))) {
             mkdir(dirname($pngPath), 0o775, true);
         }
+        // Attribution line uses the freshly-computed local variables, NOT the
+        // upload row's stored values. Why: an upload may already exist (sha256
+        // dedup) with stale or null attribution from before this feature
+        // shipped or from an earlier first-uploader. The current request's
+        // intent — admin-configured for default-bg, form-supplied for new
+        // upload — is the correct source.
         $attributionLine = \App\Service\ImageLicense::formatLine(
-            $upload->author_name ?? null,
-            $upload->license ?? null,
+            $authorName,
+            $license,
             (string)($qso['operator_callsign'] ?? '')
         );
         $renderer->renderPng(
