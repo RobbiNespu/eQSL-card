@@ -90,10 +90,30 @@ class QsosController extends AppController
 
         $qsos = $this->paginate($query, ['limit' => 25]);
 
+        // Templates the bulk-render modal can choose from: own + system + public-approved.
+        $availableTemplates = $this->fetchTable('Templates')->find()
+            ->where(['Templates.deleted_at IS' => null])
+            ->where(['OR' => [
+                ['Templates.user_id' => $userId],
+                ['Templates.is_system' => true],
+                ['AND' => ['Templates.is_public' => true, 'Templates.is_approved' => true]],
+            ]])
+            ->orderBy(['Templates.is_system' => 'DESC', 'Templates.created_at' => 'DESC'])
+            ->all();
+
+        // User's existing uploads (capped) for the bulk-render background picker.
+        $userUploads = $this->fetchTable('Uploads')->find()
+            ->where(['user_id' => $userId])
+            ->orderBy(['Uploads.created_at' => 'DESC'])
+            ->limit(20)
+            ->all();
+
         $this->set([
             'qsos' => $qsos,
             'filters' => compact('search', 'band', 'mode', 'from', 'to'),
             'title' => 'Logbook',
+            'availableTemplates' => $availableTemplates,
+            'userUploads' => $userUploads,
         ]);
     }
 

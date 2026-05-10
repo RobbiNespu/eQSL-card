@@ -66,10 +66,11 @@
 
   <nav><?= $this->Paginator->numbers() ?></nav>
 
-  <!-- Bulk render modal -->
-  <div class="modal fade show" tabindex="-1" style="display: block; background: rgba(0,0,0,.5);"
-       x-show="modalOpen" x-cloak>
-    <div class="modal-dialog">
+  <!-- Bulk render modal: Alpine fully manages visibility (no Bootstrap .show class
+       — that has display:block !important which would make the modal un-closable). -->
+  <div x-show="modalOpen" x-cloak tabindex="-1"
+       style="position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1050; overflow-y: auto;">
+    <div class="modal-dialog" style="margin: 5rem auto;">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Bulk render eQSL cards</h5>
@@ -80,14 +81,28 @@
             <div>
               <p>Render <span x-text="selected.length"></span> cards using the same template + background.</p>
               <div class="mb-3">
-                <label>Template ID</label>
-                <input type="number" class="form-control" x-model="templateId" placeholder="System template ID">
+                <label class="form-label">Template</label>
+                <select class="form-select" x-model="templateId">
+                  <option value="">— pick a template —</option>
+                  <?php foreach ($availableTemplates as $t): ?>
+                    <option value="<?= $t->id ?>"><?= h($t->name) ?><?= $t->is_system ? ' (system)' : '' ?></option>
+                  <?php endforeach; ?>
+                </select>
               </div>
               <div class="mb-3">
-                <label>Background upload ID</label>
-                <input type="number" class="form-control" x-model="uploadId" placeholder="Existing upload ID">
+                <label class="form-label">Background</label>
+                <select class="form-select" x-model="uploadId">
+                  <?php if ($userUploads->count() > 0): ?>
+                    <option value="">— pick an existing upload —</option>
+                    <?php foreach ($userUploads as $u): ?>
+                      <option value="<?= $u->id ?>"><?= h($u->original_filename ?: 'upload #' . $u->id) ?> · <?= h(round($u->file_size_bytes / 1024)) ?> KB</option>
+                    <?php endforeach; ?>
+                  <?php else: ?>
+                    <option value="">No uploads yet — upload one via the single-render flow first</option>
+                  <?php endif; ?>
+                </select>
+                <p class="form-text small">Use <a href="/qsos/<?= $qsos->first()->id ?? '' ?>/render">single-render</a> to upload a new background — it'll then appear in this list.</p>
               </div>
-              <p class="small text-muted">Tip: M3 will replace these IDs with proper pickers.</p>
             </div>
           </template>
           <template x-if="started">
