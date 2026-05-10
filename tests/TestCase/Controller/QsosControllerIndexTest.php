@@ -21,7 +21,7 @@ final class QsosControllerIndexTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Qsos'];
+    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.Uploads', 'app.Cards'];
 
     private function seedUserAndLogin(string $email = 'op@x.com'): int
     {
@@ -138,5 +138,40 @@ final class QsosControllerIndexTest extends TestCase
         $this->get('/qsos?from=2026-05-10&to=2026-05-20');
         $this->assertResponseContains('LATE');
         $this->assertResponseNotContains('EARLY');
+    }
+
+    public function testIndexShowsViewCardLinkWhenCardExists(): void
+    {
+        $userId = $this->seedUserAndLogin();
+        $renderableQso = $this->seedQso($userId, ['call_worked' => 'NEEDREN']);
+        $renderedQso = $this->seedQso($userId, ['call_worked' => 'HASCARD']);
+
+        $tpls = $this->getTableLocator()->get('Templates');
+        $tpl = $tpls->saveOrFail($tpls->newEntity([
+            'name' => 'sys', 'canvas_width' => 1500, 'canvas_height' => 1000,
+            'layout_json' => json_encode(['fields' => []]),
+            'is_system' => true, 'is_public' => true, 'is_approved' => true,
+        ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
+        $uploads = $this->getTableLocator()->get('Uploads');
+        $up = $uploads->saveOrFail($uploads->newEntity([
+            'user_id' => $userId, 'original_filename' => 'b.jpg',
+            'storage_path' => 'files/uploads/b.jpg', 'mime_type' => 'image/jpeg',
+            'width_px' => 1, 'height_px' => 1, 'file_size_bytes' => 1,
+            'sha256_hash' => str_repeat('z', 64),
+        ]));
+        $cards = $this->getTableLocator()->get('Cards');
+        $card = $cards->saveOrFail($cards->newEntity([
+            'user_id' => $userId, 'qso_id' => $renderedQso, 'template_id' => $tpl->id,
+            'upload_id' => $up->id, 'qso_data_json' => '{}',
+            'png_path' => 'files/cards/x.png', 'pdf_path' => 'files/cards/x.pdf',
+        ]));
+
+        $this->get('/qsos');
+        $this->assertResponseOk();
+        // Rendered QSO: link points at the card.
+        $this->assertResponseContains('/cards/' . $card->id);
+        $this->assertResponseContains('View card');
+        // Un-rendered QSO: still gets the Render button.
+        $this->assertResponseContains('/qsos/' . $renderableQso . '/render');
     }
 }

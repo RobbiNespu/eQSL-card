@@ -116,4 +116,78 @@ final class QsosControllerRenderTest extends TestCase
         $this->get('/qsos/' . $bsQso . '/render');
         $this->assertResponseCode(404);
     }
+
+    /**
+     * Helper: stand up a non-deleted card row pointing at a QSO so the
+     * "already rendered" guard can fire.
+     */
+    private function seedCard(int $userId, int $qsoId, int $templateId): int
+    {
+        // Need an upload row to satisfy cards.upload_id NOT NULL.
+        $uploads = $this->getTableLocator()->get('Uploads');
+        $u = $uploads->saveOrFail($uploads->newEntity([
+            'user_id' => $userId,
+            'original_filename' => 'guard.jpg',
+            'storage_path' => 'files/uploads/guard.jpg',
+            'mime_type' => 'image/jpeg',
+            'width_px' => 800, 'height_px' => 600, 'file_size_bytes' => 100,
+            'sha256_hash' => str_repeat('g', 64),
+        ]));
+        $cards = $this->getTableLocator()->get('Cards');
+        $row = $cards->saveOrFail($cards->newEntity([
+            'user_id' => $userId,
+            'qso_id' => $qsoId,
+            'template_id' => $templateId,
+            'upload_id' => $u->id,
+            'qso_data_json' => '{}',
+            'png_path' => 'files/cards/guard.png',
+            'pdf_path' => 'files/cards/guard.pdf',
+        ]));
+
+        return $row->id;
+    }
+
+    public function testGetRenderRedirectsToExistingCard(): void
+    {
+        $u = $this->seedUserAndLogin();
+        $qsoId = $this->seedQso($u);
+        $tplId = $this->seedSystemTemplate();
+        $cardId = $this->seedCard($u, $qsoId, $tplId);
+
+        $this->get('/qsos/' . $qsoId . '/render');
+        $this->assertRedirect('/cards/' . $cardId);
+    }
+
+    public function testPostRenderRefusedWhenCardExists(): void
+    {
+        $u = $this->seedUserAndLogin();
+        $qsoId = $this->seedQso($u);
+        $tplId = $this->seedSystemTemplate();
+        $cardId = $this->seedCard($u, $qsoId, $tplId);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/' . $qsoId . '/render', ['template_id' => $tplId, 'upload_id' => 0]);
+        $this->assertRedirect('/cards/' . $cardId);
+
+        // No second card should have been created.
+        $cards = $this->getTableLocator()->get('Cards');
+        $this->assertSame(1, $cards->find()->where(['qso_id' => $qsoId])->count());
+    }
+
+    public function testRenderAllowedAfterCardSoftDeleted(): void
+    {
+        $u = $this->seedUserAndLogin();
+        $qsoId = $this->seedQso($u);
+        $tplId = $this->seedSystemTemplate();
+        $cardId = $this->seedCard($u, $qsoId, $tplId);
+
+        // Soft-delete the existing card.
+        $cards = $this->getTableLocator()->get('Cards');
+        $cards->updateAll(['deleted_at' => \Cake\I18n\DateTime::now()], ['id' => $cardId]);
+
+        $this->get('/qsos/' . $qsoId . '/render');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Generate eQSL');
+    }
 }

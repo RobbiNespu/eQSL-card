@@ -57,7 +57,11 @@
         <td><?= h($qso->rst_sent) ?> / <?= h($qso->rst_received) ?></td>
         <td>
           <a class="btn btn-sm btn-outline-secondary" href="/qsos/<?= $qso->id ?>">View</a>
-          <a class="btn btn-sm btn-outline-primary" href="/qsos/<?= $qso->id ?>/render">Render</a>
+          <?php if (isset($activeCardByQso[$qso->id])): ?>
+            <a class="btn btn-sm btn-outline-success" href="/cards/<?= $activeCardByQso[$qso->id] ?>" title="A card has already been rendered for this QSO. Delete it first to render a new one.">View card</a>
+          <?php else: ?>
+            <a class="btn btn-sm btn-outline-primary" href="/qsos/<?= $qso->id ?>/render">Render</a>
+          <?php endif; ?>
         </td>
       </tr>
       <?php endforeach; ?>

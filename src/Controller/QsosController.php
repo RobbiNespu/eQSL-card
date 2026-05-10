@@ -90,6 +90,31 @@ class QsosController extends AppController
 
         $qsos = $this->paginate($query, ['limit' => 25]);
 
+        // Map qso_id => most-recent non-deleted card id for this user. The
+        // template uses this to render a "View card" link instead of the
+        // "Render" button when a card already exists, mirroring the
+        // single-render guard in `renderCard()`.
+        $activeCardByQso = [];
+        $qsoIds = [];
+        foreach ($qsos as $row) {
+            $qsoIds[] = $row->id;
+        }
+        if ($qsoIds !== []) {
+            $cardRows = $this->fetchTable('Cards')->find()
+                ->select(['id', 'qso_id'])
+                ->where([
+                    'Cards.qso_id IN' => $qsoIds,
+                    'Cards.user_id' => $userId,
+                    'Cards.deleted_at IS' => null,
+                ])
+                ->orderBy(['Cards.created_at' => 'DESC'])
+                ->all();
+            foreach ($cardRows as $c) {
+                // First write wins => most recent due to ORDER BY DESC.
+                $activeCardByQso[(int)$c->qso_id] ??= (int)$c->id;
+            }
+        }
+
         // Templates the bulk-render modal can choose from: own + system + public-approved.
         $availableTemplates = $this->fetchTable('Templates')->find()
             ->where(['Templates.deleted_at IS' => null])
@@ -114,6 +139,7 @@ class QsosController extends AppController
             'title' => 'Logbook',
             'availableTemplates' => $availableTemplates,
             'userUploads' => $userUploads,
+            'activeCardByQso' => $activeCardByQso,
         ]);
     }
 
@@ -350,6 +376,26 @@ class QsosController extends AppController
         $userId = $this->Authentication->getIdentity()->getIdentifier();
         $qsos = $this->fetchTable('Qsos');
         $qso = $qsos->find()->where(['id' => $id, 'user_id' => $userId])->firstOrFail();
+
+        // If this QSO already has a non-deleted card, refuse to render another
+        // and bounce the user to the existing one. Repeated clicks of the
+        // "Render" button used to silently produce duplicate cards (and burn
+        // GD time + disk on identical PNG/PDFs); now the user must explicitly
+        // delete the existing card from /cards before they can render again.
+        $existingCard = $this->fetchTable('Cards')->find()
+            ->where([
+                'Cards.qso_id' => $id,
+                'Cards.user_id' => $userId,
+                'Cards.deleted_at IS' => null,
+            ])
+            ->orderBy(['Cards.created_at' => 'DESC'])
+            ->first();
+        if ($existingCard !== null) {
+            $this->Flash->info(
+                'This QSO already has a rendered card. Delete it first if you want to render a new one.'
+            );
+            return $this->redirect('/cards/' . $existingCard->id);
+        }
 
         // Templates the user is allowed to pick from: system templates ship
         // with the install, the user's own templates, and any public template
