@@ -62,6 +62,12 @@ class SettingsController extends AppController
                     $update[$key] = $value;
                 }
             }
+            // Boolean toggles handled separately: HTML checkboxes only POST
+            // when checked, so we rely on a sibling hidden field with the
+            // unchecked value (see settings/index.php) and coerce explicitly.
+            if (array_key_exists('rate_limit_private_ip_bypass', $data)) {
+                $update['rate_limit_private_ip_bypass'] = (bool)$data['rate_limit_private_ip_bypass'];
+            }
             $settings->setMany($update);
 
             try {

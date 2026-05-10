@@ -75,6 +75,32 @@ $creditDefault = implode("\n", \App\Service\CardRenderer::DEFAULT_CREDIT_FOOTER)
   <textarea name="eqsl_credit_template" class="form-control" rows="4" placeholder="<?= h($creditDefault) ?>"><?= h($settings['eqsl_credit_template'] ?? '') ?></textarea>
 </div>
 
+<h2>Security</h2>
+<?php $bypass = (bool)($settings['rate_limit_private_ip_bypass'] ?? true); ?>
+<div class="mb-4">
+  <div class="form-check">
+    <input type="hidden" name="rate_limit_private_ip_bypass" value="0">
+    <input type="checkbox" class="form-check-input" id="rateLimitBypass"
+           name="rate_limit_private_ip_bypass" value="1" <?= $bypass ? 'checked' : '' ?>>
+    <label class="form-check-label" for="rateLimitBypass">
+      Skip login rate limit for non-public IPs (loopback, RFC1918, Docker bridge)
+    </label>
+  </div>
+  <p class="form-text small">
+    When <strong>on</strong> (default), requests from <code>127.0.0.0/8</code>, <code>::1</code>,
+    <code>10/8</code>, <code>172.16/12</code>, <code>192.168/16</code>, and IPv6 ULA/link-local
+    bypass the <code>/login</code> and <code>/qsl/&hellip;/unlock</code> throttles entirely.
+    Useful while iterating locally; turn off if your prod box might receive private-IP traffic
+    you want to throttle.
+  </p>
+  <p class="form-text small text-muted">
+    <strong>Locked out?</strong> Open a shell on the database and run:<br>
+    <code>UPDATE app_settings SET value='true', updated_at=NOW() WHERE `key`='rate_limit_private_ip_bypass';</code><br>
+    Then clear the rate-limit buckets so accumulated stamps don't keep throttling you:<br>
+    <code>rm -f tmp/cache/rate_limits/*</code> (on the app server).
+  </p>
+</div>
+
 <h2>SMTP (overrides config/app_local.php at runtime if set)</h2>
 <div class="row">
   <div class="col-md-6 mb-3"><label>SMTP host</label>

@@ -120,9 +120,13 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             ]))
 
             // Rate limiting for sensitive endpoints (after CSRF so we don't
-            // burn budget on requests with bogus tokens).
+            // burn budget on requests with bogus tokens). The closure reads
+            // the `rate_limit_private_ip_bypass` admin toggle — see the
+            // middleware for the default + fallback when it's not readable.
             ->add(new \App\Middleware\RateLimitMiddleware(
-                new \App\Service\RateLimiter(TMP . 'cache/rate_limits')
+                new \App\Service\RateLimiter(TMP . 'cache/rate_limits'),
+                static fn(): bool => (bool)(new \App\Service\AppSettings())
+                    ->get('rate_limit_private_ip_bypass', true),
             ));
 
         return $middlewareQueue;

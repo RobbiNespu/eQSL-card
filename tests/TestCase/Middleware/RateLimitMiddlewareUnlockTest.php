@@ -138,4 +138,45 @@ final class RateLimitMiddlewareUnlockTest extends TestCase
         $resp = $mw->process($req, $this->passThruHandler());
         $this->assertSame(429, $resp->getStatusCode());
     }
+
+    public function testPrivateIpBypassDisabledViaSettings(): void
+    {
+        // With the toggle OFF, private IPs are throttled like public ones.
+        $mw = new \App\Middleware\RateLimitMiddleware(
+            new \App\Service\RateLimiter($this->cacheDir),
+            static fn(): bool => false,
+        );
+
+        for ($i = 0; $i < 5; $i++) {
+            $req = ServerRequestFactory::fromGlobals([
+                'REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/login', 'REMOTE_ADDR' => '127.0.0.1',
+            ]);
+            $resp = $mw->process($req, $this->passThruHandler());
+            $this->assertSame(200, $resp->getStatusCode(), "private-IP attempt #$i should pass under the limit");
+        }
+        $req = ServerRequestFactory::fromGlobals([
+            'REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/login', 'REMOTE_ADDR' => '127.0.0.1',
+        ]);
+        $resp = $mw->process($req, $this->passThruHandler());
+        $this->assertSame(429, $resp->getStatusCode(), '6th private-IP attempt should trip when bypass is OFF');
+    }
+
+    public function testSettingsThrowingDefaultsToBypassEnabled(): void
+    {
+        // If the toggle closure blows up (DB unreachable, missing table
+        // during install), the middleware MUST NOT 500 — it falls back to
+        // bypass=ON so the admin can recover via the UI / SQL.
+        $mw = new \App\Middleware\RateLimitMiddleware(
+            new \App\Service\RateLimiter($this->cacheDir),
+            static function (): bool { throw new \RuntimeException('simulated DB outage'); },
+        );
+
+        for ($i = 0; $i < 11; $i++) {
+            $req = ServerRequestFactory::fromGlobals([
+                'REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/login', 'REMOTE_ADDR' => '127.0.0.1',
+            ]);
+            $resp = $mw->process($req, $this->passThruHandler());
+            $this->assertSame(200, $resp->getStatusCode(), "outage fallback should pass attempt #$i");
+        }
+    }
 }

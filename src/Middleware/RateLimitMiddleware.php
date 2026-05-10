@@ -12,8 +12,29 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 final class RateLimitMiddleware implements MiddlewareInterface
 {
-    public function __construct(private RateLimiter $limiter)
-    {
+    /** @var (\Closure(): bool)|null */
+    private ?\Closure $bypassEnabled;
+
+    /**
+     * `$bypassEnabled` is an optional closure that reports whether the
+     * private-IP bypass is currently enabled. Production wiring
+     * (Application::middleware) passes a closure that reads the
+     * `rate_limit_private_ip_bypass` app_setting. Existing tests + the
+     * install-time middleware order pass `null` and the bypass defaults
+     * to ON — which is the safe fallback while app_settings isn't readable
+     * (early /install/* requests before the table exists).
+     *
+     * Why a closure and not an AppSettings instance: AppSettings is `final`
+     * so it can't be subclassed for stubs, and a closure makes the seam
+     * narrow + easy to fake.
+     */
+    public function __construct(
+        private RateLimiter $limiter,
+        ?callable $bypassEnabled = null,
+    ) {
+        $this->bypassEnabled = $bypassEnabled !== null
+            ? \Closure::fromCallable($bypassEnabled)
+            : null;
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -32,7 +53,12 @@ final class RateLimitMiddleware implements MiddlewareInterface
         // attacker reaching this endpoint from a non-public IP is already
         // inside the trust boundary; in production deployments REMOTE_ADDR
         // is the public client IP and the rule fires normally.
-        if (!self::isPublicIp($ip)) {
+        //
+        // The bypass can be turned OFF from /admin/settings (or by SQL —
+        // `UPDATE app_settings SET value='false' WHERE \`key\`=
+        // 'rate_limit_private_ip_bypass';`) if a deployment doesn't want
+        // private-IP traffic to skip throttling.
+        if (!self::isPublicIp($ip) && $this->privateIpBypassEnabled()) {
             return $handler->handle($request);
         }
 
@@ -82,5 +108,24 @@ final class RateLimitMiddleware implements MiddlewareInterface
             FILTER_VALIDATE_IP,
             FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE,
         ) !== false;
+    }
+
+    /**
+     * Invoke the injected toggle closure. Defaults to true (bypass enabled)
+     * when no closure is wired (e.g. legacy test construction) or when the
+     * closure throws — if the DB is unreachable or the table doesn't exist
+     * yet (pre-install), we fall back to the default rather than 500'ing
+     * every incoming request.
+     */
+    private function privateIpBypassEnabled(): bool
+    {
+        if ($this->bypassEnabled === null) {
+            return true;
+        }
+        try {
+            return (bool)($this->bypassEnabled)();
+        } catch (\Throwable) {
+            return true;
+        }
     }
 }
