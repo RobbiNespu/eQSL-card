@@ -56,9 +56,18 @@
   <?= $this->Flash->render() ?>
   <?= $this->fetch('content') ?>
 </main>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="<?= $this->Url->build('/js/app.js') ?>" defer></script>
 <?= $this->fetch('script') ?>
+<!-- Alpine is intentionally loaded LAST: it auto-starts in a microtask
+     as soon as its script executes, and defer scripts run in document
+     order. If Alpine ran before the page-specific scripts (designer.js,
+     app.js factories), `x-data="designer(...)"` would resolve against
+     a `designer` global that isn't defined yet and Alpine would fall
+     back to an empty data scope — every directive inside the affected
+     subtree then errors with "X is not defined" and the panel renders
+     blank. Keep Alpine at the bottom so every factory global is set
+     by the time Alpine processes the DOM. -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </body>
 </html>
