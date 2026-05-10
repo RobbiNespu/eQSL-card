@@ -155,6 +155,15 @@ return function (RouteBuilder $routes): void {
          * future static segment (`/cards/new`, `/cards/import`, …) added
          * BEFORE this line will match cleanly without ambiguity.
          */
+        // Background-image library (per-user). Edit/delete also serve admin
+        // operating-on-anyone's uploads — controller-level role check.
+        $builder->connect('/uploads', ['controller' => 'Uploads', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/uploads/{id}/edit', ['controller' => 'Uploads', 'action' => 'edit'])
+            ->setPass(['id'])->setMethods(['GET', 'POST', 'PUT', 'PATCH'])->setPatterns(['id' => '\d+']);
+        $builder->connect('/uploads/{id}/delete', ['controller' => 'Uploads', 'action' => 'delete'])
+            ->setPass(['id'])->setMethods(['POST'])->setPatterns(['id' => '\d+']);
+
         $builder->connect('/cards', ['controller' => 'Cards', 'action' => 'index'])
             ->setMethods(['GET']);
         // `/cards/{id}/delete` (M2-T9 soft-delete) MUST be declared BEFORE
@@ -342,6 +351,12 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/cards', ['controller' => 'Cards', 'action' => 'index'])
             ->setMethods(['GET']);
         $builder->connect('/audit', ['controller' => 'Audit', 'action' => 'index'])
+            ->setMethods(['GET']);
+
+        // Admin all-uploads listing (deep-links into /uploads/{id}/edit and
+        // /uploads/{id}/delete with ?return=/admin/uploads so the redirect
+        // round-trips back here).
+        $builder->connect('/uploads', ['controller' => 'Uploads', 'action' => 'index'])
             ->setMethods(['GET']);
 
         /*

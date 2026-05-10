@@ -18,6 +18,7 @@
         <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" href="/qsos">Logbook</a></li>
         <li class="nav-item"><a class="nav-link" href="/cards">Cards</a></li>
+        <li class="nav-item"><a class="nav-link" href="/uploads">Library</a></li>
         <li class="nav-item"><a class="nav-link" href="/templates">Templates</a></li>
         <?php
         $identity = $this->getRequest()->getAttribute('identity');
@@ -33,6 +34,7 @@
               <li><a class="dropdown-item" href="/admin/templates/pending">Pending templates</a></li>
               <li><a class="dropdown-item" href="/admin/users">Users</a></li>
               <li><a class="dropdown-item" href="/admin/cards">All cards</a></li>
+              <li><a class="dropdown-item" href="/admin/uploads">All uploads</a></li>
               <li><a class="dropdown-item" href="/admin/audit">Audit log</a></li>
               <li><a class="dropdown-item" href="/admin/cleanup">Cleanup</a></li>
               <li><hr class="dropdown-divider"></li>
