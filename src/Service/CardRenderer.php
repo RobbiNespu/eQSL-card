@@ -12,8 +12,8 @@ final class CardRenderer
      * read by the controller and passed in via $creditFooterLines).
      */
     public const DEFAULT_CREDIT_FOOTER = [
-        "this 'Electronic Certificate' (eCert) is computer generated. Email to contact@robbi.my for any discrepancy.",
-        "(C) {year} ROBBI.MY | developed by Robbi Nespu (9W2NSP) | generated via https://tools.robbi.my/eQSL on {generated_at}",
+        "This electronic QSL card was generated automatically. For any discrepancies, please email to contact@robbi.my.",
+        "© {year} ROBBI.MY | Developed by Robbi Nespu (9W2NSP) | Generated via https://tools.robbi.my/eQSL on {generated_at}",
     ];
 
     /**
