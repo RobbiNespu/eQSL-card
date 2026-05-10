@@ -173,6 +173,7 @@ security salt.
 | Migrations fail | DB user lacks `CREATE`/`ALTER`, or MariaDB <10.6 | Grant full DB privileges; upgrade MariaDB. |
 | Cards 403 on download | `webroot/files/` not writable | Re-chmod `0775` recursively. |
 | Mail not sending | Host blocks outbound SMTP | Use the host's SMTP relay; configure in `config/app_local.php`. |
+| Persistent 429 on `/login` | Stale rate-limit buckets, or bypass switched off | See § 12 — `rm -f tmp/cache/rate_limits/*` and/or SQL re-enable the bypass. |
 
 For anything else: `tail -f logs/error.log`.
 
@@ -217,3 +218,66 @@ For anything else: `tail -f logs/error.log`.
 - **Mod_rewrite:** Some discount hosts disable it by default. The installer's first step verifies routing — if it returns 404, contact support.
 - **Symlinks:** Some hosts disable `symlink()`. The recommended subfolder layout (app outside `public_html/`) requires it; if disabled, fall back to placing the entire app inside `public_html/` with the bundled `.htaccess` deny rules.
 - **Cron:** Not required by this app (no background workers), but if you want admin cleanup tools to run on a schedule, you can wire `bin/cake` calls via cPanel cron once SSH is available — for now run via `/admin/cleanup`.
+
+---
+
+## 12. Rate limiting
+
+Two sensitive endpoints are throttled:
+
+| Endpoint            | Method | Limit | Window  | Bucket key                |
+|---------------------|--------|-------|---------|---------------------------|
+| `/login`            | POST   | 5     | 15 min  | `sha256(REMOTE_ADDR)`     |
+| `/qsl/{slug}/unlock`| POST   | 5     | 15 min  | the share slug            |
+
+Bucket files live at `tmp/cache/rate_limits/<sha256>`. They're plain CSV of
+UNIX timestamps; safe to delete at any time (the limiter rebuilds them on the
+next request). Cleared in bulk via **Admin → Cleanup → Clear cache**.
+
+### Private-IP bypass
+
+By default the limiter **skips** requests from non-public IPs — loopback
+(`127.0.0.0/8`, `::1`), RFC1918 (`10/8`, `172.16/12`, `192.168/16`), Docker
+bridge gateways, and IPv6 ULA/link-local. Convenient for local dev and
+on-host curl checks; doesn't widen the surface in production where
+`REMOTE_ADDR` is the public client IP.
+
+Toggle the bypass from **Admin → Settings → Security**. The setting is stored
+as `rate_limit_private_ip_bypass` in `app_settings` and defaults to `true`.
+
+### Emergency recovery (locked out)
+
+If you flip the bypass OFF and then lock yourself out of `/login`, you
+can't reach the admin UI to fix it. Recover by SQL:
+
+```sql
+UPDATE app_settings
+SET value = 'true', updated_at = NOW()
+WHERE `key` = 'rate_limit_private_ip_bypass';
+```
+
+Then wipe accumulated bucket files so stale stamps don't keep throttling
+you for the rest of the 15-minute window:
+
+```bash
+rm -f tmp/cache/rate_limits/*
+```
+
+On shared hosting without SSH, the rm step can be done via cPanel File
+Manager (browse to `tmp/cache/rate_limits/`, select all, Delete).
+
+### Lifecycle / install-time behavior
+
+If the closure that reads the setting throws (DB unreachable, table not
+created yet during `/install/*`), the middleware falls back to **bypass
+enabled** so the request can complete. You will never get hard-locked out
+by a transient DB outage you can't fix because you can't log in.
+
+### Operational gotcha: tests running as root
+
+`docker compose exec` defaults to root, and the test suite exercises the
+limiter. Bucket files persist after the suite ends — see
+`src/Service/RateLimiter.php` for the `tmp + rename + chmod 0o666` write
+pattern that lets the www-data php-fpm worker still overwrite them. If
+you ever see a phantom 429 right after running the suite, just
+`rm -f tmp/cache/rate_limits/*` (or hit the Clear cache admin button).
