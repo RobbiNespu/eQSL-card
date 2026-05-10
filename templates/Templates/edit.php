@@ -1,7 +1,13 @@
+<?php
+// Bust browser caches when these files change on disk. Without `?v=mtime`
+// a returning user keeps running the old designer.js until they manually
+// shift-reload — which masked the M3-T17 canvas fix during testing.
+$jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . ltrim($rel, '/')) ?: time());
+?>
 <?php $this->start('script'); ?>
-<script src="<?= $this->Url->build('/js/vendor/fabric.min.js') ?>"></script>
-<script src="<?= $this->Url->build('/js/designer-helpers.js') ?>"></script>
-<script src="<?= $this->Url->build('/js/designer.js') ?>" defer></script>
+<script src="<?= $this->Url->build('/js/vendor/fabric.min.js') ?>?v=<?= $jsVersion('/js/vendor/fabric.min.js') ?>"></script>
+<script src="<?= $this->Url->build('/js/designer-helpers.js') ?>?v=<?= $jsVersion('/js/designer-helpers.js') ?>"></script>
+<script src="<?= $this->Url->build('/js/designer.js') ?>?v=<?= $jsVersion('/js/designer.js') ?>" defer></script>
 <?php $this->end(); ?>
 
 <h1><?= h($title) ?></h1>
@@ -64,8 +70,8 @@
              @change="uploadBackground($event.target.files[0])">
       <p class="form-text small">Used only for visual reference while designing. The actual background is chosen at render time.</p>
     </div>
-    <div x-ref="canvasWrap" style="width: 100%; line-height: 0; overflow: hidden;">
-      <canvas x-ref="canvas" style="border: 1px solid #ccc; background: #f8f9fa; max-width: 100%; display: block;"></canvas>
+    <div x-ref="canvasWrap" style="width: 100%; line-height: 0; overflow: hidden; border: 1px solid #ccc; background: #f8f9fa;">
+      <canvas x-ref="canvas" style="max-width: 100%; display: block;"></canvas>
     </div>
     <p class="text-muted small mt-2">Preview at fit-to-column. Final render is at <span x-text="canvasWidth"></span> &times; <span x-text="canvasHeight"></span> px.</p>
   </div>
