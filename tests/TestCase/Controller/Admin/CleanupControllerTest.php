@@ -214,6 +214,26 @@ final class CleanupControllerTest extends TestCase
         $this->assertNotNull($log);
     }
 
+    public function testCacheActionRecursesIntoNestedSubdirs(): void
+    {
+        // Regression: stale `tmp/cache/rate_limits/*` buckets owned by an old
+        // uid produced surprise 429s on /login because the original
+        // non-recursive sweep only looked at known engine subdirs. Recursion
+        // closes that hole — any nested file (rate_limits/, custom engine
+        // dirs, ...) gets cleared.
+        $this->loginAs('admin');
+
+        $nestedDir = TMP . 'cache' . DIRECTORY_SEPARATOR . 'rate_limits';
+        [$nestedVictim] = $this->seedFile($nestedDir);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/admin/cleanup/cache');
+        $this->assertRedirect('/admin/cleanup');
+
+        $this->assertFileDoesNotExist($nestedVictim);
+    }
+
     public function testLogsActionDeletesOnlyLogFiles(): void
     {
         $this->loginAs('admin');

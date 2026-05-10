@@ -103,12 +103,7 @@ class CleanupController extends AppController
                 ->orderBy(['Uploads.created_at' => 'ASC'])
                 ->limit(5)
                 ->all(),
-            'cacheStats' => $this->dirStats([
-                TMP . 'cache',
-                TMP . 'cache' . DIRECTORY_SEPARATOR . 'models',
-                TMP . 'cache' . DIRECTORY_SEPARATOR . 'persistent',
-                TMP . 'cache' . DIRECTORY_SEPARATOR . 'views',
-            ]),
+            'cacheStats' => $this->dirStats([TMP . 'cache']),
             'logStats' => $this->dirStats([LOGS], ['log']),
             'sessionStats' => $this->dirStats([TMP . 'sessions']),
             'title' => 'Admin · Cleanup',
@@ -116,75 +111,77 @@ class CleanupController extends AppController
     }
 
     /**
-     * Count + total-size of files under the supplied directories. Skips
-     * `.gitkeep` files (we want to keep them) and recursing into hidden dirs.
+     * Walk all files under the supplied directories. Yields each file path,
+     * skipping `.gitkeep` markers and dotfiles, optionally filtered by file
+     * extension. Recursion is required because Cake nests caches inside
+     * `tmp/cache/<engine>/...` subdirs (and our own RateLimiter parks files
+     * under `tmp/cache/rate_limits/`) — a non-recursive sweep misses those
+     * and silently leaves stale state behind.
      *
      * @param string[] $dirs Absolute directory paths.
-     * @param string[]|null $extensionsAllow When supplied, only files with one
-     *        of these extensions count (e.g. `['log']` for log files).
+     * @param string[]|null $extensionsAllow When supplied, only files with
+     *        one of these extensions are yielded (e.g. `['log']`).
+     * @return \Generator<int, string>
+     */
+    private function walkFiles(array $dirs, ?array $extensionsAllow = null): \Generator
+    {
+        foreach ($dirs as $dir) {
+            if (!is_dir($dir)) {
+                continue;
+            }
+            $iter = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator(
+                    $dir,
+                    \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::UNIX_PATHS,
+                ),
+                \RecursiveIteratorIterator::LEAVES_ONLY,
+            );
+            foreach ($iter as $entry) {
+                /** @var \SplFileInfo $entry */
+                if (!$entry->isFile()) {
+                    continue;
+                }
+                $base = $entry->getFilename();
+                if ($base === '.gitkeep') {
+                    continue;
+                }
+                if ($extensionsAllow !== null) {
+                    $ext = strtolower(pathinfo($base, PATHINFO_EXTENSION));
+                    if (!in_array($ext, $extensionsAllow, true)) {
+                        continue;
+                    }
+                }
+                yield $entry->getPathname();
+            }
+        }
+    }
+
+    /**
+     * @param string[] $dirs
+     * @param string[]|null $extensionsAllow
      * @return array{count:int, bytes:int}
      */
     private function dirStats(array $dirs, ?array $extensionsAllow = null): array
     {
         $count = 0;
         $bytes = 0;
-        foreach ($dirs as $dir) {
-            if (!is_dir($dir)) {
-                continue;
-            }
-            foreach (glob($dir . '/*') ?: [] as $path) {
-                if (!is_file($path)) {
-                    continue;
-                }
-                $base = basename($path);
-                if ($base === '.gitkeep') {
-                    continue;
-                }
-                if ($extensionsAllow !== null) {
-                    $ext = strtolower(pathinfo($base, PATHINFO_EXTENSION));
-                    if (!in_array($ext, $extensionsAllow, true)) {
-                        continue;
-                    }
-                }
-                $count++;
-                $bytes += (int)@filesize($path);
-            }
+        foreach ($this->walkFiles($dirs, $extensionsAllow) as $path) {
+            $count++;
+            $bytes += (int)@filesize($path);
         }
         return ['count' => $count, 'bytes' => $bytes];
     }
 
     /**
-     * Delete files matching `dirStats`'s rules under the supplied dirs. Used
-     * by the three filesystem-cleanup actions below. Returns the deletion
-     * count for audit/Flash messaging.
-     *
      * @param string[] $dirs
      * @param string[]|null $extensionsAllow
      */
     private function deleteFilesUnder(array $dirs, ?array $extensionsAllow = null): int
     {
         $deleted = 0;
-        foreach ($dirs as $dir) {
-            if (!is_dir($dir)) {
-                continue;
-            }
-            foreach (glob($dir . '/*') ?: [] as $path) {
-                if (!is_file($path)) {
-                    continue;
-                }
-                $base = basename($path);
-                if ($base === '.gitkeep') {
-                    continue;
-                }
-                if ($extensionsAllow !== null) {
-                    $ext = strtolower(pathinfo($base, PATHINFO_EXTENSION));
-                    if (!in_array($ext, $extensionsAllow, true)) {
-                        continue;
-                    }
-                }
-                if (@unlink($path)) {
-                    $deleted++;
-                }
+        foreach ($this->walkFiles($dirs, $extensionsAllow) as $path) {
+            if (@unlink($path)) {
+                $deleted++;
             }
         }
         return $deleted;
@@ -295,12 +292,11 @@ class CleanupController extends AppController
         $this->request->allowMethod('post');
         $userId = $this->Authentication->getIdentity()->getIdentifier();
 
-        $deleted = $this->deleteFilesUnder([
-            TMP . 'cache',
-            TMP . 'cache' . DIRECTORY_SEPARATOR . 'models',
-            TMP . 'cache' . DIRECTORY_SEPARATOR . 'persistent',
-            TMP . 'cache' . DIRECTORY_SEPARATOR . 'views',
-        ]);
+        // Recursive — covers all the engine subdirs (cake_, models, persistent,
+        // views) plus our own RateLimiter buckets under `tmp/cache/rate_limits/`.
+        // Without recursion, stale rate-limit files leak into a 'cache cleared'
+        // run and produce surprise 429s on /login.
+        $deleted = $this->deleteFilesUnder([TMP . 'cache']);
 
         try {
             \Cake\Cache\Cache::clearAll();
