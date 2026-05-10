@@ -320,7 +320,24 @@ class PublicController extends AppController
             file_put_contents($tmp, $blob);
             return $tmp;
         }
-        throw new \Cake\Http\Exception\BadRequestException('Background image required.');
+
+        // No user-supplied background — fall back to the admin-configured
+        // default (uploadable via /admin/settings) or the bundled demo bg.
+        // We copy to a temp path because the caller @unlinks the returned file.
+        $candidates = [
+            WWW_ROOT . 'files/templates/_default-bg.jpg',
+            WWW_ROOT . 'files/templates/_demo-bg.jpg',
+        ];
+        foreach ($candidates as $abs) {
+            if (is_file($abs)) {
+                $tmp = tempnam(sys_get_temp_dir(), 'eqsl_');
+                copy($abs, $tmp);
+                return $tmp;
+            }
+        }
+        throw new \Cake\Http\Exception\BadRequestException(
+            'No background image available — admin must set a default.'
+        );
     }
 
     /**

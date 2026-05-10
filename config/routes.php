@@ -366,6 +366,10 @@ return function (RouteBuilder $routes): void {
          */
         $builder->connect('/settings', ['controller' => 'Settings', 'action' => 'index'])
             ->setMethods(['GET', 'POST']);
+        $builder->connect('/settings/background', ['controller' => 'Settings', 'action' => 'background'])
+            ->setMethods(['POST']);
+        $builder->connect('/settings/background/reset', ['controller' => 'Settings', 'action' => 'backgroundReset'])
+            ->setMethods(['POST']);
     });
 
     $routes->scope('/install', function (\Cake\Routing\RouteBuilder $builder): void {

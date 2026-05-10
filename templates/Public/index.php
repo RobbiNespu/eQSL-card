@@ -41,8 +41,13 @@
 <hr>
 <h2>Background</h2>
 <div class="btn-group" role="group">
+  <button type="button" class="btn btn-outline-primary" @click="mode='default'" :class="mode==='default' && 'active'">Use site default</button>
   <button type="button" class="btn btn-outline-primary" @click="mode='upload'" :class="mode==='upload' && 'active'">Upload</button>
   <button type="button" class="btn btn-outline-primary" @click="startCamera()" :class="mode==='camera' && 'active'">Use camera</button>
+</div>
+
+<div class="mt-3" x-show="mode==='default'">
+  <p class="text-muted small">No image needed — your card will be generated with the site's default background.</p>
 </div>
 
 <div class="mt-3" x-show="mode==='upload'">

@@ -1,5 +1,35 @@
 <h1><?= h($title) ?></h1>
 
+<h2>Default background</h2>
+<p class="text-muted small">
+  Image used when a guest generates an eQSL without uploading their own background.
+  Falls back to the bundled <code>_demo-bg.jpg</code> when no admin override is set.
+</p>
+<div class="row mb-4">
+  <div class="col-md-4">
+    <?php if ($hasCustomBg): ?>
+      <p class="small mb-1"><strong>Active:</strong> admin override</p>
+      <img src="/files/templates/_default-bg.jpg?v=<?= h(filemtime(WWW_ROOT . 'files/templates/_default-bg.jpg')) ?>" class="img-thumbnail" style="max-width: 240px" alt="default bg">
+      <?= $this->Form->create(null, ['url' => '/admin/settings/background/reset']) ?>
+      <button class="btn btn-sm btn-outline-danger mt-2" onclick="return confirm('Delete admin override and fall back to the bundled background?')">Reset to bundled default</button>
+      <?= $this->Form->end() ?>
+    <?php elseif ($hasBundledBg): ?>
+      <p class="small mb-1"><strong>Active:</strong> bundled fallback (<code>_demo-bg.jpg</code>)</p>
+      <img src="/files/templates/_demo-bg.jpg" class="img-thumbnail" style="max-width: 240px" alt="bundled bg">
+    <?php else: ?>
+      <p class="text-danger small">No background available — guests cannot generate eQSLs without uploading.</p>
+    <?php endif; ?>
+  </div>
+  <div class="col-md-6">
+    <?= $this->Form->create(null, ['url' => '/admin/settings/background', 'type' => 'file']) ?>
+    <label class="form-label">Upload a new default background</label>
+    <input type="file" name="default_background" accept="image/jpeg,image/png,image/webp" class="form-control mb-2" required>
+    <button class="btn btn-primary">Save background</button>
+    <p class="form-text small">Auto-resized to fit a 2000×1500 bounding box and saved as JPEG.</p>
+    <?= $this->Form->end() ?>
+  </div>
+</div>
+
 <?= $this->Form->create(null) ?>
 <h2>General</h2>
 <div class="mb-3"><label>Site name</label>

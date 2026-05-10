@@ -321,10 +321,15 @@ return [
 
         /*
          * The test connection is used during the test suite.
+         *
+         * Defaults to in-memory SQLite via DATABASE_TEST_URL (set by
+         * phpunit.xml.dist). Self-sufficient — does not require app_local.php
+         * to define a `test` datasource, so installer-overwritten config keeps
+         * tests working.
          */
         'test' => [
             'className' => Connection::class,
-            'driver' => Mysql::class,
+            'url' => env('DATABASE_TEST_URL', 'sqlite:///:memory:'),
             'persistent' => false,
             'timezone' => 'UTC',
             'encoding' => 'utf8mb4',

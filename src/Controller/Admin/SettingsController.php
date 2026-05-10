@@ -78,11 +78,98 @@ class SettingsController extends AppController
             return $this->redirect('/admin/settings');
         }
 
+        $defaultBg = WWW_ROOT . 'files/templates/_default-bg.jpg';
+        $bundledBg = WWW_ROOT . 'files/templates/_demo-bg.jpg';
+
         $this->set([
             'settings' => $settings->getAll(),
             'title' => 'Admin · Settings',
+            'hasCustomBg' => is_file($defaultBg),
+            'hasBundledBg' => is_file($bundledBg),
         ]);
 
         return null;
+    }
+
+    /**
+     * POST /admin/settings/background — upload an admin-supplied default
+     * background image. Saves directly to webroot/files/templates/_default-bg.jpg
+     * (overwriting any prior upload). Falls back to the bundled _demo-bg.jpg
+     * automatically when this file is absent.
+     */
+    public function background()
+    {
+        $this->request->allowMethod('post');
+
+        $upload = $this->request->getUploadedFile('default_background');
+        if (!$upload || $upload->getError() !== UPLOAD_ERR_OK) {
+            $this->Flash->error('Please choose an image file.');
+            return $this->redirect('/admin/settings');
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'eqsl_dbg_');
+        $upload->moveTo($tmp);
+
+        $info = @getimagesize($tmp);
+        if ($info === false) {
+            @unlink($tmp);
+            $this->Flash->error('Not a valid image.');
+            return $this->redirect('/admin/settings');
+        }
+        if ($info[0] * $info[1] > 50_000_000) {
+            @unlink($tmp);
+            $this->Flash->error('Image too large.');
+            return $this->redirect('/admin/settings');
+        }
+
+        $optimizer = new \App\Service\ImageOptimizer(
+            maxWidth: 2000, maxHeight: 1500, quality: 86
+        );
+        $finalPath = WWW_ROOT . 'files/templates/_default-bg.jpg';
+        try {
+            $optimizer->optimize($tmp, $finalPath);
+        } catch (\Throwable $e) {
+            @unlink($tmp);
+            $this->Flash->error('Could not process image: ' . $e->getMessage());
+            return $this->redirect('/admin/settings');
+        }
+        @unlink($tmp);
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'settings.default_background_changed',
+                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        $this->Flash->success('Default background updated.');
+        return $this->redirect('/admin/settings');
+    }
+
+    /**
+     * POST /admin/settings/background/reset — delete the admin-supplied default
+     * so the bundled _demo-bg.jpg becomes the active fallback again.
+     */
+    public function backgroundReset()
+    {
+        $this->request->allowMethod('post');
+        $path = WWW_ROOT . 'files/templates/_default-bg.jpg';
+        if (is_file($path)) {
+            @unlink($path);
+
+            try {
+                (new \App\Service\AuditLogger())->log(
+                    event: 'settings.default_background_reset',
+                    actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                );
+            } catch (\Throwable $e) {
+                error_log('audit: ' . $e->getMessage());
+            }
+        }
+
+        $this->Flash->success('Default background reset to the bundled image.');
+        return $this->redirect('/admin/settings');
     }
 }

@@ -1,6 +1,6 @@
 function cameraForm() {
     return {
-        mode: 'upload',
+        mode: 'default',
         captured: '',
         async startCamera() {
             this.mode = 'camera';
