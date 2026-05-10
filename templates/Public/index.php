@@ -8,8 +8,16 @@
   <div class="col-md-6"><?= $this->Form->control('operator_callsign', ['label' => 'My callsign', 'class' => 'form-control', 'required' => true]) ?></div>
   <div class="col-md-6"><?= $this->Form->control('qso_datetime_utc', ['label' => 'Date/Time UTC', 'type' => 'datetime-local', 'class' => 'form-control', 'required' => true]) ?></div>
   <div class="col-md-6"><?= $this->Form->control('frequency_mhz', ['label' => 'Frequency (MHz)', 'class' => 'form-control']) ?></div>
-  <div class="col-md-3"><?= $this->Form->control('band', ['label' => 'Band', 'class' => 'form-control']) ?></div>
-  <div class="col-md-3"><?= $this->Form->control('mode', ['label' => 'Mode', 'class' => 'form-control']) ?></div>
+  <div class="col-md-3"><?= $this->Form->control('band', [
+      'label' => 'Band', 'type' => 'select', 'class' => 'form-select',
+      'options' => \App\Service\HamRadio::bandOptions(),
+      'empty' => '— pick a band —',
+  ]) ?></div>
+  <div class="col-md-3"><?= $this->Form->control('mode', [
+      'label' => 'Mode', 'type' => 'select', 'class' => 'form-select',
+      'options' => \App\Service\HamRadio::modeOptions(),
+      'empty' => '— pick a mode —',
+  ]) ?></div>
   <div class="col-md-3"><?= $this->Form->control('rst_sent', ['label' => 'RST sent', 'class' => 'form-control']) ?></div>
   <div class="col-md-3"><?= $this->Form->control('rst_received', ['label' => 'RST received', 'class' => 'form-control']) ?></div>
   <div class="col-md-6"><?= $this->Form->control('operator_name', ['label' => 'Their name', 'class' => 'form-control']) ?></div>

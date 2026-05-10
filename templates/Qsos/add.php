@@ -26,13 +26,19 @@
   <div class="col-md-4">
     <?= $this->Form->control('band', [
         'label' => 'Band',
-        'class' => 'form-control',
+        'type' => 'select',
+        'class' => 'form-select',
+        'options' => \App\Service\HamRadio::bandOptions($qso->band ?? null),
+        'empty' => '— pick a band —',
     ]) ?>
   </div>
   <div class="col-md-4">
     <?= $this->Form->control('mode', [
         'label' => 'Mode',
-        'class' => 'form-control',
+        'type' => 'select',
+        'class' => 'form-select',
+        'options' => \App\Service\HamRadio::modeOptions($qso->mode ?? null),
+        'empty' => '— pick a mode —',
     ]) ?>
   </div>
   <div class="col-md-3">

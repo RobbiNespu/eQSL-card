@@ -2,8 +2,22 @@
 
 <form method="get" class="row g-2 mb-3">
   <div class="col-md-3"><input type="search" name="q" value="<?= h($filters['search']) ?>" placeholder="Callsign" class="form-control"></div>
-  <div class="col-md-2"><input type="text" name="band" value="<?= h($filters['band']) ?>" placeholder="Band (e.g. 20m)" class="form-control"></div>
-  <div class="col-md-2"><input type="text" name="mode" value="<?= h($filters['mode']) ?>" placeholder="Mode (e.g. SSB)" class="form-control"></div>
+  <div class="col-md-2">
+    <select name="band" class="form-select">
+      <option value="">All bands</option>
+      <?php foreach (\App\Service\HamRadio::bandOptions($filters['band']) as $b => $lbl): ?>
+        <option value="<?= h($b) ?>"<?= $filters['band'] === $b ? ' selected' : '' ?>><?= h($lbl) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select name="mode" class="form-select">
+      <option value="">All modes</option>
+      <?php foreach (\App\Service\HamRadio::modeOptions($filters['mode']) as $m => $lbl): ?>
+        <option value="<?= h($m) ?>"<?= $filters['mode'] === $m ? ' selected' : '' ?>><?= h($lbl) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </div>
   <div class="col-md-2"><input type="date" name="from" value="<?= h($filters['from']) ?>" class="form-control"></div>
   <div class="col-md-2"><input type="date" name="to" value="<?= h($filters['to']) ?>" class="form-control"></div>
   <div class="col-md-1"><button class="btn btn-primary w-100">Filter</button></div>
