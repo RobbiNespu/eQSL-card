@@ -96,9 +96,24 @@ function designer(initial) {
             // canvas taller than the side panels next to it.
             const targetH = 600;
             const ratio = Math.min(targetW / this.canvasWidth, targetH / this.canvasHeight);
+            // Round to integer pixels — sub-pixel canvas sizes blur text on
+            // some GPU paths and let `overflow:hidden` clip the last 0.x px.
+            const w = Math.floor(this.canvasWidth * ratio);
+            const h = Math.floor(this.canvasHeight * ratio);
             this.fabricCanvas.setZoom(ratio);
-            this.fabricCanvas.setWidth(this.canvasWidth * ratio);
-            this.fabricCanvas.setHeight(this.canvasHeight * ratio);
+            // Fabric v6 prefers setDimensions over the legacy setWidth/setHeight
+            // pair: it resizes the lower-canvas, upper-canvas, AND the wrapper
+            // .canvas-container element in one atomic call. Without this the
+            // canvas-container can keep its old (900x600) inline size while
+            // the canvases themselves shrink, leaving a clipped-looking
+            // viewport. Both v5 and v6 expose setDimensions; the inline
+            // fallback covers any pre-5.3 build we might ever pin to.
+            if (typeof this.fabricCanvas.setDimensions === 'function') {
+                this.fabricCanvas.setDimensions({ width: w, height: h });
+            } else {
+                this.fabricCanvas.setWidth(w);
+                this.fabricCanvas.setHeight(h);
+            }
         },
 
         renderFieldOnCanvas(field, idx) {
