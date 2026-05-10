@@ -87,15 +87,27 @@ class InstallController extends AppController
                     error_log('audit: ' . $e->getMessage());
                 }
 
-                return $this->redirect('/install/complete');
+                // Render the completion page directly instead of redirecting.
+                // We can't redirect to /install/complete here because the lock
+                // file we just wrote causes InstallationCheckMiddleware to 404
+                // any /install/* path on the next request — so the redirect
+                // target would be unreachable. Rendering inline keeps the lock
+                // semantics correct while still giving the user the success page.
+                $this->set('loginUrl', '/login');
+                $this->render('complete');
+                return null;
             } catch (\Throwable $e) {
                 $this->Flash->error($e->getMessage());
             }
         }
+        return null;
     }
 
     public function complete(): void
     {
+        // Reachable only on a fresh, un-installed instance (i.e. before the
+        // admin POST creates the lock). Kept for direct-link sanity but the
+        // primary entry is now via admin() rendering this view inline.
         $this->set('loginUrl', '/login');
     }
 }

@@ -55,6 +55,12 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
 
         $this->addPlugin('Authentication');
 
+        // DebugKit: load only when debug is on AND the package is installed.
+        // Production zips ship without dev deps, so guard the require check.
+        if (Configure::read('debug') && class_exists(\DebugKit\Plugin::class)) {
+            $this->addPlugin('DebugKit');
+        }
+
         if (PHP_SAPI !== 'cli') {
             // The bake plugin requires fallback table classes to work properly
             FactoryLocator::add('Table', (new TableLocator())->allowFallbackClass(false));
