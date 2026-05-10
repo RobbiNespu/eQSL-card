@@ -73,6 +73,38 @@ final class CardRendererTest extends TestCase
             ->renderPng($template, $bg, [], $this->tmp . '/card.png');
     }
 
+    public function testCreditFooterIsDrawnByDefault(): void
+    {
+        $bg = $this->tmp . '/bg.jpg';
+        $img = imagecreatetruecolor(1500, 1000);
+        imagefill($img, 0, 0, imagecolorallocate($img, 255, 255, 255));
+        imagejpeg($img, $bg);
+        imagedestroy($img);
+
+        $template = ['canvas_width' => 1500, 'canvas_height' => 1000, 'fields' => []];
+
+        $withFooter = $this->tmp . '/with-footer.png';
+        (new CardRenderer(WWW_ROOT . 'files/fonts/'))
+            ->renderPng($template, $bg, [], $withFooter);
+
+        $withoutFooter = $this->tmp . '/no-footer.png';
+        (new CardRenderer(WWW_ROOT . 'files/fonts/', creditFooterLines: []))
+            ->renderPng($template, $bg, [], $withoutFooter);
+
+        // Footer paints a translucent band + text, so file content must differ.
+        $this->assertNotSame(
+            hash_file('sha256', $withFooter),
+            hash_file('sha256', $withoutFooter),
+            'Default credit footer should produce a visually different PNG'
+        );
+    }
+
+    public function testFromSettingsFactoryReturnsRenderer(): void
+    {
+        $r = CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
+        $this->assertInstanceOf(CardRenderer::class, $r);
+    }
+
     public function testWrapsPngIntoPdf(): void
     {
         $bg = $this->tmp . '/bg.jpg';

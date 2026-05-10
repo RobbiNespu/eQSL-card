@@ -257,7 +257,7 @@ class PublicController extends AppController
         $qso = $this->buildQsoData($data);
 
         // Render
-        $renderer = new \App\Service\CardRenderer(WWW_ROOT . 'files/fonts/');
+        $renderer = \App\Service\CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
         $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
         $pngPath = WWW_ROOT . 'files/cards/' . $uuid . '.png';
         $pdfPath = WWW_ROOT . 'files/cards/' . $uuid . '.pdf';

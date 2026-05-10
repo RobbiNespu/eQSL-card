@@ -50,6 +50,7 @@ class SettingsController extends AppController
             $allowed = [
                 'site_name', 'max_upload_mb', 'share_base_url',
                 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
+                'eqsl_credit_template',
             ];
             $update = [];
             foreach ($allowed as $key) {

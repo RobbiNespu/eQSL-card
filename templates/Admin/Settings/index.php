@@ -42,6 +42,20 @@
   <input type="text" name="share_base_url" value="<?= h($settings['share_base_url'] ?? '') ?>" class="form-control" placeholder="https://yourdomain">
 </div>
 
+<h2>eQSL credit footer</h2>
+<p class="form-text small">
+  Drawn at the bottom of every generated card. One physical line per row.
+  Placeholders: <code>{year}</code> resolves to the current 4-digit year and
+  <code>{generated_at}</code> to an ISO-8601 timestamp at render time.
+  Leave empty to use the bundled default.
+</p>
+<?php
+$creditDefault = implode("\n", \App\Service\CardRenderer::DEFAULT_CREDIT_FOOTER);
+?>
+<div class="mb-4">
+  <textarea name="eqsl_credit_template" class="form-control" rows="4" placeholder="<?= h($creditDefault) ?>"><?= h($settings['eqsl_credit_template'] ?? '') ?></textarea>
+</div>
+
 <h2>SMTP (overrides config/app_local.php at runtime if set)</h2>
 <div class="row">
   <div class="col-md-6 mb-3"><label>SMTP host</label>

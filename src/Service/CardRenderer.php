@@ -5,12 +5,42 @@ namespace App\Service;
 
 final class CardRenderer
 {
+    /**
+     * Default credit footer drawn on every card. Two physical lines.
+     * `{year}` and `{generated_at}` are resolved at render time. Admin can
+     * override the whole text via `/admin/settings` (key `eqsl_credit_template`,
+     * read by the controller and passed in via $creditFooterLines).
+     */
+    public const DEFAULT_CREDIT_FOOTER = [
+        "this 'Electronic Certificate' (eCert) is computer generated. Email to contact@robbi.my for any discrepancy.",
+        "(C) {year} ROBBI.MY | developed by Robbi Nespu (9W2NSP) | generated via https://tools.robbi.my/eQSL on {generated_at}",
+    ];
+
+    /**
+     * @param string[] $creditFooterLines One string per physical line. Empty array disables the footer.
+     */
     public function __construct(
         private string $fontDir,
         private ?PlaceholderResolver $resolver = null,
+        private array $creditFooterLines = self::DEFAULT_CREDIT_FOOTER,
     ) {
         $this->resolver = $resolver ?? new PlaceholderResolver();
         $this->fontDir = rtrim($this->fontDir, '/') . '/';
+    }
+
+    /**
+     * Build a CardRenderer with credit footer text pulled from app_settings.
+     * Falls back to DEFAULT_CREDIT_FOOTER when the admin hasn't customised it.
+     * Use this from controllers; tests should keep using `new CardRenderer(...)`.
+     */
+    public static function fromSettings(string $fontDir, ?AppSettings $settings = null): self
+    {
+        $settings ??= new AppSettings();
+        $tpl = (string)$settings->get('eqsl_credit_template', '');
+        $lines = $tpl !== ''
+            ? array_values(array_filter(preg_split('/\r\n|\n/', $tpl) ?: [], static fn ($l) => trim($l) !== ''))
+            : self::DEFAULT_CREDIT_FOOTER;
+        return new self($fontDir, creditFooterLines: $lines);
     }
 
     /**
@@ -38,6 +68,12 @@ final class CardRenderer
 
         foreach ($template['fields'] as $field) {
             $this->drawField($canvas, $field, $qso);
+        }
+
+        // System credit footer — drawn AFTER template fields so a template can't
+        // accidentally hide it. Empty array (`creditFooterLines`) disables it.
+        if (!empty($this->creditFooterLines)) {
+            $this->drawCreditFooter($canvas, $width, $height);
         }
 
         if (!imagepng($canvas, $destinationPath, 6)) {
@@ -93,6 +129,52 @@ final class CardRenderer
             $fontPath,
             $text
         );
+    }
+
+    /**
+     * Paint a translucent black band at the bottom and write the credit
+     * lines in white over it. Font size scales with canvas height so a
+     * 1500x1000 card and a 800x600 thumbnail both look right.
+     */
+    private function drawCreditFooter(\GdImage $canvas, int $width, int $height): void
+    {
+        $fontPath = $this->fontDir . 'Inter-Regular.ttf';
+        if (!is_file($fontPath)) {
+            return; // Font not bundled — skip footer rather than crash the render.
+        }
+
+        $context = [
+            'year' => date('Y'),
+            'generated_at' => date('Y-m-d\TH:i:s\Z'),
+        ];
+        $resolver = $this->resolver ?? new PlaceholderResolver();
+        $lines = array_map(
+            fn (string $tpl) => $resolver->resolve($tpl, $context),
+            $this->creditFooterLines
+        );
+
+        // Sizing: ~1.6% of canvas height per line, 4px gap, 8px top/bottom padding.
+        $fontSize = max(11.0, $height * 0.016);
+        $lineHeight = (int)round($fontSize * 1.4);
+        $vPad = 8;
+        $bandHeight = ($lineHeight * count($lines)) + ($vPad * 2);
+        $bandTop = $height - $bandHeight;
+
+        // Translucent black band. GD's truecolor canvas supports alpha.
+        $bandColor = imagecolorallocatealpha($canvas, 0, 0, 0, 70); // ~73% opaque
+        imagefilledrectangle($canvas, 0, $bandTop, $width, $height, $bandColor);
+
+        $textColor = imagecolorallocate($canvas, 240, 240, 240);
+
+        foreach ($lines as $i => $line) {
+            // Center horizontally using imagettfbbox to measure pixel width.
+            $bbox = imagettfbbox($fontSize, 0, $fontPath, $line);
+            $textWidth = abs($bbox[2] - $bbox[0]);
+            $x = max(8, (int)round(($width - $textWidth) / 2));
+            // Baseline = top of band + padding + (line index * lineHeight) + (line height as ascender).
+            $y = $bandTop + $vPad + ($i * $lineHeight) + (int)round($fontSize);
+            imagettftext($canvas, $fontSize, 0, $x, $y, $textColor, $fontPath, $line);
+        }
     }
 
     /** @return array{0:int,1:int,2:int} */

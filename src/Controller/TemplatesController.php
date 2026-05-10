@@ -277,7 +277,7 @@ class TemplatesController extends AppController
 
         // Render thumbnail (best-effort; failure does not fail the save)
         try {
-            $renderer = new \App\Service\CardRenderer(WWW_ROOT . 'files/fonts/');
+            $renderer = \App\Service\CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
             $thumb = new \App\Service\TemplateThumbnailRenderer(
                 $renderer,
                 WWW_ROOT . 'files/templates/',
