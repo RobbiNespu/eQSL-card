@@ -16,6 +16,30 @@
     <ul class="navbar-nav ms-auto">
       <?php if ($this->getRequest()->getAttribute('identity')): ?>
         <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" href="/qsos">Logbook</a></li>
+        <li class="nav-item"><a class="nav-link" href="/cards">Cards</a></li>
+        <li class="nav-item"><a class="nav-link" href="/templates">Templates</a></li>
+        <?php
+        $identity = $this->getRequest()->getAttribute('identity');
+        $userData = method_exists($identity, 'getOriginalData') ? $identity->getOriginalData() : null;
+        $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
+        ?>
+        <?php if ($isAdmin): ?>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button">Admin</a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="/admin">Dashboard</a></li>
+              <li><a class="dropdown-item" href="/admin/settings">Settings</a></li>
+              <li><a class="dropdown-item" href="/admin/templates/pending">Pending templates</a></li>
+              <li><a class="dropdown-item" href="/admin/users">Users</a></li>
+              <li><a class="dropdown-item" href="/admin/cards">All cards</a></li>
+              <li><a class="dropdown-item" href="/admin/audit">Audit log</a></li>
+              <li><a class="dropdown-item" href="/admin/cleanup">Cleanup</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/admin/upgrade">Run migrations</a></li>
+            </ul>
+          </li>
+        <?php endif; ?>
         <li class="nav-item">
           <?= $this->Form->postLink('Logout', '/logout', ['class' => 'nav-link']) ?>
         </li>

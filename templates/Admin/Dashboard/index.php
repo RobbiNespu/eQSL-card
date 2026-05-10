@@ -31,10 +31,12 @@
   <div class="col-md-6">
     <h2>Quick links</h2>
     <ul class="list-group">
+      <li class="list-group-item"><a href="/admin/settings">Settings (default eQSL background, SMTP, etc.)</a></li>
       <li class="list-group-item"><a href="/admin/templates/pending">Pending template moderation (<?= h($stats['templates_pending']) ?>)</a></li>
       <li class="list-group-item"><a href="/admin/users">User management</a></li>
       <li class="list-group-item"><a href="/admin/cards">All cards browser</a></li>
       <li class="list-group-item"><a href="/admin/audit">Audit log viewer</a></li>
+      <li class="list-group-item"><a href="/admin/cleanup">Cleanup tools (purge old guest cards, prune orphan uploads)</a></li>
       <li class="list-group-item"><a href="/admin/upgrade">Run pending migrations</a></li>
     </ul>
   </div>
