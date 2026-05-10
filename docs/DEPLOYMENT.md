@@ -58,6 +58,17 @@ Set via the file manager's permissions dialog (tick "recurse" where noted):
 If your host runs PHP under your FTP user, `0775` is enough. Otherwise try
 `0777` once, verify install, then tighten back to `0775`.
 
+> **Local dev (Docker) note:** the bundled `php-fpm` image runs as `www-data`
+> (uid 33), which is "others" relative to your host uid. `0775` will NOT
+> grant write access. Run this once after cloning:
+>
+> ```bash
+> docker compose run --rm --no-deps -u root php \
+>   chmod -R 0777 config webroot/files tmp logs
+> ```
+>
+> Production isn't affected — only the dev bind-mount.
+
 ---
 
 ## 4. Run the install wizard
