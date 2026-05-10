@@ -410,6 +410,24 @@ class QsosController extends AppController
 
                 $uploads = $this->fetchTable('Uploads');
                 $upload = $uploads->find()->where(['sha256_hash' => $sha])->first();
+
+                // Attribution: if user attached a real file, trust the form;
+                // otherwise (default-bg fallback) pull from app_settings.
+                $userSuppliedBg = $this->request->getUploadedFile('background_upload')?->getError() === UPLOAD_ERR_OK;
+                if ($userSuppliedBg) {
+                    $authorName = trim((string)($data['background_author'] ?? ''));
+                    $authorName = $authorName !== '' ? $authorName : null;
+                    $licenseRaw = trim((string)($data['background_license'] ?? ''));
+                    $license = ($licenseRaw !== '' && array_key_exists($licenseRaw, \App\Service\ImageLicense::LICENSES))
+                        ? $licenseRaw
+                        : 'unknown';
+                } else {
+                    $appSettings = new \App\Service\AppSettings();
+                    $authorName = trim((string)$appSettings->get('default_background_author', ''));
+                    $authorName = $authorName !== '' ? $authorName : null;
+                    $license = (string)$appSettings->get('default_background_license', 'unknown');
+                }
+
                 if (!$upload) {
                     $upload = $uploads->saveOrFail($uploads->newEntity([
                         'user_id' => $userId,
@@ -420,6 +438,8 @@ class QsosController extends AppController
                         'height_px' => $info['height_px'],
                         'file_size_bytes' => $info['file_size_bytes'],
                         'sha256_hash' => $sha,
+                        'author_name' => $authorName,
+                        'license' => $license,
                     ]));
                 }
             } else {
@@ -634,12 +654,18 @@ class QsosController extends AppController
         if (!is_dir(dirname($pngPath))) {
             mkdir(dirname($pngPath), 0o775, true);
         }
+        $attributionLine = \App\Service\ImageLicense::formatLine(
+            $upload->author_name ?? null,
+            $upload->license ?? null,
+            (string)($qsoData['operator_callsign'] ?? '')
+        );
         $renderer->renderPng(
             ['canvas_width' => $template->canvas_width, 'canvas_height' => $template->canvas_height,
              'fields' => $layout['fields'] ?? []],
             $finalPath,
             $qsoData,
-            $pngPath
+            $pngPath,
+            extraFooterLines: [$attributionLine]
         );
         $renderer->wrapPdf($pngPath, $pdfPath, $template->canvas_width, $template->canvas_height);
 

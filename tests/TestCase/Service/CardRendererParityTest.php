@@ -46,7 +46,11 @@ final class CardRendererParityTest extends TestCase
             'operator_name' => 'Hiram', 'notes' => 'Sample',
         ];
 
-        $renderer = new CardRenderer(WWW_ROOT . 'files/fonts/');
+        // Footer is disabled for parity tests because its `{generated_at}`
+        // placeholder bakes the current second into the PNG. Two back-to-back
+        // renders that straddle a second boundary would hash differently —
+        // not what this test is asserting.
+        $renderer = new CardRenderer(WWW_ROOT . 'files/fonts/', creditFooterLines: []);
 
         // Render A
         $pngA = $this->tmpDir . 'a.png';
@@ -89,7 +93,11 @@ final class CardRendererParityTest extends TestCase
         imagejpeg($bg, $bgPath);
         imagedestroy($bg);
 
-        $renderer = new CardRenderer(WWW_ROOT . 'files/fonts/');
+        // Footer is disabled for parity tests because its `{generated_at}`
+        // placeholder bakes the current second into the PNG. Two back-to-back
+        // renders that straddle a second boundary would hash differently —
+        // not what this test is asserting.
+        $renderer = new CardRenderer(WWW_ROOT . 'files/fonts/', creditFooterLines: []);
         $pngPath = $this->tmpDir . 'designer.png';
         $info = $renderer->renderPng([
             'canvas_width' => 1500,

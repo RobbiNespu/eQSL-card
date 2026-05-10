@@ -24,8 +24,27 @@
     <?= $this->Form->create(null, ['url' => '/admin/settings/background', 'type' => 'file']) ?>
     <label class="form-label">Upload a new default background</label>
     <input type="file" name="default_background" accept="image/jpeg,image/png,image/webp" class="form-control mb-2" required>
+
+    <div class="row g-2 mb-2">
+      <div class="col-md-6">
+        <label class="form-label small">Author / photographer</label>
+        <input type="text" name="default_background_author"
+               value="<?= h($settings['default_background_author'] ?? '') ?>"
+               class="form-control form-control-sm" placeholder="Leave blank if unknown">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small">License</label>
+        <select name="default_background_license" class="form-select form-select-sm">
+          <?php $currentLicense = (string)($settings['default_background_license'] ?? 'unknown'); ?>
+          <?php foreach (\App\Service\ImageLicense::options($currentLicense) as $code => $label): ?>
+            <option value="<?= h($code) ?>"<?= $code === $currentLicense ? ' selected' : '' ?>><?= h($label) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+    </div>
+
     <button class="btn btn-primary">Save background</button>
-    <p class="form-text small">Auto-resized to fit a 2000×1500 bounding box and saved as JPEG.</p>
+    <p class="form-text small">Auto-resized to fit a 2000×1500 bounding box and saved as JPEG. Attribution shows on every card that falls back to this image.</p>
     <?= $this->Form->end() ?>
   </div>
 </div>

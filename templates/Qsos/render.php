@@ -44,7 +44,24 @@
 <details class="mb-3">
   <summary class="small">Or upload a new image instead</summary>
   <input type="file" name="background_upload" accept="image/jpeg,image/png,image/webp" class="form-control mt-2">
-  <p class="form-text small">Selecting a file here overrides the radio choice above and saves the upload to your library for re-use.</p>
+  <div class="row g-2 mt-2">
+    <div class="col-md-6">
+      <label class="form-label small">Author / photographer</label>
+      <input type="text" name="background_author" class="form-control" placeholder="Leave blank if unknown">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label small">License</label>
+      <select name="background_license" class="form-select">
+        <?php foreach (\App\Service\ImageLicense::options() as $code => $label): ?>
+          <option value="<?= h($code) ?>"<?= $code === 'unknown' ? ' selected' : '' ?>><?= h($label) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+  </div>
+  <p class="form-text small mt-2">
+    Selecting a file here overrides the radio choice above and saves the upload to your library for re-use.
+    Author + license are stored on the upload row and shown as a credit line on every card that uses it.
+  </p>
 </details>
 
 <button class="btn btn-primary">Generate eQSL</button>

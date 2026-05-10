@@ -69,6 +69,26 @@
   <img class="card-preview mt-2" x-show="captured" :src="captured">
 </div>
 
+<!-- Attribution — only relevant when actually uploading or capturing. -->
+<div class="row g-2 mt-3" x-show="mode==='upload' || mode==='camera'" x-cloak>
+  <div class="col-md-6">
+    <label class="form-label small">Background — author / photographer</label>
+    <input type="text" name="background_author" class="form-control" placeholder="Leave blank if unknown">
+  </div>
+  <div class="col-md-6">
+    <label class="form-label small">Background — license</label>
+    <select name="background_license" class="form-select">
+      <?php foreach (\App\Service\ImageLicense::options() as $code => $label): ?>
+        <option value="<?= h($code) ?>"<?= $code === 'unknown' ? ' selected' : '' ?>><?= h($label) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+  <p class="form-text small col-12">
+    The credit footer on your card will show: <em>Background: &lt;author&gt; (&lt;license&gt;) — used by &lt;your callsign&gt;</em>.
+    If you leave the author blank, it'll say "unknown source".
+  </p>
+</div>
+
 <button class="btn btn-primary mt-4">Generate</button>
 <?= $this->Form->end() ?>
 </div>

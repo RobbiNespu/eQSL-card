@@ -44,9 +44,12 @@ final class CardRenderer
     }
 
     /**
+     * @param string[] $extraFooterLines Extra lines appended to the credit
+     *        footer (e.g. background attribution). Drawn in the same band,
+     *        below the configured credit lines, in the same mono font.
      * @return array{width_px:int,height_px:int,file_size_bytes:int,mime_type:string}
      */
-    public function renderPng(array $template, string $backgroundPath, array $qso, string $destinationPath): array
+    public function renderPng(array $template, string $backgroundPath, array $qso, string $destinationPath, array $extraFooterLines = []): array
     {
         $width = (int)$template['canvas_width'];
         $height = (int)$template['canvas_height'];
@@ -71,9 +74,12 @@ final class CardRenderer
         }
 
         // System credit footer — drawn AFTER template fields so a template can't
-        // accidentally hide it. Empty array (`creditFooterLines`) disables it.
-        if (!empty($this->creditFooterLines)) {
-            $this->drawCreditFooter($canvas, $width, $height);
+        // accidentally hide it. `creditFooterLines` is the configured base; the
+        // controller may pass additional `$extraFooterLines` per render (e.g.
+        // background attribution). Empty merged array disables the footer.
+        $allLines = array_merge($this->creditFooterLines, $extraFooterLines);
+        if (!empty($allLines)) {
+            $this->drawCreditFooter($canvas, $width, $height, $allLines);
         }
 
         if (!imagepng($canvas, $destinationPath, 6)) {
@@ -137,7 +143,11 @@ final class CardRenderer
      * scales with canvas height so 1500x1000 cards and 800x600 thumbnails
      * both look right.
      */
-    private function drawCreditFooter(\GdImage $canvas, int $width, int $height): void
+    /**
+     * @param string[] $rawLines One template per physical line. Resolved against
+     *        a context that includes {year} and {generated_at} placeholders.
+     */
+    private function drawCreditFooter(\GdImage $canvas, int $width, int $height, array $rawLines): void
     {
         $fontPath = $this->fontDir . 'JetBrainsMono-Regular.ttf';
         if (!is_file($fontPath)) {
@@ -156,7 +166,7 @@ final class CardRenderer
         $resolver = $this->resolver ?? new PlaceholderResolver();
         $lines = array_map(
             fn (string $tpl) => $resolver->resolve($tpl, $context),
-            $this->creditFooterLines
+            $rawLines
         );
 
         // Geek-mode sizing: ~1.1% of canvas height per line, tighter

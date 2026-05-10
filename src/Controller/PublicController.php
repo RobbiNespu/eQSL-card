@@ -220,6 +220,26 @@ class PublicController extends AppController
 
         $uploads = $this->fetchTable('Uploads');
         $upload = $uploads->find()->where(['sha256_hash' => $sha])->first();
+
+        // Attribution: if the user actually uploaded or captured something
+        // (not the default-bg fallback), trust the form fields. Otherwise
+        // pull the admin-configured attribution from app_settings.
+        $userSuppliedBg = ($this->request->getUploadedFile('background_upload')?->getError() === UPLOAD_ERR_OK)
+            || str_starts_with((string)($data['background_capture'] ?? ''), 'data:image/');
+        if ($userSuppliedBg) {
+            $authorName = trim((string)($data['background_author'] ?? ''));
+            $authorName = $authorName !== '' ? $authorName : null;
+            $licenseRaw = trim((string)($data['background_license'] ?? ''));
+            $license = ($licenseRaw !== '' && array_key_exists($licenseRaw, \App\Service\ImageLicense::LICENSES))
+                ? $licenseRaw
+                : 'unknown';
+        } else {
+            $appSettings = new \App\Service\AppSettings();
+            $authorName = trim((string)$appSettings->get('default_background_author', ''));
+            $authorName = $authorName !== '' ? $authorName : null;
+            $license = (string)$appSettings->get('default_background_license', 'unknown');
+        }
+
         if (!$upload) {
             $upload = $uploads->saveOrFail($uploads->newEntity([
                 'guest_visit_id' => $visit->id,
@@ -230,6 +250,8 @@ class PublicController extends AppController
                 'height_px' => $info['height_px'],
                 'file_size_bytes' => $info['file_size_bytes'],
                 'sha256_hash' => $sha,
+                'author_name' => $authorName,
+                'license' => $license,
             ]));
         }
 
@@ -264,10 +286,16 @@ class PublicController extends AppController
         if (!is_dir(dirname($pngPath))) {
             mkdir(dirname($pngPath), 0o775, true);
         }
+        $attributionLine = \App\Service\ImageLicense::formatLine(
+            $upload->author_name ?? null,
+            $upload->license ?? null,
+            (string)($qso['operator_callsign'] ?? '')
+        );
         $renderer->renderPng(
             ['canvas_width' => $template->canvas_width, 'canvas_height' => $template->canvas_height,
              'fields' => $layout['fields']],
-            $finalPath, $qso, $pngPath
+            $finalPath, $qso, $pngPath,
+            extraFooterLines: [$attributionLine]
         );
         $renderer->wrapPdf($pngPath, $pdfPath, $template->canvas_width, $template->canvas_height);
 

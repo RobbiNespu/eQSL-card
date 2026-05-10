@@ -136,10 +136,26 @@ class SettingsController extends AppController
         }
         @unlink($tmp);
 
+        // Attribution for the default background — stored in app_settings
+        // because the file isn't represented as an `uploads` row. Read by
+        // the renderer-side controllers when they fall back to the default
+        // bg (PublicController, QsosController) via AppSettings::get(...).
+        $authorName = trim((string)$this->request->getData('default_background_author', ''));
+        $licenseRaw = trim((string)$this->request->getData('default_background_license', ''));
+        $license = ($licenseRaw !== '' && array_key_exists($licenseRaw, \App\Service\ImageLicense::LICENSES))
+            ? $licenseRaw
+            : 'unknown';
+        $appSettings = new \App\Service\AppSettings();
+        $appSettings->setMany([
+            'default_background_author' => $authorName,
+            'default_background_license' => $license,
+        ]);
+
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'settings.default_background_changed',
                 actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                metadata: ['author' => $authorName ?: null, 'license' => $license],
             );
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());

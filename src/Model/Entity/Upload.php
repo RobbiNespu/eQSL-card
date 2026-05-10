@@ -17,6 +17,8 @@ class Upload extends Entity
         'height_px' => true,
         'file_size_bytes' => true,
         'sha256_hash' => true,
+        'author_name' => true,
+        'license' => true,
         'user' => true,
         'guest_visit' => true,
     ];
