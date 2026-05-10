@@ -20,6 +20,10 @@ final class AppLocalWriter
         if (file_put_contents($destinationPath, $template, LOCK_EX) === false) {
             throw new \RuntimeException("Cannot write to {$destinationPath}");
         }
-        chmod($destinationPath, 0o640);
+        // Best-effort lock-down of the secrets file. Fails when PHP runs as a
+        // different uid than the file owner (e.g. www-data writing into a
+        // bind-mounted dev tree owned by the host user). Production hosting
+        // typically has matching ownership; dev does not.
+        @chmod($destinationPath, 0o640);
     }
 }
