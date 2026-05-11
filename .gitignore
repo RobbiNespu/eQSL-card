@@ -71,3 +71,9 @@ coverage/
 .nyc_output/
 .phpunit.cache/
 .phpunit.result.cache
+
+# Claude Code local session state — not source.
+.claude/
+
+# Working-file PR drafts that don't belong in the repo.
+.pr-draft.md
