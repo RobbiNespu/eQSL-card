@@ -314,6 +314,12 @@ return function (RouteBuilder $routes): void {
          * (`/templates/recent`, …) added BEFORE the parametrized routes
          * still routes cleanly.
          */
+        // Alias: bare `/admin/templates` lands on the pending queue (the only
+        // listing surface this controller ships). Without it a trimmed URL or
+        // a guessed-from-nav `/admin/templates/` 404s with a Missing Controller
+        // page, which looks like a real bug rather than a misnavigation.
+        $builder->connect('/templates', ['controller' => 'Templates', 'action' => 'pending'])
+            ->setMethods(['GET']);
         $builder->connect('/templates/pending', ['controller' => 'Templates', 'action' => 'pending'])
             ->setMethods(['GET']);
         $builder->connect('/templates/{id}/approve', ['controller' => 'Templates', 'action' => 'approve'])
