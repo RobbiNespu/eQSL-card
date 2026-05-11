@@ -1,92 +1,87 @@
 /* =========================================================================
- *  RECEIVING STATION — eQSL Card design system
+ *  MANUSCRIPT — eQSL Card design system (mono edition)
  *
- *  A radio operator's quiet workspace: paper logs, brass instruments,
- *  low-key elegance. Loaded AFTER bootstrap.min.css so it overrides BS
- *  variables and component defaults without us forking Bootstrap itself.
+ *  A typed engineering field notebook. ONE typeface family (Geist Mono
+ *  Variable, w 100..900) carries the entire interface. Hierarchy comes
+ *  from size, weight, and letter-spacing — not font variety.
  *
  *  Conventions:
- *   - Spatial scale doubles (--s-1 = 4px → --s-8 = 64px). Avoid raw px.
- *   - Type scale is harmonic (1.250 minor third). Use --t-* for sizes.
+ *   - Spatial scale doubles (--s-1 = 4px → --s-9 = 96px). Avoid raw px.
+ *   - Type scale uses --t-1 .. --t-10 (1.250 minor third, 16px base).
  *   - Colors are palette-only via vars. Don't introduce hex inline.
- *   - Hairline rules over bordered cards; eyebrow labels over headlines.
+ *   - Section labels use `§` / `¶` prefixes; status indicators use
+ *     [BRACKETED] form; rules use the ─ char OR a copper ribbon stripe.
  *   - Numbers always tabular (font-variant-numeric: tabular-nums).
+ *
+ *  Loaded AFTER bootstrap.min.css so :root variable overrides win.
  * ========================================================================= */
 
-/* ---------- 1. Fonts (Fontsource via jsdelivr — CSP-allowed) ---------- */
+/* ---------- 1. Fonts ---------- */
 /*
- * Fontsource ships variable-axis fonts under @fontsource-variable/*; the
- * `Variable` suffix appears in the @font-face family name so our
- * --font-* stacks below reference 'Fraunces Variable' / 'Geist Variable'
- * specifically, with non-variable fallback names. JetBrains Mono stays
- * single-weight since the card renderer ships matching glyph metrics.
+ * Single typeface for the whole interface: Geist Mono Variable (weight
+ * axis 100..900) via Fontsource on jsdelivr. JetBrains Mono stays as
+ * the fallback so legacy renders (cached cards) keep their consistent
+ * look. CSP already permits cdn.jsdelivr.net for font + style sources.
  */
-@import url('https://cdn.jsdelivr.net/npm/@fontsource-variable/fraunces/index.css');
-@import url('https://cdn.jsdelivr.net/npm/@fontsource-variable/geist/index.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource-variable/geist-mono/index.css');
 @import url('https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono/index.css');
 
 /* ---------- 2. Tokens ---------- */
 :root {
-  /* Palette — paper-warm. Test pairs in WCAG-AA on every shade combo. */
-  --paper:      #f7f3ec;
-  --paper-grain:#efe9dc;
-  --paper-rule: #cdc4af;
-  --ink:        #0c1626;
-  --ink-soft:   #3a4358;
-  --ink-mute:   #6d7488;
-  --copper:     #b86a26;
-  --copper-deep:#8e5217;
-  --copper-fog: #ecdec9;
+  /* Palette — paper-warm, slightly cooler than the serif edition so
+     mono ink lands crisp on it. Tested every fg/bg pair in WCAG AA. */
+  --paper:      #f4efe6;
+  --paper-deep: #ebe5d7;
+  --paper-rule: #c8bfa9;
+  --ink:        #0a1322;
+  --ink-soft:   #353d52;
+  --ink-mute:   #6a7188;
+  --copper:     #b6601e;
+  --copper-deep:#8c4710;
+  --copper-fog: #ecdcc4;
   --signal:     #c2410c;
   --leaf:       #2f5d3a;
   --rust:       #9a2f1f;
+  --ribbon-red: #b22b1f;        /* typewriter ribbon */
 
-  /* Type scale — 1.250 (minor third), base 16px */
-  --t-1: 0.7813rem;
-  --t-2: 0.8125rem;
-  --t-3: 0.9375rem;
-  --t-4: 1rem;
-  --t-5: 1.1875rem;
-  --t-6: 1.5625rem;
-  --t-7: 1.953rem;
-  --t-8: 2.441rem;
-  --t-9: 3.052rem;
-  --t-10:3.815rem;
+  /* Type scale — 1.250 minor third, base 16px. Mono is dense; expect
+     to use the larger sizes more freely than you would with sans. */
+  --t-1:  0.7188rem;
+  --t-2:  0.8125rem;
+  --t-3:  0.9375rem;
+  --t-4:  1rem;
+  --t-5:  1.1875rem;
+  --t-6:  1.5rem;
+  --t-7:  1.875rem;
+  --t-8:  2.375rem;
+  --t-9:  3rem;
+  --t-10: 3.75rem;
 
   /* Spatial scale */
-  --s-0:  2px;
-  --s-1:  4px;
-  --s-2:  8px;
-  --s-3:  12px;
-  --s-4:  16px;
-  --s-5:  24px;
-  --s-6:  32px;
-  --s-7:  48px;
-  --s-8:  64px;
-  --s-9:  96px;
+  --s-0: 2px;  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;
+  --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+  --s-8: 64px; --s-9: 96px;
 
-  /* Type families. Fontsource variable builds use a 'Variable' suffix; we
-     list both so this CSS works whether the host has the variable or
-     classic Fontsource package installed. */
-  --font-display: 'Fraunces Variable', 'Fraunces', 'Iowan Old Style', 'Sitka Text', Cambria, serif;
-  --font-body:    'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  /* Type families — only one, plus fallbacks for cached / offline. */
+  --font-display: 'Geist Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  --font-body:    'Geist Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  --font-mono:    'JetBrains Mono', 'Geist Mono Variable', ui-monospace, monospace;
 
   /* Bootstrap variable overrides */
   --bs-body-bg:        var(--paper);
   --bs-body-color:     var(--ink);
   --bs-body-font-family: var(--font-body);
   --bs-body-font-size: var(--t-4);
-  --bs-body-line-height: 1.55;
+  --bs-body-line-height: 1.65;
 
-  --bs-primary:        #0c1626;        /* ink, used as primary action */
-  --bs-primary-rgb:    12, 22, 38;
+  --bs-primary:        #0a1322;
+  --bs-primary-rgb:    10, 19, 34;
   --bs-secondary:      var(--ink-soft);
-  --bs-secondary-rgb:  58, 67, 88;
+  --bs-secondary-rgb:  53, 61, 82;
   --bs-success:        var(--leaf);
   --bs-success-rgb:    47, 93, 58;
   --bs-info:           var(--copper);
-  --bs-info-rgb:       184, 106, 38;
+  --bs-info-rgb:       182, 96, 30;
   --bs-warning:        #c08b18;
   --bs-warning-rgb:    192, 139, 24;
   --bs-danger:         var(--rust);
@@ -98,71 +93,107 @@
   --bs-link-hover-decoration: underline;
 
   --bs-border-color:      var(--paper-rule);
-  --bs-border-radius:     2px;
-  --bs-border-radius-sm:  2px;
-  --bs-border-radius-lg:  3px;
+  --bs-border-radius:     0;
+  --bs-border-radius-sm:  0;
+  --bs-border-radius-lg:  0;
 }
 
 /* ---------- 3. Atmospheric background ---------- */
 body {
   background-color: var(--paper);
+  /*
+   * "Tape feed" — faint horizontal scanlines that recall a typed page
+   * or a TTY printer. Layered with two soft radial tints for warmth.
+   * Pure CSS, no asset.
+   */
   background-image:
-    /* faint paper grain — radial noise via tiny dot pattern */
-    radial-gradient(circle at 25% 35%, rgba(184, 106, 38, 0.03) 0%, transparent 40%),
-    radial-gradient(circle at 80% 15%, rgba(12, 22, 38, 0.025) 0%, transparent 35%),
-    repeating-linear-gradient(0deg, transparent 0, transparent 23px, rgba(205, 196, 175, 0.18) 23px, rgba(205, 196, 175, 0.18) 24px);
+    radial-gradient(circle at 18% 22%, rgba(182, 96, 30, 0.04) 0%, transparent 38%),
+    radial-gradient(circle at 82% 78%, rgba(10, 19, 34, 0.03) 0%, transparent 42%),
+    repeating-linear-gradient(0deg,
+      transparent 0,
+      transparent 27px,
+      rgba(200, 191, 169, 0.16) 27px,
+      rgba(200, 191, 169, 0.16) 28px);
   background-attachment: fixed;
   color: var(--ink);
-  font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Mono is dense; relax line-height a notch over the BS default. */
+  line-height: 1.65;
 }
 
 /* ---------- 4. Typography ---------- */
+/*
+ * One face. Hierarchy from:
+ *   - weight (variable axis, 200/400/500/700/800 used)
+ *   - size  (--t-1 .. --t-10)
+ *   - letter-spacing (negative for display, positive for labels)
+ *   - case (UPPERCASE for labels, sentence for body)
+ */
 h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
   font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: -0.015em;
+  font-weight: 700;
   color: var(--ink);
+  margin-top: 0;
 }
-h1, .h1 { font-size: var(--t-8); line-height: 1.08; font-weight: 700; }
-h2, .h2 { font-size: var(--t-7); line-height: 1.1;  }
-h3, .h3 { font-size: var(--t-6); line-height: 1.15; }
-h4, .h4 { font-size: var(--t-5); line-height: 1.25; }
-h5, .h5 { font-size: var(--t-4); line-height: 1.35; }
-h6, .h6 { font-size: var(--t-3); line-height: 1.4;  }
 
-h1 {
-  font-variation-settings: "opsz" 96;
+h1, .h1 {
+  font-size: var(--t-9);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
   margin-bottom: var(--s-5);
   padding-bottom: var(--s-4);
-  border-bottom: 1px solid var(--paper-rule);
+  position: relative;
 }
-h2 { font-variation-settings: "opsz" 36; margin-top: var(--s-6); }
-h3 { font-variation-settings: "opsz" 24; margin-top: var(--s-5); }
+h1::after {
+  /* Ribbon rule under the H1 — three weights for visual rhythm. */
+  content: "";
+  position: absolute;
+  left: 0; bottom: 0;
+  width: var(--s-8);
+  height: 3px;
+  background: linear-gradient(to right,
+    var(--copper) 0,        var(--copper) 30%,
+    var(--ink) 30%,         var(--ink) 50%,
+    var(--paper-rule) 50%,  var(--paper-rule) 100%);
+}
+h2, .h2 { font-size: var(--t-7); font-weight: 700; line-height: 1.1;  letter-spacing: -0.03em; margin-top: var(--s-6); }
+h3, .h3 { font-size: var(--t-6); font-weight: 700; line-height: 1.18; letter-spacing: -0.02em; margin-top: var(--s-5); }
+h4, .h4 { font-size: var(--t-5); font-weight: 600; line-height: 1.28; letter-spacing: -0.01em; }
+h5, .h5 { font-size: var(--t-4); font-weight: 600; line-height: 1.4;  text-transform: uppercase; letter-spacing: 0.08em; }
+h6, .h6 { font-size: var(--t-2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-soft); }
 
-main h1:first-child + .lede,
+main h1:first-child + p,
 main h1 + p:first-of-type {
   font-size: var(--t-5);
   color: var(--ink-soft);
   margin-bottom: var(--s-6);
-  max-width: 60ch;
+  max-width: 64ch;
 }
 
-/* Eyebrow — small-caps label above a section title */
+/* Eyebrow — small-caps label above a section title.
+   Adds an automatic "§" prefix if .eyebrow--section class is set,
+   used in major page sections so the page reads like a numbered manual. */
 .eyebrow {
   display: inline-block;
   font-family: var(--font-body);
   font-size: var(--t-1);
   font-weight: 500;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--copper-deep);
   margin-bottom: var(--s-2);
 }
+.eyebrow--section::before {
+  content: "§ ";
+  color: var(--ink-mute);
+  font-weight: 400;
+}
 
 /* Tabular numbers everywhere data lives */
-.tabular, table, .table, code, kbd, samp, pre {
+.tabular, table, .table, code, kbd, samp, pre,
+input, select, textarea, .btn {
   font-variant-numeric: tabular-nums;
 }
 
@@ -171,30 +202,65 @@ code, kbd, samp, pre {
   font-size: 0.92em;
   background: var(--copper-fog);
   color: var(--ink);
-  padding: 1px 5px;
-  border-radius: 2px;
+  padding: 1px 6px;
+  border-radius: 0;
+  font-weight: 500;
 }
 pre code { background: transparent; padding: 0; }
 
-a { transition: color 120ms ease, text-decoration-color 120ms ease; }
-a:hover { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+/* Bracket-style status indicators: <span class="status">[ON AIR]</span> */
+.status {
+  font-family: var(--font-display);
+  font-size: var(--t-2);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--copper-deep);
+}
+.status::before { content: "["; color: var(--ink-mute); margin-right: 2px; }
+.status::after  { content: "]"; color: var(--ink-mute); margin-left: 2px; }
+
+a {
+  transition: color 120ms ease, text-decoration-color 120ms ease;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+a:hover { text-decoration-thickness: 1px; }
+
+/* Arrow-link convention: <a class="arrow-link">View card</a> renders
+   with a trailing "→" that nudges right on hover. */
+.arrow-link::after {
+  content: " →";
+  display: inline-block;
+  transition: transform 120ms ease;
+}
+.arrow-link:hover::after { transform: translateX(3px); }
 
 /* ---------- 5. Layout ---------- */
 .container { max-width: 1180px; }
 main.container { padding-top: var(--s-7); padding-bottom: var(--s-8); }
 
-hr { border-color: var(--paper-rule); opacity: 1; margin: var(--s-6) 0; }
+hr {
+  border: 0;
+  height: 1px;
+  background: var(--paper-rule);
+  opacity: 1;
+  margin: var(--s-6) 0;
+}
 
-/* Section divider — hairline with copper rule */
+/* Section rule — a row of em-dashes typed across the page. */
 .section-rule {
   display: flex;
   align-items: center;
   gap: var(--s-3);
   margin: var(--s-7) 0 var(--s-5);
+  font-family: var(--font-body);
+  color: var(--ink-mute);
+  font-size: var(--t-2);
+  letter-spacing: 0.05em;
 }
-.section-rule::before { content: ""; width: var(--s-7); height: 1px; background: var(--copper); }
+.section-rule::before { content: "──────"; color: var(--copper); letter-spacing: -2px; }
 .section-rule::after  { content: ""; flex: 1; height: 1px; background: var(--paper-rule); }
-.section-rule .label { font-family: var(--font-body); font-size: var(--t-2); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); }
 
 /* ---------- 6. Navbar ---------- */
 .navbar {
@@ -203,55 +269,54 @@ hr { border-color: var(--paper-rule); opacity: 1; margin: var(--s-6) 0; }
   padding-top: var(--s-4);
   padding-bottom: var(--s-4);
   backdrop-filter: blur(6px);
+  position: relative;
+}
+.navbar::after {
+  /* Tape-feed accent — three short copper marks at the left of the
+     bottom rule. Recalls the perforations on a paper teletype feed. */
+  content: "";
+  position: absolute;
+  left: var(--s-4);
+  bottom: -1px;
+  width: 80px;
+  height: 1px;
+  background:
+    linear-gradient(to right, var(--copper) 0 22%, transparent 22% 33%,
+                              var(--copper) 33% 55%, transparent 55% 66%,
+                              var(--copper) 66% 88%, transparent 88% 100%);
 }
 .navbar .container { max-width: 1180px; }
 
 .navbar-brand {
   font-family: var(--font-display);
   font-weight: 700;
-  font-variation-settings: "opsz" 144;
-  font-size: var(--t-5);
-  letter-spacing: -0.02em;
+  font-size: var(--t-4);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ink);
   display: inline-flex;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--s-2);
 }
 .navbar-brand:hover { color: var(--ink); }
+.navbar-brand::before {
+  /* Prompt mark — a typewriter-style guillemet that anchors the wordmark. */
+  content: "» ";
+  color: var(--copper);
+  font-weight: 800;
+}
 
-/* Brand mark — a radio target / tuning-dial glyph that ties the wordmark
-   to the project's radio context without being a literal logo. Pure CSS,
-   no external SVG — keeps the page weight down. */
 .brand-mark {
-  width: 18px; height: 18px;
-  border: 1.5px solid var(--copper);
-  border-radius: 50%;
-  position: relative;
-  flex-shrink: 0;
-}
-.brand-mark::before,
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  background: var(--copper);
-}
-.brand-mark::before {
-  left: 50%; top: 50%;
-  width: 4px; height: 4px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-}
-.brand-mark::after {
-  left: -3px; right: -3px; top: 50%;
-  height: 1px;
-  transform: translateY(-50%);
-  opacity: 0.5;
+  /* Hidden in mono edition — the » prefix carries the visual stamp. */
+  display: none;
 }
 
 .navbar-nav .nav-link {
   font-family: var(--font-body);
-  font-size: var(--t-3);
+  font-size: var(--t-2);
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   color: var(--ink-soft) !important;
   padding: var(--s-2) var(--s-3) !important;
   position: relative;
@@ -269,28 +334,28 @@ hr { border-color: var(--paper-rule); opacity: 1; margin: var(--s-6) 0; }
   height: 1px;
   background: var(--copper);
 }
+.navbar-nav .nav-item:last-child .nav-link { /* Sign-in / sign-out */ }
+.navbar .btn-primary { font-size: var(--t-1); }
 
-.navbar-nav .nav-item:last-child .nav-link {
-  /* Sign out / register button-as-link */
-}
-.navbar .btn-primary {
-  font-size: var(--t-2);
-}
-
-/* Admin dropdown menu — paper card with copper rule */
+/* Admin dropdown — paper card with copper rule on left */
 .dropdown-menu {
   background: var(--paper);
   border: 1px solid var(--paper-rule);
-  border-radius: 2px;
-  box-shadow: 0 12px 28px -10px rgba(12, 22, 38, 0.18), 0 2px 6px rgba(12, 22, 38, 0.06);
+  border-radius: 0;
+  box-shadow:
+    -3px 0 0 0 var(--copper),
+    0 14px 32px -12px rgba(10, 19, 34, 0.22),
+    0 3px 8px rgba(10, 19, 34, 0.07);
   padding: var(--s-2);
   font-family: var(--font-body);
 }
 .dropdown-item {
-  font-size: var(--t-3);
+  font-size: var(--t-2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--ink) !important;
   padding: var(--s-2) var(--s-3);
-  border-radius: 2px;
+  border-radius: 0;
 }
 .dropdown-item:hover, .dropdown-item:focus {
   background: var(--copper-fog);
@@ -301,13 +366,14 @@ hr { border-color: var(--paper-rule); opacity: 1; margin: var(--s-6) 0; }
 /* ---------- 7. Buttons ---------- */
 .btn {
   font-family: var(--font-body);
-  font-size: var(--t-3);
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  padding: 0.5rem 1.1rem;
-  border-radius: 2px;
+  font-size: var(--t-2);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.55rem 1.2rem;
+  border-radius: 0;
   border-width: 1px;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
 }
 .btn:active { transform: translateY(1px); }
 
@@ -315,9 +381,17 @@ hr { border-color: var(--paper-rule); opacity: 1; margin: var(--s-6) 0; }
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper);
+  box-shadow: 3px 3px 0 0 var(--copper);   /* offset shadow — paper-stamp feel */
 }
-.btn-primary:hover { background: var(--copper-deep); border-color: var(--copper-deep); color: var(--paper); }
-.btn-primary:focus { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--copper); }
+.btn-primary:hover {
+  background: var(--copper-deep);
+  border-color: var(--copper-deep);
+  color: var(--paper);
+  box-shadow: 3px 3px 0 0 var(--ink);
+}
+.btn-primary:focus {
+  box-shadow: 3px 3px 0 0 var(--copper), 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+}
 
 .btn-secondary {
   background: transparent;
@@ -355,10 +429,16 @@ hr { border-color: var(--paper-rule); opacity: 1; margin: var(--s-6) 0; }
   color: var(--copper-deep);
   text-decoration: none;
   padding: 0;
+  text-transform: none;
+  letter-spacing: 0;
 }
-.btn-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.btn-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
-.btn-sm { font-size: var(--t-2); padding: 0.35rem 0.8rem; }
+.btn-sm { font-size: var(--t-1); padding: 0.4rem 0.85rem; letter-spacing: 0.12em; }
 
 /* ---------- 8. Forms ---------- */
 .form-control, .form-select {
@@ -370,59 +450,85 @@ hr { border-color: var(--paper-rule); opacity: 1; margin: var(--s-6) 0; }
   font-family: var(--font-body);
   font-size: var(--t-4);
   color: var(--ink);
-  transition: border-color 120ms ease;
+  transition: border-color 120ms ease, background 120ms ease;
 }
 .form-control:focus, .form-select:focus {
   border-bottom-color: var(--copper);
+  border-bottom-width: 2px;
+  margin-bottom: -1px;
   box-shadow: none;
   background: transparent;
 }
-.form-control::placeholder { color: var(--ink-mute); }
+.form-control::placeholder {
+  color: var(--ink-mute);
+  font-style: normal;
+}
 
 .form-control-sm, .form-select-sm { font-size: var(--t-3); padding: 0.35rem 0; }
 
 .form-label {
   font-family: var(--font-body);
-  font-size: var(--t-2);
+  font-size: var(--t-1);
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-soft);
   margin-bottom: 0.25rem;
 }
 .form-label.small { font-size: var(--t-1); }
-.form-text { color: var(--ink-mute); font-size: var(--t-2); }
+.form-text { color: var(--ink-mute); font-size: var(--t-2); font-weight: 400; }
 
 .form-check-input {
   border-color: var(--ink-soft);
   background-color: transparent;
+  border-radius: 0;
 }
 .form-check-input:checked {
-  background-color: var(--copper);
-  border-color: var(--copper);
+  background-color: var(--ink);
+  border-color: var(--ink);
 }
 .form-check-input:focus { box-shadow: 0 0 0 2px var(--copper-fog); }
-
 .form-check-label { font-size: var(--t-3); color: var(--ink); }
 
 input[type="file"].form-control { padding-top: 0.4rem; padding-bottom: 0.4rem; }
-input[type="color"].form-control-color { padding: 0; border: 1px solid var(--paper-rule); border-radius: 2px; height: 2rem; width: 3rem; }
+input[type="color"].form-control-color {
+  padding: 0;
+  border: 1px solid var(--paper-rule);
+  border-radius: 0;
+  height: 2rem;
+  width: 3rem;
+}
+
+/* btn-check (radio-button-styled) — the QSO type / transport toggles */
+.btn-check + .btn {
+  background: transparent;
+  border-color: var(--paper-rule);
+  color: var(--ink-soft);
+  box-shadow: none;
+}
+.btn-check:checked + .btn {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  box-shadow: 3px 3px 0 0 var(--copper);
+}
 
 /* ---------- 9. Tables ---------- */
 .table {
   --bs-table-bg: transparent;
   --bs-table-color: var(--ink);
   --bs-table-border-color: var(--paper-rule);
-  --bs-table-striped-bg: rgba(184, 106, 38, 0.04);
+  --bs-table-striped-bg: rgba(182, 96, 30, 0.04);
   font-size: var(--t-3);
+  font-family: var(--font-body);
   border-collapse: collapse;
   margin-bottom: var(--s-5);
 }
 .table thead th {
   font-family: var(--font-body);
-  font-weight: 500;
+  font-weight: 600;
   font-size: var(--t-1);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-soft);
   background: transparent;
@@ -435,35 +541,38 @@ input[type="color"].form-control-color { padding: 0; border: 1px solid var(--pap
   vertical-align: middle;
 }
 .table tbody tr:last-child td { border-bottom: 0; }
-.table tbody tr:hover { background: rgba(184, 106, 38, 0.05); }
+.table tbody tr:hover { background: rgba(182, 96, 30, 0.05); }
 
-/* Strong call letters in tables */
-.table td strong { font-family: var(--font-mono); font-weight: 500; color: var(--ink); }
+/* Callsigns stay in the same mono face — no font switch needed. */
+.table td strong { font-weight: 700; color: var(--ink); }
 
 /* ---------- 10. Cards ---------- */
 .card {
   background: transparent;
   border: 1px solid var(--paper-rule);
-  border-radius: 2px;
+  border-radius: 0;
   box-shadow: none;
+  transition: box-shadow 200ms ease, transform 200ms ease;
 }
 .card-body { padding: var(--s-5); }
 .card-img-top { border-radius: 0; }
-.card-title { font-family: var(--font-display); font-weight: 600; font-variation-settings: "opsz" 36; }
+.card-title { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
 .card-text { font-size: var(--t-3); color: var(--ink-soft); }
 
 /* ---------- 11. Badges, alerts ---------- */
 .badge {
   font-family: var(--font-body);
-  font-weight: 500;
+  font-weight: 600;
   font-size: var(--t-1);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  border-radius: 2px;
+  border-radius: 0;
   padding: 0.3em 0.7em;
   background: transparent !important;
   border: 1px solid currentColor;
 }
+.badge::before { content: "["; opacity: 0.5; margin-right: 2px; }
+.badge::after  { content: "]"; opacity: 0.5; margin-left: 2px; }
 .badge.bg-info { color: var(--copper-deep); }
 .badge.bg-success { color: var(--leaf); }
 .badge.bg-secondary, .badge.bg-light { color: var(--ink-soft); }
@@ -472,126 +581,137 @@ input[type="color"].form-control-color { padding: 0; border: 1px solid var(--pap
 
 .alert {
   background: transparent;
-  border-radius: 2px;
+  border-radius: 0;
   border: 0;
   border-left: 3px solid var(--copper);
   padding: var(--s-4) var(--s-5);
   font-size: var(--t-3);
+  font-family: var(--font-body);
+  position: relative;
 }
-.alert-info { border-left-color: var(--copper); color: var(--ink); }
-.alert-success { border-left-color: var(--leaf); color: var(--ink); }
-.alert-warning { border-left-color: #c08b18; color: var(--ink); }
-.alert-danger { border-left-color: var(--rust); color: var(--ink); }
+.alert::before {
+  /* Section mark in the gutter, like a manuscript margin note. */
+  content: "¶";
+  position: absolute;
+  left: -1px; top: var(--s-3);
+  background: var(--paper);
+  width: 3px;
+  height: 18px;
+  text-indent: -3px;
+  color: var(--copper);
+  font-size: var(--t-3);
+  line-height: 18px;
+  font-weight: 700;
+}
+.alert-info { border-left-color: var(--copper); }
+.alert-success { border-left-color: var(--leaf); }
+.alert-success::before { color: var(--leaf); }
+.alert-warning { border-left-color: #c08b18; }
+.alert-warning::before { color: #c08b18; }
+.alert-danger { border-left-color: var(--rust); }
+.alert-danger::before { color: var(--rust); }
 .alert-light { border-left-color: var(--paper-rule); color: var(--ink-soft); }
+.alert-light::before { color: var(--paper-rule); }
 
 /* ---------- 12. Page-specific touches ---------- */
 
-/* Card preview / share landing — hero treatment */
+/* Card preview / share landing — paper stamp shadow */
 .card-preview {
   display: block;
   max-width: 100%;
   height: auto;
   border-radius: 0;
+  background: var(--paper);
   box-shadow:
     0 0 0 1px var(--paper-rule),
-    0 24px 48px -16px rgba(12, 22, 38, 0.22),
-    0 6px 14px rgba(12, 22, 38, 0.08);
-  transition: transform 300ms cubic-bezier(0.2, 0, 0.1, 1);
+    8px 8px 0 0 var(--copper-fog),
+    0 24px 48px -18px rgba(10, 19, 34, 0.18);
+  transition: transform 300ms cubic-bezier(0.2, 0, 0.1, 1), box-shadow 300ms ease;
 }
-.card-preview:hover { transform: translateY(-2px); }
+.card-preview:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 0 0 1px var(--ink-soft),
+    8px 8px 0 0 var(--copper),
+    0 28px 56px -16px rgba(10, 19, 34, 0.24);
+}
 
-/* Card library grid — paper photos pinned on a wall */
+/* Card library grid — paper photos pinned, with offset shadows */
 .row.g-3 > .col-md-4 > .card {
   position: relative;
-  transition: transform 200ms ease, box-shadow 200ms ease;
 }
 .row.g-3 > .col-md-4 > .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px -6px rgba(12, 22, 38, 0.15);
+  box-shadow: 4px 4px 0 0 var(--copper-fog), 0 6px 14px -4px rgba(10, 19, 34, 0.12);
 }
 
-/* Dashboard quick-link tiles */
 .list-group-item {
   background: transparent;
   border-color: var(--paper-rule);
   font-family: var(--font-body);
+  font-size: var(--t-3);
 }
+.list-group-item:hover { background: var(--copper-fog); }
 
-/* Pagination */
+/* Pagination — typed page numbers with dot separators */
 .page-item .page-link {
   color: var(--ink-soft);
   background: transparent;
   border: 0;
-  border-bottom: 1px solid transparent;
   border-radius: 0;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.7rem;
   font-family: var(--font-body);
   font-size: var(--t-3);
+  font-weight: 500;
 }
 .page-item .page-link:hover {
   background: transparent;
-  border-bottom-color: var(--copper);
   color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--copper);
 }
 .page-item.active .page-link {
   background: transparent;
   color: var(--ink);
-  border-bottom: 1px solid var(--ink);
+  font-weight: 700;
+  position: relative;
+}
+.page-item.active .page-link::after {
+  content: "";
+  position: absolute;
+  left: 50%; bottom: 4px;
+  width: 16px; height: 2px;
+  background: var(--copper);
+  transform: translateX(-50%);
 }
 
-/* "Display 6" used on cleanup tile counts — turn into a printed-on-paper figure */
+/* "Display 6" — used on cleanup tile counts — typed-figure treatment */
 .display-6 {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-variation-settings: "opsz" 96;
-  font-size: var(--t-9);
-  line-height: 1;
-  letter-spacing: -0.025em;
+  font-weight: 800;
+  font-size: var(--t-10);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
   color: var(--ink);
   margin: var(--s-3) 0;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---------- 13. Existing card-preview shadow override is now redundant ---------- */
+/* Existing app.css already defined .card-preview; we override above. */
 [x-cloak] { display: none !important; }
+.field-error { color: var(--rust); font-size: var(--t-2); font-weight: 500; }
 
-/* ---------- 14. Form helpers ---------- */
-.field-error { color: var(--rust); font-size: var(--t-2); }
-
-/* Bootstrap form rows with our reduced-chrome inputs need a bit more
-   vertical breathing room because the bottom-border style condenses
-   visual weight. */
 .row.g-3 { row-gap: var(--s-5); }
 
-/* ---------- 15. Footer / page edge ---------- */
-main.container > h1:first-child {
-  /* Standard <h1> at the top of a content view gets the eyebrow-style
-     border treatment from the global h1 rule above. Some bespoke pages
-     (share landing, dashboard) override this with a custom hero. */
-}
-
-/* ---------- 16. Light scrollbar ---------- */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--paper-rule) transparent;
-}
-*::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: var(--paper-rule); border-radius: 0; }
-
-/* ---------- 17. Focus rings, accessibility ---------- */
-:focus-visible {
-  outline: 2px solid var(--copper);
-  outline-offset: 2px;
-  border-radius: 1px;
-}
-
-/* ---------- 18. Footer ---------- */
+/* ---------- 13. Footer ---------- */
 .site-footer {
   margin-top: var(--s-9);
   padding: var(--s-7) 0 var(--s-8);
   font-family: var(--font-body);
   font-size: var(--t-2);
   color: var(--ink-mute);
+  position: relative;
 }
 .site-footer .container { position: relative; }
 .site-footer__rule {
@@ -602,21 +722,56 @@ main.container > h1:first-child {
   position: relative;
 }
 .site-footer__rule::before {
+  /* Three copper marks tracking left to right, like sprocket holes */
   content: "";
   position: absolute;
   top: -1px; left: 0;
-  width: var(--s-7);
+  width: 120px;
   height: 3px;
-  background: var(--copper);
+  background:
+    linear-gradient(to right, var(--copper) 0 18%, transparent 18% 32%,
+                              var(--copper) 32% 50%, transparent 50% 64%,
+                              var(--copper) 64% 82%, transparent 82% 100%);
 }
-.site-footer p { margin: 0; line-height: 1.6; }
+.site-footer p { margin: 0; line-height: 1.7; letter-spacing: 0.02em; }
 .site-footer .eyebrow { display: block; margin-bottom: var(--s-2); }
-.site-footer a { color: var(--ink-soft); border-bottom: 1px solid var(--paper-rule); padding-bottom: 1px; }
-.site-footer a:hover { color: var(--ink); border-bottom-color: var(--copper); text-decoration: none; }
-.footer-mono { font-family: var(--font-mono); font-size: 0.92em; color: var(--ink-soft); }
+.site-footer a {
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--paper-rule);
+  padding-bottom: 1px;
+}
+.site-footer a:hover {
+  color: var(--ink);
+  border-bottom-color: var(--copper);
+  text-decoration: none;
+}
+.footer-mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--ink-soft);
+  background: var(--copper-fog);
+  padding: 1px 5px;
+}
 
-/* ---------- 19. Print ---------- */
+/* ---------- 14. Light scrollbar ---------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--paper-rule) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--paper-rule); border-radius: 0; }
+
+/* ---------- 15. Focus rings ---------- */
+:focus-visible {
+  outline: 2px solid var(--copper);
+  outline-offset: 2px;
+  border-radius: 0;
+}
+
+/* ---------- 16. Print ---------- */
 @media print {
-  body { background: white; }
+  body { background: white; background-image: none; }
   .navbar, .site-footer, .btn { display: none; }
+  h1::after, .site-footer__rule::before, .navbar::after { display: none; }
 }
