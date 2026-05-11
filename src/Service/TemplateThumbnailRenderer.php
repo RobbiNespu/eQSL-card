@@ -53,11 +53,23 @@ final class TemplateThumbnailRenderer
         $ratio = $this->thumbWidth / $srcW;
         $thumbH = (int)round($srcH * $ratio);
 
-        $src = imagecreatefrompng($tmpFull);
+        // CardRenderer::renderPng emits WebP since the storage-saver commit
+        // (the method name is kept for backwards compat). Decode based on
+        // the actual image type so we don't break when the rendered tmp file
+        // turns out to be WebP instead of PNG.
+        $src = match ($info[2]) {
+            IMAGETYPE_WEBP => imagecreatefromwebp($tmpFull),
+            IMAGETYPE_PNG  => imagecreatefrompng($tmpFull),
+            IMAGETYPE_JPEG => imagecreatefromjpeg($tmpFull),
+            default        => throw new \RuntimeException('Unsupported render output type for thumbnail.'),
+        };
         $thumb = imagecreatetruecolor($this->thumbWidth, $thumbH);
         imagecopyresampled($thumb, $src, 0, 0, 0, 0, $this->thumbWidth, $thumbH, $srcW, $srcH);
         imagedestroy($src);
 
+        // Thumbnail is small enough that PNG vs WebP makes little absolute
+        // difference; staying on PNG keeps the rest of the templates-admin
+        // tooling that touches these files unchanged.
         $thumbPath = $this->thumbnailDir . $templateId . '.png';
         imagepng($thumb, $thumbPath, 6);
         imagedestroy($thumb);

@@ -41,7 +41,10 @@ class CardsTable extends Table
             ->notEmptyString('png_path')
             ->scalar('pdf_path')
             ->maxLength('pdf_path', 255)
-            ->notEmptyString('pdf_path')
+            // PDFs are no longer pre-rendered — built on demand by the
+            // download controller action — so new rows persist with null.
+            // Legacy rows keep their path string; both paths are valid.
+            ->allowEmptyString('pdf_path')
             ->scalar('share_slug')
             ->maxLength('share_slug', 43)
             ->allowEmptyString('share_slug')

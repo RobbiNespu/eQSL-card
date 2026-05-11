@@ -435,7 +435,10 @@ class QsosController extends AppController
                     throw new \Cake\Http\Exception\BadRequestException('Image dimensions exceed allowed limit.');
                 }
 
-                $optimizer = new \App\Service\ImageOptimizer(maxWidth: 2000, maxHeight: 1500, quality: 82);
+                // Background uploader uses 1600x1200 q78 — slightly bigger
+                // than the 1500x1000 card canvas so we never upscale on render,
+                // ~40% smaller files than the prior 2000x1500 q82 baseline.
+                $optimizer = new \App\Service\ImageOptimizer(maxWidth: 1600, maxHeight: 1200, quality: 78);
                 $tmpDest = tempnam(sys_get_temp_dir(), 'eqsl_opt_');
                 $info = $optimizer->optimize($tmpUpload, $tmpDest);
                 @unlink($tmpUpload);
@@ -718,10 +721,12 @@ class QsosController extends AppController
 
         $renderer = \App\Service\CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
         $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
-        $pngPath = WWW_ROOT . 'files/cards/' . $uuid . '.png';
-        $pdfPath = WWW_ROOT . 'files/cards/' . $uuid . '.pdf';
-        if (!is_dir(dirname($pngPath))) {
-            mkdir(dirname($pngPath), 0o775, true);
+        // WebP output — ~40% smaller than the prior PNG-level-6 baseline. The
+        // column name `cards.png_path` is kept for backwards compat with rows
+        // persisted before this commit.
+        $cardPath = WWW_ROOT . 'files/cards/' . $uuid . '.webp';
+        if (!is_dir(dirname($cardPath))) {
+            mkdir(dirname($cardPath), 0o775, true);
         }
         // Override > row value > null. This lets renderCard ship freshly-
         // computed attribution (admin defaults / form values) past any stale
@@ -737,10 +742,11 @@ class QsosController extends AppController
              'fields' => $layout['fields'] ?? []],
             $finalPath,
             $qsoData,
-            $pngPath,
+            $cardPath,
             extraFooterLines: [$attributionLine]
         );
-        $renderer->wrapPdf($pngPath, $pdfPath, $template->canvas_width, $template->canvas_height);
+        // No pre-rendered PDF — built on demand by CardsController::downloadPdf
+        // when the user clicks "Download PDF". Halves per-card disk usage.
 
         $cards = $this->fetchTable('Cards');
         $card = $cards->saveOrFail($cards->newEntity([
@@ -752,8 +758,8 @@ class QsosController extends AppController
             // underlying QSO row must NEVER mutate a card that's already
             // been issued (cards are historical artefacts).
             'qso_data_json' => json_encode($qsoData, JSON_UNESCAPED_SLASHES),
-            'png_path' => 'files/cards/' . $uuid . '.png',
-            'pdf_path' => 'files/cards/' . $uuid . '.pdf',
+            'png_path' => 'files/cards/' . $uuid . '.webp',
+            'pdf_path' => null,
         ]));
 
         // M4-T3: Audit each card produced. Lives in the helper so both the

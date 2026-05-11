@@ -98,7 +98,7 @@ final class CardRendererParityTest extends TestCase
         // renders that straddle a second boundary would hash differently —
         // not what this test is asserting.
         $renderer = new CardRenderer(WWW_ROOT . 'files/fonts/', creditFooterLines: []);
-        $pngPath = $this->tmpDir . 'designer.png';
+        $pngPath = $this->tmpDir . 'designer.webp';
         $info = $renderer->renderPng([
             'canvas_width' => 1500,
             'canvas_height' => 1000,
@@ -109,6 +109,6 @@ final class CardRendererParityTest extends TestCase
 
         $this->assertFileExists($pngPath);
         $this->assertSame(1500, $info['width_px']);
-        $this->assertSame('image/png', $info['mime_type']);
+        $this->assertSame('image/webp', $info['mime_type']);
     }
 }

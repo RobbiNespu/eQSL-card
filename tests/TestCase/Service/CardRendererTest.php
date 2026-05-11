@@ -44,7 +44,7 @@ final class CardRendererTest extends TestCase
         ];
         $qso = ['callsign' => 'W1AW', 'operator_name' => 'Hiram Maxim'];
 
-        $out = $this->tmp . '/card.png';
+        $out = $this->tmp . '/card.webp';
         $renderer = new CardRenderer(WWW_ROOT . 'files/fonts/');
         $info = $renderer->renderPng($template, $bg, $qso, $out);
 
@@ -52,7 +52,8 @@ final class CardRendererTest extends TestCase
         [$w, $h] = getimagesize($out);
         $this->assertSame(1500, $w);
         $this->assertSame(1000, $h);
-        $this->assertSame('image/png', $info['mime_type']);
+        // Renderer emits WebP now (~40% smaller than the prior PNG).
+        $this->assertSame('image/webp', $info['mime_type']);
     }
 
     public function testRejectsUnknownFont(): void

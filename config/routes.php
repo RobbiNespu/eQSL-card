@@ -193,6 +193,13 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['POST']);
+        // Lazy PDF download — builds the PDF on demand from the rendered card
+        // image so we don't have to persist a duplicate of the PNG bytes.
+        // Same ordering rule as other static-suffixed /cards/{id}/* routes.
+        $builder->connect('/cards/{id}/download.pdf', ['controller' => 'Cards', 'action' => 'downloadPdf'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['GET']);
         $builder->connect('/cards/{id}', ['controller' => 'Cards', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
@@ -257,6 +264,12 @@ return function (RouteBuilder $routes): void {
             ->setPass(['slug'])
             ->setPatterns(['slug' => '[A-Za-z0-9_\-]{43}'])
             ->setMethods(['GET', 'POST']);
+        // Share-respecting PDF download — checks revocation + password
+        // unlock state before streaming. See PublicController::downloadSharePdf.
+        $builder->connect('/qsl/{slug}/download.pdf', ['controller' => 'Public', 'action' => 'downloadSharePdf'])
+            ->setPass(['slug'])
+            ->setPatterns(['slug' => '[A-Za-z0-9_\-]{43}'])
+            ->setMethods(['GET']);
 
         /*
          * M4-T15/T16: per-user profile + avatar upload.

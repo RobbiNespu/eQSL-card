@@ -97,7 +97,11 @@ final class QsosControllerRenderTest extends TestCase
         $row = $cards->find()->where(['user_id' => $u, 'qso_id' => $qsoId])->first();
         $this->assertNotNull($row, 'Card should be persisted with qso_id set');
         $this->assertNotEmpty($row->png_path);
-        $this->assertNotEmpty($row->pdf_path);
+        // PDFs are no longer pre-rendered — built on demand by the lazy
+        // download endpoint. New rows persist with pdf_path = null.
+        $this->assertNull($row->pdf_path);
+        // Card image is WebP now (column name kept for backwards compat).
+        $this->assertStringEndsWith('.webp', $row->png_path);
         $this->assertNotEmpty($row->qso_data_json, 'qso snapshot must be persisted');
         $snapshot = json_decode($row->qso_data_json, true);
         $this->assertSame('W1AW', $snapshot['callsign'] ?? null);

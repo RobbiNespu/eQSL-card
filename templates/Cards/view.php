@@ -5,8 +5,8 @@
     <img src="/<?= h($card->png_path) ?>" alt="eQSL card" class="card-preview">
 
     <div class="mt-3">
-      <a class="btn btn-primary" href="/<?= h($card->png_path) ?>" download>Download PNG</a>
-      <a class="btn btn-secondary" href="/<?= h($card->pdf_path) ?>" download>Download PDF</a>
+      <a class="btn btn-primary" href="/<?= h($card->png_path) ?>" download>Download image</a>
+      <a class="btn btn-secondary" href="/cards/<?= h($card->id) ?>/download.pdf">Download PDF</a>
       <a class="btn btn-link" href="/cards">Back to library</a>
     </div>
   </div>

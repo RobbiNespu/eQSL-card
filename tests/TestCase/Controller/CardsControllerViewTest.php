@@ -63,7 +63,9 @@ final class CardsControllerViewTest extends TestCase
         $this->get('/cards/' . $cardId);
         $this->assertResponseOk();
         $this->assertResponseContains('W1AW');
-        $this->assertResponseContains('Download PNG');
+        // Button labels were renamed from "Download PNG" → "Download image"
+        // when the renderer flipped from PNG to WebP. PDF stays.
+        $this->assertResponseContains('Download image');
         $this->assertResponseContains('Download PDF');
     }
 

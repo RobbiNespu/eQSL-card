@@ -80,7 +80,9 @@ final class PublicControllerShareTest extends TestCase
         $this->assertResponseOk();
         $this->assertResponseContains('AA1AA');
         $this->assertResponseContains('W1AW');
-        $this->assertResponseContains('Download PNG');
+        // Label renamed to "Download image" after the renderer switched from
+        // PNG to WebP (the file is .webp on disk now).
+        $this->assertResponseContains('Download image');
         $this->assertResponseContains('og:image');
     }
 

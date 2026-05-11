@@ -27,6 +27,12 @@ class CardsController extends AppController
     {
         parent::initialize();
         $this->loadComponent('Authentication.Authentication');
+        // `downloadPdf` accepts both authenticated users (their own cards) and
+        // anonymous guests (their freshly-rendered preview, matched via the
+        // GuestSession cookie). The action does its own per-card permission
+        // check; bypass the global auth gate so guests don't get bounced
+        // to /login.
+        $this->Authentication->allowUnauthenticated(['downloadPdf']);
     }
 
     /**
@@ -307,5 +313,87 @@ class CardsController extends AppController
         $this->Flash->success('Share link revoked.');
 
         return $this->redirect('/cards/' . $card->id);
+    }
+
+    /**
+     * GET /cards/{id}/download.pdf — stream a freshly-built PDF.
+     *
+     * Pre-rendered `.pdf` files were just FPDF wrappers around the same PNG,
+     * doubling per-card disk usage. Cards now persist only the rendered image
+     * (`png_path` — actually .webp for rows after the storage-saver commit)
+     * and this endpoint builds the PDF on demand. Authorization branches on
+     * how the card was generated:
+     *
+     *   - `cards.user_id` set  → require authenticated user matching the row
+     *     (mirrors `view()`'s scope; mis-targeted IDs surface as 404, not 403,
+     *     so existence isn't leaked).
+     *   - `cards.guest_visit_id` set → require the current request's
+     *     GuestSession cookie to match the row's visit. Lets the guest
+     *     preview page download its own freshly-rendered card without an
+     *     authenticated identity.
+     *
+     * Share-slug downloads go through `PublicController::downloadSharePdf`
+     * which respects revocation + password unlock state separately.
+     */
+    public function downloadPdf(int $id): \Cake\Http\Response
+    {
+        $card = $this->fetchTable('Cards')->find('active')
+            ->where(['Cards.id' => $id])
+            ->firstOrFail();
+
+        if ($card->user_id !== null) {
+            $identity = $this->Authentication->getIdentity();
+            if (!$identity || (int)$identity->getIdentifier() !== (int)$card->user_id) {
+                throw new \Cake\Http\Exception\NotFoundException();
+            }
+        } elseif ($card->guest_visit_id !== null) {
+            $cookie = (string)($this->request->getCookie(\App\Service\GuestSession::COOKIE) ?? '');
+            if ($cookie === '') {
+                throw new \Cake\Http\Exception\NotFoundException();
+            }
+            $visit = $this->fetchTable('GuestVisits')->find()
+                ->where(['session_token' => $cookie])
+                ->first();
+            if (!$visit || (int)$visit->id !== (int)$card->guest_visit_id) {
+                throw new \Cake\Http\Exception\NotFoundException();
+            }
+        } else {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        return $this->streamCardPdf($card);
+    }
+
+    /**
+     * Shared PDF-streaming helper. Builds the PDF to a temp file, reads it
+     * back, returns a 200 with Content-Type application/pdf + Content-Disposition
+     * attachment. The temp file is unlinked before returning so failures
+     * don't leak scratch files. `cards.png_path` is the on-disk image
+     * (.webp for new rows, .png for legacy ones — CardRenderer::wrapPdf
+     * handles both).
+     */
+    private function streamCardPdf(\Cake\Datasource\EntityInterface $card): \Cake\Http\Response
+    {
+        $imagePath = WWW_ROOT . $card->png_path;
+        if (!is_file($imagePath)) {
+            throw new \Cake\Http\Exception\NotFoundException('Card image missing on disk.');
+        }
+        $template = $this->fetchTable('Templates')->get((int)$card->template_id);
+
+        $tmpPdf = tempnam(sys_get_temp_dir(), 'eqsl_pdf_') . '.pdf';
+        try {
+            $renderer = \App\Service\CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
+            $renderer->wrapPdf($imagePath, $tmpPdf, (int)$template->canvas_width, (int)$template->canvas_height);
+            $bytes = (string)file_get_contents($tmpPdf);
+        } finally {
+            @unlink($tmpPdf);
+        }
+
+        $filename = 'card-' . $card->id . '.pdf';
+        return $this->response
+            ->withType('application/pdf')
+            ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->withHeader('Content-Length', (string)strlen($bytes))
+            ->withStringBody($bytes);
     }
 }
