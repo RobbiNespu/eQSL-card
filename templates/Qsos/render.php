@@ -14,7 +14,8 @@
   <?php foreach ($templates as $t): ?>
     <div class="col-md-3">
       <label class="card p-2">
-        <input type="radio" name="template_id" value="<?= (int)$t->id ?>" required>
+        <input type="radio" name="template_id" value="<?= (int)$t->id ?>" required
+               <?= (isset($defaultTemplateId) && (int)$t->id === (int)$defaultTemplateId) ? 'checked' : '' ?>>
         <span><strong><?= h($t->name) ?></strong></span>
         <span class="d-block small text-muted"><?= h($t->description) ?></span>
       </label>

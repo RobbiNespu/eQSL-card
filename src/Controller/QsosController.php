@@ -544,10 +544,26 @@ class QsosController extends AppController
             return $this->redirect('/cards/' . $cardId);
         }
 
+        // Default template selection. Honour ?template_id= when the user
+        // clicked a specific Render link (e.g. from a future "render with X"
+        // affordance); otherwise pick the "Net check-in" system template
+        // for net QSOs and fall back to the first system template (the
+        // Classic) for contact QSOs. This keeps net QSOs from rendering
+        // with the contact-shaped Classic template by mistake.
+        $defaultTemplateId = (int)$this->request->getQuery('template_id', 0);
+        if ($defaultTemplateId === 0) {
+            $defaultRow = $this->fetchTable('Templates')->find()
+                ->where(['Templates.is_system' => true])
+                ->where(['Templates.name' => $qso->qso_type === 'net' ? 'Net check-in' : 'Classic — bottom panel'])
+                ->first();
+            $defaultTemplateId = $defaultRow ? (int)$defaultRow->id : 0;
+        }
+
         $this->set([
             'qso' => $qso,
             'templates' => $templates,
             'existingUploads' => $existingUploads,
+            'defaultTemplateId' => $defaultTemplateId,
             'title' => 'Render eQSL for ' . $qso->call_worked,
         ]);
         // Action is named `renderCard` (because `render` collides with the
@@ -602,6 +618,44 @@ class QsosController extends AppController
             return null;
         }
 
+        // Skip QSOs that already have a non-deleted card — mirrors the
+        // single-render guard. Without this, hitting "Bulk render" twice
+        // silently produces duplicate cards for the same QSOs. We report
+        // the skipped count so the frontend can surface it ("3 of 5 rendered;
+        // 2 already had cards").
+        $alreadyRendered = $this->fetchTable('Cards')->find()
+            ->select(['qso_id'])
+            ->where([
+                'Cards.qso_id IN' => $qsoIds,
+                'Cards.user_id' => $userId,
+                'Cards.deleted_at IS' => null,
+            ])
+            ->all()
+            ->extract('qso_id')
+            ->toArray();
+        $alreadyRendered = array_map('intval', array_unique($alreadyRendered));
+        $skipped = count($alreadyRendered);
+        $qsoIds = array_values(array_diff($qsoIds, $alreadyRendered));
+
+        if (empty($qsoIds)) {
+            // Everything in the selection was already rendered. Return a
+            // finished job synchronously rather than minting a token.
+            $this->set([
+                'job_token' => null,
+                'done' => 0,
+                'total' => 0,
+                'finished' => true,
+                'card_ids' => [],
+                'skipped' => $skipped,
+                'message' => 'All selected QSOs already have rendered cards.',
+            ]);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', [
+                'job_token', 'done', 'total', 'finished', 'card_ids', 'skipped', 'message',
+            ]);
+            return null;
+        }
+
         $token = bin2hex(random_bytes(16));
         $this->request->getSession()->write("bulk_render.{$token}", [
             'user_id' => $userId,
@@ -610,6 +664,7 @@ class QsosController extends AppController
             'upload_id' => $uploadId,
             'cursor' => 0,
             'card_ids' => [],
+            'skipped' => $skipped,
         ]);
 
         return $this->processBulkRenderChunk($token);
@@ -694,9 +749,12 @@ class QsosController extends AppController
             'total' => count($job['qso_ids']),
             'finished' => $finished,
             'card_ids' => $job['card_ids'],
+            'skipped' => (int)($job['skipped'] ?? 0),
         ]);
         $this->viewBuilder()->setClassName('Json');
-        $this->viewBuilder()->setOption('serialize', ['job_token', 'done', 'total', 'finished', 'card_ids']);
+        $this->viewBuilder()->setOption('serialize', [
+            'job_token', 'done', 'total', 'finished', 'card_ids', 'skipped',
+        ]);
 
         return null;
     }
