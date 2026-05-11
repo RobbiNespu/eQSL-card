@@ -128,6 +128,13 @@ function designer(initial) {
                 fontSize: field.size || 36,
                 fill: field.color || '#000000',
                 angle: field.rotation || 0,
+                // Outline + shadow are optional; fabric falls back to no
+                // stroke / no shadow when these are nullish.
+                stroke: (field.outline_width || 0) > 0 ? (field.outline_color || '#000000') : null,
+                strokeWidth: field.outline_width || 0,
+                // Shadow needs the at-least-one-nonzero-offset guard so a
+                // field without shadow doesn't get a halo at (0,0).
+                shadow: this.buildFabricShadow(field),
                 editable: false,
             });
             // Stash the back-reference so selection/move handlers can find
@@ -135,6 +142,24 @@ function designer(initial) {
             obj.fieldIndex = idx;
             this.fabricCanvas.add(obj);
             this.fieldObjects.set(idx, obj);
+        },
+
+        /**
+         * Build a Fabric shadow string from the field's shadow_* props.
+         * Returns null when no shadow is configured (both offsets zero) so
+         * Fabric renders without one. The server-side renderer applies the
+         * same "both offsets zero → no shadow" rule, so the WYSIWYG and the
+         * baked-in card match.
+         */
+        buildFabricShadow(field) {
+            const ox = field.shadow_offset_x || 0;
+            const oy = field.shadow_offset_y || 0;
+            if (ox === 0 && oy === 0) return null;
+            const color = field.shadow_color || '#000000';
+            // Fabric accepts a string of "color offsetX offsetY blur".
+            // Blur stays 0 for now — the GD renderer can't anti-alias a
+            // blur, so we keep the designer faithful to the rendered output.
+            return `${color} ${ox}px ${oy}px 0px`;
         },
 
         fontFamilyFor(filename) {
@@ -173,6 +198,15 @@ function designer(initial) {
                 size: 36,
                 color: '#000000',
                 rotation: 0,
+                // Outline + shadow defaults — keys always present in the
+                // JSON so the right-pane bindings have something to bind
+                // to. Width 0 / offsets 0 = visually nothing, same as the
+                // pre-feature defaults.
+                outline_color: '#000000',
+                outline_width: 0,
+                shadow_color: '#000000',
+                shadow_offset_x: 0,
+                shadow_offset_y: 0,
             };
             this.fields.push(field);
             this.selectedField = field;
@@ -193,6 +227,11 @@ function designer(initial) {
                 fill: this.selectedField.color,
                 fontFamily: this.fontFamilyFor(this.selectedField.font),
                 angle: this.selectedField.rotation,
+                stroke: (this.selectedField.outline_width || 0) > 0
+                    ? (this.selectedField.outline_color || '#000000')
+                    : null,
+                strokeWidth: this.selectedField.outline_width || 0,
+                shadow: this.buildFabricShadow(this.selectedField),
             });
             this.fabricCanvas?.requestRenderAll();
         },

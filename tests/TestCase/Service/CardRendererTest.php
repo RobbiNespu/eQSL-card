@@ -56,6 +56,110 @@ final class CardRendererTest extends TestCase
         $this->assertSame('image/webp', $info['mime_type']);
     }
 
+    /**
+     * Render a tiny canvas with one field, then decode the WebP back to
+     * a GD image so individual tests can probe pixels.
+     *
+     * @return array{0:\GdImage, 1:int, 2:int} [decodedImage, width, height]
+     */
+    private function renderAndOpen(array $fieldOverrides): array
+    {
+        $bg = $this->tmp . '/bg.jpg';
+        // White background so any drawn pixel stands out.
+        $img = imagecreatetruecolor(200, 80);
+        imagefilledrectangle($img, 0, 0, 200, 80, imagecolorallocate($img, 255, 255, 255));
+        imagejpeg($img, $bg, 95);
+        imagedestroy($img);
+
+        $field = array_merge([
+            'placeholder' => 'X',
+            'x' => 30, 'y' => 50,
+            'font' => 'Inter-Bold.ttf',
+            'size' => 32, 'color' => '#ff0000', 'rotation' => 0,
+        ], $fieldOverrides);
+        $template = ['canvas_width' => 200, 'canvas_height' => 80, 'fields' => [$field]];
+
+        $out = $this->tmp . '/out.webp';
+        $renderer = new CardRenderer(WWW_ROOT . 'files/fonts/', creditFooterLines: []);
+        $renderer->renderPng($template, $bg, [], $out);
+        $loaded = imagecreatefromwebp($out);
+        return [$loaded, imagesx($loaded), imagesy($loaded)];
+    }
+
+    private function isNearColor(\GdImage $img, int $x, int $y, int $r, int $g, int $b, int $tolerance = 20): bool
+    {
+        $rgb = imagecolorat($img, $x, $y);
+        return abs((($rgb >> 16) & 0xFF) - $r) <= $tolerance
+            && abs((($rgb >> 8) & 0xFF) - $g) <= $tolerance
+            && abs(($rgb & 0xFF) - $b) <= $tolerance;
+    }
+
+    public function testNoShadowOrOutlineByDefault(): void
+    {
+        // Field with no outline / no shadow keys present. Region above
+        // the baseline should be pure white (no shadow), region below
+        // the text glyph should also be white once we step past the
+        // text rectangle.
+        [$img] = $this->renderAndOpen([]);
+        // Top-left corner: definitely outside any drawn text region.
+        $this->assertTrue(
+            $this->isNearColor($img, 0, 0, 255, 255, 255),
+            'corner should remain white when no shadow/outline configured'
+        );
+        imagedestroy($img);
+    }
+
+    public function testShadowDrawsAtOffset(): void
+    {
+        // A 4px-down shadow in BLUE on a white canvas. Pixels 4px below
+        // the text body should contain blue-ish content from the shadow
+        // stamp.
+        [$img] = $this->renderAndOpen([
+            'placeholder' => 'M',     // dense glyph
+            'x' => 30, 'y' => 50,
+            'size' => 40,
+            'color' => '#ffffff',     // white main text — invisible on white bg
+            'shadow_color' => '#0000ff',
+            'shadow_offset_x' => 0,
+            'shadow_offset_y' => 8,
+        ]);
+        // Scan a vertical column inside the glyph; expect at least one
+        // pixel to be blue-ish from the shadow stamp.
+        $foundBlue = false;
+        for ($y = 30; $y < 70; $y++) {
+            if ($this->isNearColor($img, 45, $y, 0, 0, 255, 80)) {
+                $foundBlue = true;
+                break;
+            }
+        }
+        $this->assertTrue($foundBlue, 'shadow should leave blue-ish pixels in the glyph column');
+        imagedestroy($img);
+    }
+
+    public function testOutlineDrawsStampedAtOffsets(): void
+    {
+        // GREEN outline on white text on white bg — the only visible
+        // pixels should be from the outline stamp.
+        [$img] = $this->renderAndOpen([
+            'placeholder' => 'M',
+            'x' => 30, 'y' => 50, 'size' => 40,
+            'color' => '#ffffff',
+            'outline_color' => '#00ff00',
+            'outline_width' => 2,
+        ]);
+        $foundGreen = false;
+        for ($y = 25; $y < 70; $y++) {
+            for ($x = 30; $x < 80; $x++) {
+                if ($this->isNearColor($img, $x, $y, 0, 255, 0, 80)) {
+                    $foundGreen = true;
+                    break 2;
+                }
+            }
+        }
+        $this->assertTrue($foundGreen, 'outline stamps should leave green pixels around the glyph');
+        imagedestroy($img);
+    }
+
     public function testRejectsUnknownFont(): void
     {
         $bg = $this->tmp . '/bg.jpg';

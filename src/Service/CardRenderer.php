@@ -201,19 +201,54 @@ final class CardRenderer
             throw new \RuntimeException("Font not bundled: {$field['font']}");
         }
 
+        $size = (float)$field['size'];
+        $rotation = (float)($field['rotation'] ?? 0);
+        $x = (int)$field['x'];
+        $y = (int)$field['y'];
+
+        // Shadow: a single stamp at the configured offset in shadow color,
+        // drawn FIRST so the outline + main text land on top of it. Skip
+        // entirely when offset is (0,0) — that's the marker for "no shadow"
+        // rather than overlapping the main text with a tinted duplicate.
+        $shadowOffsetX = (int)($field['shadow_offset_x'] ?? 0);
+        $shadowOffsetY = (int)($field['shadow_offset_y'] ?? 0);
+        if ($shadowOffsetX !== 0 || $shadowOffsetY !== 0) {
+            [$sr, $sg, $sb] = $this->hexToRgb((string)($field['shadow_color'] ?? '#000000'));
+            $shadowColor = imagecolorallocate($canvas, $sr, $sg, $sb);
+            imagettftext(
+                $canvas, $size, $rotation,
+                $x + $shadowOffsetX, $y + $shadowOffsetY,
+                $shadowColor, $fontPath, $text
+            );
+        }
+
+        // Outline: stamp the text in 8 directions at the configured width.
+        // GD has no native stroke, so we approximate by drawing the same
+        // text repeatedly with offsets. Width=0 (default) skips the loop
+        // and we render only the main fill — preserves the cheap path for
+        // every existing template that doesn't use outlines.
+        $outlineWidth = (int)($field['outline_width'] ?? 0);
+        if ($outlineWidth > 0) {
+            [$or, $og, $ob] = $this->hexToRgb((string)($field['outline_color'] ?? '#000000'));
+            $outlineColor = imagecolorallocate($canvas, $or, $og, $ob);
+            // Iterate the offset ring at every integer step from 1..$outlineWidth
+            // so thick outlines stay solid (rather than just the 8 outer
+            // edge stamps with a gap inside).
+            for ($w = 1; $w <= $outlineWidth; $w++) {
+                foreach ([[-$w, -$w], [0, -$w], [$w, -$w], [-$w, 0], [$w, 0], [-$w, $w], [0, $w], [$w, $w]] as [$dx, $dy]) {
+                    imagettftext(
+                        $canvas, $size, $rotation,
+                        $x + $dx, $y + $dy,
+                        $outlineColor, $fontPath, $text
+                    );
+                }
+            }
+        }
+
+        // Main fill last so it sits on top of shadow + outline.
         [$r, $g, $b] = $this->hexToRgb((string)$field['color']);
         $color = imagecolorallocate($canvas, $r, $g, $b);
-
-        imagettftext(
-            $canvas,
-            (float)$field['size'],
-            (float)($field['rotation'] ?? 0),
-            (int)$field['x'],
-            (int)$field['y'],
-            $color,
-            $fontPath,
-            $text
-        );
+        imagettftext($canvas, $size, $rotation, $x, $y, $color, $fontPath, $text);
     }
 
     /**

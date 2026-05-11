@@ -79,6 +79,28 @@ final class TemplateLayoutValidator
             if (isset($f['rotation']) && (!is_numeric($f['rotation']) || $f['rotation'] < -360 || $f['rotation'] > 360)) {
                 $errors[] = "{$prefix}.rotation: must be a number in -360..360";
             }
+
+            // Optional outline + shadow properties (added later). Each is
+            // validated only when present; absence means "no outline / no
+            // shadow" and is fine. Same hex-color shape as `color`.
+            if (isset($f['outline_color'])) {
+                if (!is_string($f['outline_color']) || !preg_match('/^#([0-9a-f]{3}|[0-9a-f]{6})$/i', $f['outline_color'])) {
+                    $errors[] = "{$prefix}.outline_color: must be a hex color like #fff or #ffffff";
+                }
+            }
+            if (isset($f['outline_width']) && (!is_numeric($f['outline_width']) || $f['outline_width'] < 0 || $f['outline_width'] > 20)) {
+                $errors[] = "{$prefix}.outline_width: must be 0..20";
+            }
+            if (isset($f['shadow_color'])) {
+                if (!is_string($f['shadow_color']) || !preg_match('/^#([0-9a-f]{3}|[0-9a-f]{6})$/i', $f['shadow_color'])) {
+                    $errors[] = "{$prefix}.shadow_color: must be a hex color like #fff or #ffffff";
+                }
+            }
+            foreach (['shadow_offset_x', 'shadow_offset_y'] as $sk) {
+                if (isset($f[$sk]) && (!is_numeric($f[$sk]) || $f[$sk] < -30 || $f[$sk] > 30)) {
+                    $errors[] = "{$prefix}.{$sk}: must be -30..30";
+                }
+            }
         }
 
         return $errors;

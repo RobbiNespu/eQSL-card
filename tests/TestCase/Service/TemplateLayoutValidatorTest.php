@@ -71,4 +71,62 @@ final class TemplateLayoutValidatorTest extends TestCase
         $errors = (new TemplateLayoutValidator())->validate(json_encode(['fields' => $fields]), 1500, 1000);
         $this->assertNotEmpty($errors);
     }
+
+    public function testAcceptsValidOutlineAndShadow(): void
+    {
+        $json = json_encode(['fields' => [[
+            'placeholder' => '{callsign}', 'x' => 100, 'y' => 200,
+            'font' => 'Inter-Bold.ttf', 'size' => 96, 'color' => '#000000', 'rotation' => 0,
+            'outline_color' => '#ffffff', 'outline_width' => 3,
+            'shadow_color' => '#888', 'shadow_offset_x' => 4, 'shadow_offset_y' => 6,
+        ]]]);
+        $this->assertSame([], (new TemplateLayoutValidator())->validate($json, 1500, 1000));
+    }
+
+    public function testRejectsOutOfRangeOutlineWidth(): void
+    {
+        $json = json_encode(['fields' => [[
+            'placeholder' => 'x', 'x' => 10, 'y' => 10,
+            'font' => 'Inter-Regular.ttf', 'size' => 12, 'color' => '#000',
+            'outline_width' => 99,
+        ]]]);
+        $errors = (new TemplateLayoutValidator())->validate($json, 1500, 1000);
+        $this->assertNotEmpty($errors);
+        $this->assertStringContainsString('outline_width', $errors[0]);
+    }
+
+    public function testRejectsBadOutlineColor(): void
+    {
+        $json = json_encode(['fields' => [[
+            'placeholder' => 'x', 'x' => 10, 'y' => 10,
+            'font' => 'Inter-Regular.ttf', 'size' => 12, 'color' => '#000',
+            'outline_color' => 'not-a-color',
+        ]]]);
+        $errors = (new TemplateLayoutValidator())->validate($json, 1500, 1000);
+        $this->assertNotEmpty($errors);
+        $this->assertStringContainsString('outline_color', $errors[0]);
+    }
+
+    public function testRejectsOutOfRangeShadowOffset(): void
+    {
+        $json = json_encode(['fields' => [[
+            'placeholder' => 'x', 'x' => 10, 'y' => 10,
+            'font' => 'Inter-Regular.ttf', 'size' => 12, 'color' => '#000',
+            'shadow_offset_y' => 999,
+        ]]]);
+        $errors = (new TemplateLayoutValidator())->validate($json, 1500, 1000);
+        $this->assertNotEmpty($errors);
+        $this->assertStringContainsString('shadow_offset_y', $errors[0]);
+    }
+
+    public function testLegacyLayoutsStillValid(): void
+    {
+        // No outline / shadow keys at all — must continue to pass cleanly
+        // so existing saved templates don't fail validation on edit.
+        $json = json_encode(['fields' => [[
+            'placeholder' => '{callsign}', 'x' => 100, 'y' => 200,
+            'font' => 'Inter-Bold.ttf', 'size' => 96, 'color' => '#000000', 'rotation' => 0,
+        ]]]);
+        $this->assertSame([], (new TemplateLayoutValidator())->validate($json, 1500, 1000));
+    }
 }

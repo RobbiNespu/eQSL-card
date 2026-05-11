@@ -103,6 +103,51 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
             <option value="Cinzel-Regular.ttf">Cinzel</option>
           </select>
         </div>
+
+        <!-- Outline. Width 0 (default) renders no stroke — same rule on
+             both the Fabric canvas and the server-side GD renderer so the
+             designer is WYSIWYG. -->
+        <details class="mb-2" :open="(selectedField.outline_width || 0) > 0">
+          <summary class="small fw-bold">Outline</summary>
+          <div class="row g-2 mt-1">
+            <div class="col-7">
+              <label class="form-label small">Color</label>
+              <input type="color" class="form-control form-control-color form-control-sm"
+                     x-model="selectedField.outline_color" @input="syncFieldToCanvas()">
+            </div>
+            <div class="col-5">
+              <label class="form-label small">Width (px)</label>
+              <input type="number" class="form-control form-control-sm" min="0" max="20"
+                     x-model.number="selectedField.outline_width" @input="syncFieldToCanvas()">
+            </div>
+          </div>
+        </details>
+
+        <!-- Shadow. Both offsets at 0 = no shadow. Sub-pixel blur isn't
+             supported by GD without manual anti-aliasing, so the designer
+             stays faithful to a hard-edged shadow. -->
+        <details class="mb-2"
+                 :open="(selectedField.shadow_offset_x || 0) !== 0 || (selectedField.shadow_offset_y || 0) !== 0">
+          <summary class="small fw-bold">Shadow</summary>
+          <div class="row g-2 mt-1">
+            <div class="col-12">
+              <label class="form-label small">Color</label>
+              <input type="color" class="form-control form-control-color form-control-sm"
+                     x-model="selectedField.shadow_color" @input="syncFieldToCanvas()">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Offset X (px)</label>
+              <input type="number" class="form-control form-control-sm" min="-30" max="30"
+                     x-model.number="selectedField.shadow_offset_x" @input="syncFieldToCanvas()">
+            </div>
+            <div class="col-6">
+              <label class="form-label small">Offset Y (px)</label>
+              <input type="number" class="form-control form-control-sm" min="-30" max="30"
+                     x-model.number="selectedField.shadow_offset_y" @input="syncFieldToCanvas()">
+            </div>
+          </div>
+        </details>
+
         <button type="button" class="btn btn-outline-danger btn-sm mt-2" @click="deleteSelectedField()">Delete field</button>
       </div>
     </template>
