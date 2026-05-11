@@ -63,6 +63,11 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{net_organisation}')">Net organisation</button>
     </details>
     <details class="mb-1">
+      <summary class="small fw-bold">Connection</summary>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('via {transport}')">Transport</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{transport_meta}')">Channel / node / server</button>
+    </details>
+    <details class="mb-1">
       <summary class="small fw-bold">Custom</summary>
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('Custom text')">Plain text</button>
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{notes}')">QSO notes</button>

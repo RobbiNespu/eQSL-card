@@ -26,6 +26,10 @@ class Qso extends Entity
         'ncs_callsign' => true,
         'net_title' => true,
         'net_organisation' => true,
+        // Radioless QSO support: transport defaults to 'rf' (over the air),
+        // 'echolink'/'zello'/etc. for internet-mediated contacts.
+        'transport' => true,
+        'transport_meta' => true,
     ];
 
     protected function _setNcsCallsign(?string $value): ?string
@@ -53,6 +57,15 @@ class Qso extends Entity
     }
 
     protected function _setNetOrganisation(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $trimmed = trim($value);
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    protected function _setTransportMeta(?string $value): ?string
     {
         if ($value === null) {
             return null;

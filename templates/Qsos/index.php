@@ -10,6 +10,17 @@
     </select>
   </div>
   <div class="col-md-2">
+    <select name="transport" class="form-select">
+      <option value=""<?= $filters['transport'] === '' ? ' selected' : '' ?>>All transports</option>
+      <option value="rf"<?= $filters['transport'] === 'rf' ? ' selected' : '' ?>>RF only</option>
+      <option value="internet"<?= $filters['transport'] === 'internet' ? ' selected' : '' ?>>Internet only</option>
+      <?php foreach (\App\Service\Transport::TRANSPORTS as $code => $label): ?>
+        <?php if ($code === 'rf') continue; ?>
+        <option value="<?= h($code) ?>"<?= $filters['transport'] === $code ? ' selected' : '' ?>><?= h($label) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+  <div class="col-md-2">
     <select name="band" class="form-select">
       <option value="">All bands</option>
       <?php foreach (\App\Service\HamRadio::bandOptions($filters['band']) as $b => $lbl): ?>
@@ -61,6 +72,11 @@
           <?php if (($qso->qso_type ?? 'contact') === 'net'): ?>
             <span class="badge bg-info text-dark ms-1" title="Net check-in<?= $qso->net_title ? ': ' . h($qso->net_title) : '' ?>">NET</span>
           <?php endif; ?>
+          <?php if (\App\Service\Transport::isInternet($qso->transport ?? null)): ?>
+            <span class="badge bg-secondary ms-1" title="<?= h(\App\Service\Transport::label($qso->transport)) ?><?= $qso->transport_meta ? ' · ' . h($qso->transport_meta) : '' ?>">
+              <?= h(strtoupper((string)$qso->transport)) ?>
+            </span>
+          <?php endif; ?>
         </td>
         <td><?= h($qso->qso_datetime_utc?->format('Y-m-d H:i')) ?></td>
         <td><?= h($qso->frequency_mhz) ?></td>
@@ -92,6 +108,7 @@
       'from' => $filters['from'] ?: null,
       'to' => $filters['to'] ?: null,
       'qso_type' => $filters['qsoType'] ?: null,
+      'transport' => $filters['transport'] ?: null,
   ])]];
   ?>
   <nav><?= $this->Paginator->numbers($paginatorOptions) ?></nav>

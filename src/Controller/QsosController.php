@@ -83,6 +83,15 @@ class QsosController extends AppController
             $query->where(['qso_type' => $qsoType]);
         }
 
+        // Transport filter. 'rf' or any internet code from Transport service.
+        // 'internet' is a synthetic value that means "anything not rf".
+        $transport = trim((string)$this->request->getQuery('transport', ''));
+        if ($transport === 'internet') {
+            $query->where(['transport !=' => 'rf']);
+        } elseif (array_key_exists($transport, \App\Service\Transport::TRANSPORTS)) {
+            $query->where(['transport' => $transport]);
+        }
+
         // Date-range filter. Strict YYYY-MM-DD format check guards against
         // accidental SQL surprises and keeps the filter form predictable.
         $from = (string)$this->request->getQuery('from', '');
@@ -143,7 +152,7 @@ class QsosController extends AppController
 
         $this->set([
             'qsos' => $qsos,
-            'filters' => compact('search', 'band', 'mode', 'from', 'to', 'qsoType'),
+            'filters' => compact('search', 'band', 'mode', 'from', 'to', 'qsoType', 'transport'),
             'title' => 'Logbook',
             'availableTemplates' => $availableTemplates,
             'userUploads' => $userUploads,
@@ -934,6 +943,12 @@ class QsosController extends AppController
             'ncs_callsign'       => (string)($qso->ncs_callsign ?? ''),
             'net_title'          => (string)($qso->net_title ?? ''),
             'net_organisation'   => (string)($qso->net_organisation ?? ''),
+            // Radioless QSO. {transport} renders the human label
+            // ("Echolink", "RF (over the air)") rather than the raw code so
+            // cards read naturally; templates that want the code can use
+            // {transport_code} ... actually we keep it simple: just label.
+            'transport'          => \App\Service\Transport::label($qso->transport ?? null),
+            'transport_meta'     => (string)($qso->transport_meta ?? ''),
         ];
     }
 

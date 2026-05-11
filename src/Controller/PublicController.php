@@ -462,6 +462,10 @@ class PublicController extends AppController
             'ncs_callsign'       => '',
             'net_title'          => '',
             'net_organisation'   => '',
+            // Transport defaults to RF for guest cards — the public form
+            // doesn't expose a transport picker.
+            'transport'          => \App\Service\Transport::label('rf'),
+            'transport_meta'     => '',
         ];
     }
 }

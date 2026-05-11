@@ -53,7 +53,14 @@ class QsosTable extends Table
             ->scalar('qso_type')->inList('qso_type', self::QSO_TYPES, 'Invalid QSO type.')
             ->scalar('ncs_callsign')->maxLength('ncs_callsign', 20)
             ->scalar('net_title')->maxLength('net_title', 120)
-            ->scalar('net_organisation')->maxLength('net_organisation', 120);
+            ->scalar('net_organisation')->maxLength('net_organisation', 120)
+            ->scalar('transport')->inList(
+                'transport',
+                array_keys(\App\Service\Transport::TRANSPORTS),
+                'Invalid transport.'
+            )
+            ->scalar('transport_meta')->maxLength('transport_meta', 120)
+            ->allowEmptyString('transport_meta');
 
         // Net mode requires NCS callsign + net title; organisation stays
         // optional because not every net is run under a named club/society.

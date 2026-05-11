@@ -26,14 +26,22 @@
   <dt class="col-sm-3">Date/Time UTC</dt>
   <dd class="col-sm-9"><?= h($qso->qso_datetime_utc?->format('Y-m-d H:i')) ?></dd>
 
+  <dt class="col-sm-3">Transport</dt>
+  <dd class="col-sm-9">
+    <?= h(\App\Service\Transport::label($qso->transport ?? null)) ?>
+    <?php if (!empty($qso->transport_meta)): ?>
+      <span class="text-muted small">· <?= h($qso->transport_meta) ?></span>
+    <?php endif; ?>
+  </dd>
+
   <dt class="col-sm-3">Frequency</dt>
-  <dd class="col-sm-9"><?= h($qso->frequency_mhz) ?> MHz</dd>
+  <dd class="col-sm-9"><?= $qso->frequency_mhz !== null && $qso->frequency_mhz !== '' ? h($qso->frequency_mhz) . ' MHz' : '<span class="text-muted">—</span>' ?></dd>
 
   <dt class="col-sm-3">Band</dt>
-  <dd class="col-sm-9"><?= h($qso->band) ?></dd>
+  <dd class="col-sm-9"><?= $qso->band ? h($qso->band) : '<span class="text-muted">—</span>' ?></dd>
 
   <dt class="col-sm-3">Mode</dt>
-  <dd class="col-sm-9"><?= h($qso->mode) ?></dd>
+  <dd class="col-sm-9"><?= $qso->mode ? h($qso->mode) : '<span class="text-muted">—</span>' ?></dd>
 
   <dt class="col-sm-3">RST sent / received</dt>
   <dd class="col-sm-9"><?= h($qso->rst_sent) ?> / <?= h($qso->rst_received) ?></dd>

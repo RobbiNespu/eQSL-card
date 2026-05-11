@@ -10,12 +10,16 @@ $initialType = $qso->qso_type ?? 'contact';
 $ncsCurrent = $qso->ncs_callsign ?? '';
 $ncsPrefill = $ncsCurrent !== '' ? $ncsCurrent : ($operatorCallsign ?? '');
 ?>
+<?php $initialTransport = $qso->transport ?? 'rf'; ?>
 <div x-data="{
     qsoType: <?= json_encode($initialType) ?>,
     ncsCallsign: <?= json_encode($ncsCurrent) ?>,
     netTitle: <?= json_encode($qso->net_title ?? '') ?>,
     netOrg: <?= json_encode($qso->net_organisation ?? '') ?>,
+    transport: <?= json_encode($initialTransport) ?>,
+    transportMeta: <?= json_encode($qso->transport_meta ?? '') ?>,
     isNet() { return this.qsoType === 'net'; },
+    isInternet() { return this.transport !== 'rf'; },
     onSwitchNet() {
       // Prefill NCS with the user's callsign on first toggle so the
       // operator doesn't type the same thing every time.
@@ -91,6 +95,30 @@ $ncsPrefill = $ncsCurrent !== '' ? $ncsCurrent : ($operatorCallsign ?? '');
       <input type="hidden" name="net_title" value="">
       <input type="hidden" name="net_organisation" value="">
     </div>
+  </template>
+
+  <div class="col-md-4">
+    <label class="form-label">Transport</label>
+    <select name="transport" class="form-select" x-model="transport">
+      <?php foreach (\App\Service\Transport::options($initialTransport) as $code => $label): ?>
+        <option value="<?= h($code) ?>"<?= $code === $initialTransport ? ' selected' : '' ?>><?= h($label) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <p class="form-text small">
+      <span x-show="!isInternet()">Standard over-the-air contact. Use frequency + band below.</span>
+      <span x-show="isInternet()" x-cloak>Internet-mediated. Frequency / band become optional.</span>
+    </p>
+  </div>
+  <div class="col-md-8" x-show="isInternet()" x-cloak>
+    <label class="form-label">Channel / node / server <span class="text-muted small">(optional)</span></label>
+    <input type="text" name="transport_meta" class="form-control"
+           x-model="transportMeta"
+           placeholder="e.g. Echolink node 12345, Mumble: hamradio.example.com">
+  </div>
+  <!-- Always-submit fallback for transport_meta when transport=='rf' so
+       toggling internet → rf doesn't leak the previously-typed value. -->
+  <template x-if="!isInternet()">
+    <input type="hidden" name="transport_meta" value="">
   </template>
 
   <div class="col-md-4">
