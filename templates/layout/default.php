@@ -4,15 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="csrf-token" content="<?= $this->getRequest()->getAttribute('csrfToken') ?>">
-<title><?= $this->fetch('title') ?: 'eQSL Card' ?></title>
+<title><?= $this->fetch('title') ?: 'eQSL Card · Receiving Station' ?></title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="<?= $this->Url->build('/css/theme.css') ?>">
 <link rel="stylesheet" href="<?= $this->Url->build('/css/app.css') ?>">
 <?= $this->fetch('meta') ?>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand bg-white border-bottom">
+<body>
+<nav class="navbar navbar-expand">
   <div class="container">
-    <a class="navbar-brand" href="/">eQSL Card</a>
+    <a class="navbar-brand" href="/" aria-label="eQSL Card — Receiving Station">
+      eQSL Card
+      <span class="brand-mark" aria-hidden="true"></span>
+    </a>
     <ul class="navbar-nav ms-auto">
       <?php if ($this->getRequest()->getAttribute('identity')): ?>
         <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
@@ -44,7 +48,7 @@
           </li>
         <?php endif; ?>
         <li class="nav-item">
-          <?= $this->Form->postLink('Logout', '/logout', ['class' => 'nav-link']) ?>
+          <?= $this->Form->postLink('Sign out', '/logout', ['class' => 'nav-link']) ?>
         </li>
       <?php else: ?>
         <li class="nav-item"><a class="nav-link" href="/login">Sign in</a></li>
@@ -53,10 +57,21 @@
     </ul>
   </div>
 </nav>
-<main class="container py-4">
+<main class="container">
   <?= $this->Flash->render() ?>
   <?= $this->fetch('content') ?>
 </main>
+<footer class="site-footer">
+  <div class="container">
+    <span class="site-footer__rule" aria-hidden="true"></span>
+    <p>
+      <span class="eyebrow">Station log</span>
+      Open-source eQSL card workbench for amateur radio operators ·
+      Built by <a href="https://robbi.my" rel="noopener">Robbi Nespu</a> ·
+      9W2NSP · <span class="footer-mono"><?= date('Y-m-d') ?> UTC</span>
+    </p>
+  </div>
+</footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
 <script src="<?= $this->Url->build('/js/app.js') ?>" defer></script>
 <?= $this->fetch('script') ?>
