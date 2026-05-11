@@ -109,7 +109,7 @@ $providerMap = [
     'local'   => 'Local directory — admin-imported CSV (recommended FIRST)',
     'radioid' => 'RadioID.net — worldwide DMR registry, JSON API',
     'qrz'     => 'QRZ.com — requires paid XML key, currently disabled',
-    'mcmc'    => 'MCMC Malaysia — use local directory; no live API',
+    'mcmc'    => 'MCMC Malaysia — live scrape of the apparatus-assignments register (9M / 9W)',
     'marts'   => 'MARTS Malaysia — use local directory; site unstable',
     'rapi'    => 'Indonesia RAPI — use local directory; PDF-only sources',
 ];
