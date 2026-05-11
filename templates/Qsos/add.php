@@ -10,27 +10,57 @@ $initialType = $qso->qso_type ?? 'contact';
 $ncsCurrent = $qso->ncs_callsign ?? '';
 $ncsPrefill = $ncsCurrent !== '' ? $ncsCurrent : ($operatorCallsign ?? '');
 ?>
-<?php $initialTransport = $qso->transport ?? 'rf'; ?>
-<div x-data="{
-    qsoType: <?= json_encode($initialType) ?>,
-    ncsCallsign: <?= json_encode($ncsCurrent) ?>,
-    netTitle: <?= json_encode($qso->net_title ?? '') ?>,
-    netOrg: <?= json_encode($qso->net_organisation ?? '') ?>,
-    transport: <?= json_encode($initialTransport) ?>,
-    transportMeta: <?= json_encode($qso->transport_meta ?? '') ?>,
-    callsign: <?= json_encode($qso->call_worked ?? '') ?>,
-    operatorName: <?= json_encode($qso->operator_name ?? '') ?>,
-    operatorQth: <?= json_encode($qso->operator_qth ?? '') ?>,
-    gridSquare: <?= json_encode($qso->grid_square ?? '') ?>,
+<?php
+$initialTransport = $qso->transport ?? 'rf';
+/*
+ * Build the x-data initial state as one JSON object → one HTML-escape
+ * step. Pasting raw json_encode() output inline inside an HTML attribute
+ * would close the attribute the moment a string flows through, because
+ * the encoded value starts/ends with literal double quotes.
+ *
+ * NB: this block uses a /-star comment (not //) on purpose. PHP // line
+ * comments terminate at end-of-line AND at the first ?> token — so a
+ * stray "?>" inside a // comment silently closes the <?php block and
+ * dumps every subsequent statement as literal HTML.
+ */
+$initialState = h(json_encode([
+    'qsoType'      => $initialType,
+    'ncsCallsign'  => $ncsCurrent,
+    'netTitle'     => $qso->net_title ?? '',
+    'netOrg'       => $qso->net_organisation ?? '',
+    'transport'    => $initialTransport,
+    'transportMeta'=> $qso->transport_meta ?? '',
+    'callsign'     => $qso->call_worked ?? '',
+    'operatorName' => $qso->operator_name ?? '',
+    'operatorQth'  => $qso->operator_qth ?? '',
+    'gridSquare'   => $qso->grid_square ?? '',
+    'ncsPrefill'   => $ncsPrefill,
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+?>
+<?php
+// The Alpine factory lives in a <script> block below so we don't have to
+// worry about escaping JS string delimiters, apostrophes-in-comments, or
+// `?>` tokens against the HTML-attribute parser. The x-data attribute
+// itself stays short — it just calls the factory with the server-side
+// initial state and returns the data object Alpine processes.
+//
+// $this->start('script') queues the block into the layout's deferred
+// script slot so it runs after Alpine has loaded but before Alpine
+// processes the DOM (see layout/default.php for the load order).
+$this->start('script');
+?>
+<script>
+function qsoFormState(initial) {
+  return Object.assign({}, initial, {
     lookupSource: '',
     lookupTimer: null,
     lookupAbort: null,
-    isNet() { return this.qsoType === 'net'; },
-    isInternet() { return this.transport !== 'rf'; },
+    isNet()     { return this.qsoType === 'net'; },
+    isInternet(){ return this.transport !== 'rf'; },
     onSwitchNet() {
-      // Prefill NCS with the user's callsign on first toggle so the
-      // operator doesn't type the same thing every time.
-      if (!this.ncsCallsign) this.ncsCallsign = <?= json_encode($ncsPrefill) ?>;
+      // Prefill NCS with the user's callsign on first toggle, so the
+      // operator doesn't have to retype the same thing every time.
+      if (!this.ncsCallsign) this.ncsCallsign = this.ncsPrefill;
     },
     onCallsignInput() {
       // Debounced upstream lookup. We only fire if the user has stopped
@@ -46,7 +76,7 @@ $ncsPrefill = $ncsCurrent !== '' ? $ncsCurrent : ($operatorCallsign ?? '');
     async fetchLookup(call) {
       this.lookupAbort = new AbortController();
       try {
-        const r = await fetch(`/api/callsign/${encodeURIComponent(call)}`, {
+        const r = await fetch('/api/callsign/' + encodeURIComponent(call), {
           headers: { 'Accept': 'application/json' },
           credentials: 'same-origin',
           signal: this.lookupAbort.signal,
@@ -66,13 +96,18 @@ $ncsPrefill = $ncsCurrent !== '' ? $ncsCurrent : ($operatorCallsign ?? '');
       }
     },
     clearLookup() {
-      // Manual reset if the auto-filled values are wrong.
+      // Manual reset if the auto-filled values are wrong for this contact.
       this.operatorName = '';
       this.operatorQth = '';
       this.gridSquare = '';
       this.lookupSource = '';
     },
-}">
+  });
+}
+</script>
+<?php $this->end(); ?>
+
+<div x-data="qsoFormState(<?= $initialState ?>)">
 <?= $this->Form->create($qso) ?>
 
 <div class="mb-3">
