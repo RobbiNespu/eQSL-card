@@ -57,6 +57,12 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('RST recv: {rst_received}')">RST received</button>
     </details>
     <details class="mb-1">
+      <summary class="small fw-bold">Net details</summary>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('NCS: {ncs_callsign}')">NCS callsign</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{net_title}')">Net title</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{net_organisation}')">Net organisation</button>
+    </details>
+    <details class="mb-1">
       <summary class="small fw-bold">Custom</summary>
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('Custom text')">Plain text</button>
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{notes}')">QSO notes</button>

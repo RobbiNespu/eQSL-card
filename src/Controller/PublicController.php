@@ -454,6 +454,14 @@ class PublicController extends AppController
             'rst_received'       => (string)($data['rst_received'] ?? ''),
             'operator_name'      => (string)($data['operator_name'] ?? ''),
             'notes'              => (string)($data['notes'] ?? ''),
+            // Net placeholders kept empty for the guest flow — the public
+            // /generate form doesn't surface them. Including the keys means
+            // templates that use {ncs_callsign} etc. don't print a literal
+            // placeholder when rendered against a guest card.
+            'qso_type'           => 'contact',
+            'ncs_callsign'       => '',
+            'net_title'          => '',
+            'net_organisation'   => '',
         ];
     }
 }

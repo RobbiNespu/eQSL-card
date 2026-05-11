@@ -1,7 +1,14 @@
 <h1><?= h($title) ?></h1>
 
 <form method="get" class="row g-2 mb-3">
-  <div class="col-md-3"><input type="search" name="q" value="<?= h($filters['search']) ?>" placeholder="Callsign" class="form-control"></div>
+  <div class="col-md-2"><input type="search" name="q" value="<?= h($filters['search']) ?>" placeholder="Callsign" class="form-control"></div>
+  <div class="col-md-2">
+    <select name="qso_type" class="form-select">
+      <option value=""<?= $filters['qsoType'] === '' ? ' selected' : '' ?>>All types</option>
+      <option value="contact"<?= $filters['qsoType'] === 'contact' ? ' selected' : '' ?>>Contact only</option>
+      <option value="net"<?= $filters['qsoType'] === 'net' ? ' selected' : '' ?>>Net only</option>
+    </select>
+  </div>
   <div class="col-md-2">
     <select name="band" class="form-select">
       <option value="">All bands</option>
@@ -10,7 +17,7 @@
       <?php endforeach; ?>
     </select>
   </div>
-  <div class="col-md-2">
+  <div class="col-md-1">
     <select name="mode" class="form-select">
       <option value="">All modes</option>
       <?php foreach (\App\Service\HamRadio::modeOptions($filters['mode']) as $m => $lbl): ?>
@@ -49,7 +56,12 @@
       <?php foreach ($qsos as $qso): ?>
       <tr>
         <td><input type="checkbox" :value="<?= $qso->id ?>" @change="toggleOne(<?= $qso->id ?>, $event.target.checked)"></td>
-        <td><strong><?= h($qso->call_worked) ?></strong></td>
+        <td>
+          <strong><?= h($qso->call_worked) ?></strong>
+          <?php if (($qso->qso_type ?? 'contact') === 'net'): ?>
+            <span class="badge bg-info text-dark ms-1" title="Net check-in<?= $qso->net_title ? ': ' . h($qso->net_title) : '' ?>">NET</span>
+          <?php endif; ?>
+        </td>
         <td><?= h($qso->qso_datetime_utc?->format('Y-m-d H:i')) ?></td>
         <td><?= h($qso->frequency_mhz) ?></td>
         <td><?= h($qso->band) ?></td>

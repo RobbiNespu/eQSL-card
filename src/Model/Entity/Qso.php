@@ -20,7 +20,46 @@ class Qso extends Entity
         'operator_qth' => true,
         'grid_square' => true,
         'notes' => true,
+        // Net check-in fields. Required when qso_type='net'; left null for
+        // contact QSOs. Validation lives on QsosTable::validationDefault().
+        'qso_type' => true,
+        'ncs_callsign' => true,
+        'net_title' => true,
+        'net_organisation' => true,
     ];
+
+    protected function _setNcsCallsign(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        return strtoupper(trim($value));
+    }
+
+    /**
+     * Normalise empty net fields to null so contact-mode rows don't leave
+     * empty strings in the column. The add form posts empty strings for
+     * these inputs in contact mode (the hidden fallback inputs preserve the
+     * name=net_title/etc keys regardless of which toggle is active) so the
+     * controller never has to branch on the type to clean up.
+     */
+    protected function _setNetTitle(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $trimmed = trim($value);
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    protected function _setNetOrganisation(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $trimmed = trim($value);
+        return $trimmed === '' ? null : $trimmed;
+    }
 
     protected function _setCallWorked(?string $value): ?string
     {

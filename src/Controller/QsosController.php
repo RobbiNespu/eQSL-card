@@ -75,6 +75,14 @@ class QsosController extends AppController
             $query->where(['mode' => $mode]);
         }
 
+        // QSO type filter: 'contact' or 'net'. Empty (default) means both.
+        // Any other value is ignored — the form only ships these two so a
+        // garbage value via URL tinkering still produces a useful listing.
+        $qsoType = trim((string)$this->request->getQuery('qso_type', ''));
+        if (in_array($qsoType, \App\Model\Table\QsosTable::QSO_TYPES, true)) {
+            $query->where(['qso_type' => $qsoType]);
+        }
+
         // Date-range filter. Strict YYYY-MM-DD format check guards against
         // accidental SQL surprises and keeps the filter form predictable.
         $from = (string)$this->request->getQuery('from', '');
@@ -135,7 +143,7 @@ class QsosController extends AppController
 
         $this->set([
             'qsos' => $qsos,
-            'filters' => compact('search', 'band', 'mode', 'from', 'to'),
+            'filters' => compact('search', 'band', 'mode', 'from', 'to', 'qsoType'),
             'title' => 'Logbook',
             'availableTemplates' => $availableTemplates,
             'userUploads' => $userUploads,
@@ -195,7 +203,16 @@ class QsosController extends AppController
             $this->Flash->error('Could not save QSO. Check errors below.');
         }
 
-        $this->set(['qso' => $entity, 'mode' => 'add']);
+        // operatorCallsign drives the auto-prefill of the NCS field when the
+        // user toggles into "Net check-in" mode on the add form — most
+        // operators are running the nets they're logging, so 'me' is the
+        // 95% default. They can still edit if they're scribing someone
+        // else's net.
+        $this->set([
+            'qso' => $entity,
+            'mode' => 'add',
+            'operatorCallsign' => (string)($this->Authentication->getIdentity()->getOriginalData()->callsign ?? ''),
+        ]);
         $this->render('add');
 
         return null;
@@ -233,7 +250,11 @@ class QsosController extends AppController
             $this->Flash->error('Could not save QSO.');
         }
 
-        $this->set(['qso' => $entity, 'mode' => 'edit']);
+        $this->set([
+            'qso' => $entity,
+            'mode' => 'edit',
+            'operatorCallsign' => (string)($this->Authentication->getIdentity()->getOriginalData()->callsign ?? ''),
+        ]);
         $this->render('add');
 
         return null;
@@ -848,6 +869,13 @@ class QsosController extends AppController
             'rst_received'       => (string)($qso->rst_received ?? ''),
             'operator_name'      => (string)($qso->operator_name ?? ''),
             'notes'              => (string)($qso->notes ?? ''),
+            // Net check-in fields. Always present (empty string for contact
+            // QSOs) so card templates that reference {ncs_callsign} etc. don't
+            // surface a literal placeholder when rendered against a contact row.
+            'qso_type'           => (string)($qso->qso_type ?? 'contact'),
+            'ncs_callsign'       => (string)($qso->ncs_callsign ?? ''),
+            'net_title'          => (string)($qso->net_title ?? ''),
+            'net_organisation'   => (string)($qso->net_organisation ?? ''),
         ];
     }
 
