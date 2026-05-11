@@ -47,6 +47,15 @@ ConnectionManager::setConfig('test_debug_kit', [
     'quoteIdentifiers' => false,
 ]);
 
+// Force the default email transport to "Debug" during tests so EmailVerification
+// and any other code path that triggers a real `send()` doesn't try to reach
+// an SMTP server (and dump "SMTP server did not accept the connection" lines
+// all over the phpunit output). The Debug transport stores delivered messages
+// in memory; tests that care can inspect them via the TestEmailTransport
+// helper from the cakephp/cakephp suite.
+\Cake\Mailer\TransportFactory::drop('default');
+\Cake\Mailer\TransportFactory::setConfig('default', ['className' => 'Debug']);
+
 ConnectionManager::alias('test_debug_kit', 'debug_kit');
 
 // Fixate now to avoid one-second-leap-issues
