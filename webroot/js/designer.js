@@ -309,13 +309,47 @@ function designer(initial) {
                 body,
                 credentials: 'same-origin',
             });
-            if (r.redirected) {
-                window.location.href = r.url;
-            } else if (r.ok) {
-                window.location.href = '/templates';
-            } else {
-                alert('Save failed: ' + r.status);
+            // 422 = controller hit validation errors (empty name, bad canvas
+            // dims, malformed layout_json). Surface the server's messages
+            // instead of silently navigating away.
+            if (r.status === 422) {
+                let msg = 'Validation failed';
+                try {
+                    const data = await r.json();
+                    if (Array.isArray(data.errors) && data.errors.length) {
+                        msg = data.errors.join('\n');
+                    }
+                } catch (_) { /* fall through to generic message */ }
+                alert('Save failed:\n' + msg);
+                return;
             }
+            if (r.ok) {
+                // Preferred path: controller returns JSON {redirect_url: "..."}
+                // for AJAX callers so we can distinguish a real success from
+                // a validation-error re-render (both used to come back as
+                // a 200 HTML page).
+                const ct = r.headers.get('Content-Type') || '';
+                if (ct.includes('application/json')) {
+                    try {
+                        const data = await r.json();
+                        if (data && data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                            return;
+                        }
+                    } catch (_) { /* fall through */ }
+                }
+                // Legacy path: server did a 302 that fetch auto-followed.
+                if (r.redirected) {
+                    window.location.href = r.url;
+                    return;
+                }
+                // 200 OK with no redirect and no JSON redirect_url means the
+                // server re-rendered the form (typically a non-AJAX path).
+                // Don't silently nav to /templates — that hides errors.
+                alert('Save failed: server returned 200 without a redirect. Check the page for a flash error.');
+                return;
+            }
+            alert('Save failed: ' + r.status);
         },
     };
 }

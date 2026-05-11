@@ -102,12 +102,25 @@ class TemplatesController extends AppController
 
         if ($this->request->is('post')) {
             $errors = $this->saveTemplate($entity, $userId, isNew: true);
+            $wantsJson = $this->request->accepts('application/json')
+                && !$this->request->accepts('text/html');
             if (empty($errors)) {
                 $this->Flash->success('Template created.');
+                // The designer save() fetch sends Accept: application/json
+                // exclusively, so it needs a JSON `redirect_url` back —
+                // otherwise the auto-followed 302 lands as a 200 HTML page
+                // and the JS can't distinguish success from a validation
+                // re-render. Plain browser form posts still get the 302.
+                if ($wantsJson) {
+                    return $this->jsonRedirect('/templates/' . $entity->id . '/edit');
+                }
 
                 return $this->redirect('/templates/' . $entity->id . '/edit');
             }
             $this->Flash->error(implode("\n", $errors));
+            if ($wantsJson) {
+                return $this->jsonErrors($errors);
+            }
         }
 
         $this->set([
@@ -145,12 +158,20 @@ class TemplatesController extends AppController
 
         if ($this->request->is(['post', 'put', 'patch'])) {
             $errors = $this->saveTemplate($template, $userId, isNew: false);
+            $wantsJson = $this->request->accepts('application/json')
+                && !$this->request->accepts('text/html');
             if (empty($errors)) {
                 $this->Flash->success('Template saved.');
+                if ($wantsJson) {
+                    return $this->jsonRedirect('/templates/' . $template->id . '/edit');
+                }
 
                 return $this->redirect('/templates/' . $template->id . '/edit');
             }
             $this->Flash->error(implode("\n", $errors));
+            if ($wantsJson) {
+                return $this->jsonErrors($errors);
+            }
         }
 
         $this->set([
@@ -225,6 +246,45 @@ class TemplatesController extends AppController
         $this->Flash->success('Template cloned. You can now edit your copy.');
 
         return $this->redirect('/templates/' . $newEntity->id . '/edit');
+    }
+
+    /**
+     * Tell an AJAX caller "save succeeded, go here" via a JSON envelope.
+     *
+     * The designer's `save()` fetch sets `Accept: application/json` so it can
+     * tell apart a real success from a validation-error re-render. A 302 on
+     * the success path gets auto-followed by fetch into a 200 HTML page,
+     * which is indistinguishable from the failure case — so we hand back a
+     * `redirect_url` instead and let the JS navigate.
+     *
+     * @param string $url Target URL the client should navigate to.
+     * @return \Cake\Http\Response|null
+     */
+    private function jsonRedirect(string $url): ?\Cake\Http\Response
+    {
+        $this->set(['redirect_url' => $url]);
+        $this->viewBuilder()->setClassName('Json')->setOption('serialize', ['redirect_url']);
+
+        return null;
+    }
+
+    /**
+     * Surface validation errors to an AJAX caller as 422 JSON.
+     *
+     * 422 (rather than 400) so the JS can `r.status === 422` cleanly to
+     * distinguish "your input is invalid, fix it and resubmit" from a
+     * transport-level 4xx.
+     *
+     * @param string[] $errors Validation error messages collected by saveTemplate().
+     * @return \Cake\Http\Response|null
+     */
+    private function jsonErrors(array $errors): ?\Cake\Http\Response
+    {
+        $this->setResponse($this->getResponse()->withStatus(422));
+        $this->set(['errors' => $errors]);
+        $this->viewBuilder()->setClassName('Json')->setOption('serialize', ['errors']);
+
+        return null;
     }
 
     /**
