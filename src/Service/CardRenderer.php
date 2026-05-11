@@ -92,6 +92,16 @@ final class CardRenderer
             imagedestroy($canvas);
             throw new \RuntimeException('Failed to write rendered WebP.');
         }
+
+        // Thumbnail derived from the same in-memory canvas. Written to
+        // `<dest>.thumb.webp` so callers can predict the path from png_path.
+        // 400px-wide thumbs run ~25 KB; loading 25 of them on /cards is
+        // ~600 KB instead of ~27 MB of full-size cards. Failures here are
+        // non-fatal — the listing falls back to the full card if the thumb
+        // file is missing.
+        $thumbPath = $this->thumbPathFor($destinationPath);
+        $this->writeThumbnail($canvas, $thumbPath, 400, $width, $height);
+
         imagedestroy($canvas);
 
         return [
@@ -100,6 +110,35 @@ final class CardRenderer
             'file_size_bytes' => filesize($destinationPath),
             'mime_type'       => 'image/webp',
         ];
+    }
+
+    /**
+     * The convention: <basename>.thumb.<ext>. Keeps the .webp extension so
+     * the same Content-Type negotiation works.
+     */
+    public static function thumbPathFor(string $cardPath): string
+    {
+        $info = pathinfo($cardPath);
+        $base = ($info['dirname'] ?? '.') . DIRECTORY_SEPARATOR . $info['filename'];
+        $ext = $info['extension'] ?? 'webp';
+        return $base . '.thumb.' . $ext;
+    }
+
+    private function writeThumbnail(\GdImage $src, string $dest, int $targetWidth, int $srcW, int $srcH): void
+    {
+        if ($srcW <= 0 || $srcH <= 0) {
+            return;
+        }
+        $ratio = $targetWidth / $srcW;
+        $thumbW = $targetWidth;
+        $thumbH = (int)round($srcH * $ratio);
+
+        $thumb = imagecreatetruecolor($thumbW, $thumbH);
+        imagecopyresampled($thumb, $src, 0, 0, 0, 0, $thumbW, $thumbH, $srcW, $srcH);
+        // Lower quality on the thumb — at 400px wide, q70 is visually
+        // indistinguishable from q82 but ~15% smaller.
+        @imagewebp($thumb, $dest, 70);
+        imagedestroy($thumb);
     }
 
     /**

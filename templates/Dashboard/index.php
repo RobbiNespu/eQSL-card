@@ -46,9 +46,13 @@
     <?php else: ?>
       <div class="row g-2">
         <?php foreach ($recentCards as $c): ?>
+          <?php
+          $thumbPath = \App\Service\CardRenderer::thumbPathFor($c->png_path);
+          $previewSrc = is_file(WWW_ROOT . $thumbPath) ? $thumbPath : $c->png_path;
+          ?>
           <div class="col-6">
             <a href="/cards/<?= $c->id ?>" class="text-decoration-none">
-              <img src="/<?= h($c->png_path) ?>" class="img-fluid rounded" alt="" loading="lazy">
+              <img src="/<?= h($previewSrc) ?>" class="img-fluid rounded" alt="" loading="lazy">
             </a>
           </div>
         <?php endforeach; ?>

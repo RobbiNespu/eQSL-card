@@ -7,8 +7,16 @@
     <?php foreach ($cards as $card): ?>
       <div class="col-md-4">
         <div class="card h-100">
+          <?php
+          // Thumbnails are written alongside the full card as <uuid>.thumb.webp.
+          // Old cards rendered before this commit don't have one — fall back
+          // to the full image rather than a broken <img>.
+          $thumbPath = \App\Service\CardRenderer::thumbPathFor($card->png_path);
+          $thumbAbs = WWW_ROOT . $thumbPath;
+          $previewSrc = is_file($thumbAbs) ? $thumbPath : $card->png_path;
+          ?>
           <a href="/cards/<?= $card->id ?>">
-            <img src="/<?= h($card->png_path) ?>" class="card-img-top" alt="eQSL card preview" loading="lazy">
+            <img src="/<?= h($previewSrc) ?>" class="card-img-top" alt="eQSL card preview" loading="lazy">
           </a>
           <div class="card-body">
             <?php $qsoData = json_decode((string)$card->qso_data_json, true) ?: []; ?>
