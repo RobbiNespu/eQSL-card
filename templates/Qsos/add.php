@@ -18,12 +18,59 @@ $ncsPrefill = $ncsCurrent !== '' ? $ncsCurrent : ($operatorCallsign ?? '');
     netOrg: <?= json_encode($qso->net_organisation ?? '') ?>,
     transport: <?= json_encode($initialTransport) ?>,
     transportMeta: <?= json_encode($qso->transport_meta ?? '') ?>,
+    callsign: <?= json_encode($qso->call_worked ?? '') ?>,
+    operatorName: <?= json_encode($qso->operator_name ?? '') ?>,
+    operatorQth: <?= json_encode($qso->operator_qth ?? '') ?>,
+    gridSquare: <?= json_encode($qso->grid_square ?? '') ?>,
+    lookupSource: '',
+    lookupTimer: null,
+    lookupAbort: null,
     isNet() { return this.qsoType === 'net'; },
     isInternet() { return this.transport !== 'rf'; },
     onSwitchNet() {
       // Prefill NCS with the user's callsign on first toggle so the
       // operator doesn't type the same thing every time.
       if (!this.ncsCallsign) this.ncsCallsign = <?= json_encode($ncsPrefill) ?>;
+    },
+    onCallsignInput() {
+      // Debounced upstream lookup. We only fire if the user has stopped
+      // typing for 700ms — keystroke-rate fetches would hammer providers
+      // and waste cache space on partial inputs.
+      this.lookupSource = '';
+      if (this.lookupTimer) clearTimeout(this.lookupTimer);
+      if (this.lookupAbort) this.lookupAbort.abort();
+      const call = (this.callsign || '').toUpperCase().trim();
+      if (call.length < 3) return;
+      this.lookupTimer = setTimeout(() => this.fetchLookup(call), 700);
+    },
+    async fetchLookup(call) {
+      this.lookupAbort = new AbortController();
+      try {
+        const r = await fetch(`/api/callsign/${encodeURIComponent(call)}`, {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin',
+          signal: this.lookupAbort.signal,
+        });
+        if (r.status === 204 || r.status === 404) return; // no hit or feature off
+        if (!r.ok) return;
+        const data = await r.json();
+        if (!data || !data.result) return;
+        const res = data.result;
+        // Never clobber user-typed values — only fill empty fields.
+        if (!this.operatorName && res.name) this.operatorName = res.name;
+        if (!this.operatorQth && res.qth) this.operatorQth = res.qth;
+        if (!this.gridSquare && res.grid_square) this.gridSquare = res.grid_square;
+        this.lookupSource = res.source || '';
+      } catch (e) {
+        // Abort or transport error — silent. The user can still type by hand.
+      }
+    },
+    clearLookup() {
+      // Manual reset if the auto-filled values are wrong.
+      this.operatorName = '';
+      this.operatorQth = '';
+      this.gridSquare = '';
+      this.lookupSource = '';
     },
 }">
 <?= $this->Form->create($qso) ?>
@@ -49,7 +96,14 @@ $ncsPrefill = $ncsCurrent !== '' ? $ncsCurrent : ($operatorCallsign ?? '');
   <div class="col-md-6">
     <label class="form-label" x-text="isNet() ? 'Participant callsign' : 'Their callsign'">Their callsign</label>
     <input type="text" name="call_worked" class="form-control"
-           value="<?= h($qso->call_worked ?? '') ?>" required>
+           x-model="callsign"
+           @input.debounce.300ms="onCallsignInput()"
+           @blur="onCallsignInput()"
+           required>
+    <p class="form-text small text-success" x-show="lookupSource" x-cloak>
+      Auto-filled from <strong x-text="lookupSource"></strong>.
+      <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline" @click="clearLookup()">Clear</button>
+    </p>
   </div>
   <div class="col-md-6">
     <?= $this->Form->control('qso_datetime_utc', [
@@ -157,23 +211,21 @@ $ncsPrefill = $ncsCurrent !== '' ? $ncsCurrent : ($operatorCallsign ?? '');
         'class' => 'form-control',
     ]) ?>
   </div>
+  <!-- These three fields are bound to Alpine state so the callsign
+       auto-complete can populate them. x-model keeps the input value
+       and Alpine state in sync; the form still POSTs the named values
+       because the underlying <input> is a normal form element. -->
   <div class="col-md-6">
-    <?= $this->Form->control('operator_name', [
-        'label' => 'Their name',
-        'class' => 'form-control',
-    ]) ?>
+    <label class="form-label">Their name</label>
+    <input type="text" name="operator_name" class="form-control" x-model="operatorName">
   </div>
   <div class="col-md-6">
-    <?= $this->Form->control('operator_qth', [
-        'label' => 'QTH',
-        'class' => 'form-control',
-    ]) ?>
+    <label class="form-label">QTH</label>
+    <input type="text" name="operator_qth" class="form-control" x-model="operatorQth">
   </div>
   <div class="col-md-6">
-    <?= $this->Form->control('grid_square', [
-        'label' => 'Grid square',
-        'class' => 'form-control',
-    ]) ?>
+    <label class="form-label">Grid square</label>
+    <input type="text" name="grid_square" class="form-control" x-model="gridSquare">
   </div>
   <div class="col-md-12">
     <?= $this->Form->control('notes', [

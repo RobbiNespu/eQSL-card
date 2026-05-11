@@ -116,6 +116,15 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET', 'POST']);
         $builder->connect('/qsos/import', ['controller' => 'Qsos', 'action' => 'import'])
             ->setMethods(['GET', 'POST']);
+        // Callsign auto-complete JSON API. Authenticated; the QSO add form
+        // calls this on debounced input change to pre-fill operator name /
+        // QTH / grid square. See App\Service\CallsignLookup for the
+        // orchestrator + provider chain.
+        $builder->connect('/api/callsign/{callsign}', ['controller' => 'Callsign', 'action' => 'lookup'])
+            ->setPass(['callsign'])
+            ->setPatterns(['callsign' => '[A-Za-z0-9\/]{3,15}'])
+            ->setMethods(['GET']);
+
         $builder->connect('/qsos/{id}/edit', ['controller' => 'Qsos', 'action' => 'edit'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
@@ -397,6 +406,10 @@ return function (RouteBuilder $routes): void {
         // Soft-delete user cards older than card_retention_days (admin setting).
         // No-op when the setting is 0 / unset — operators opt in to retention.
         $builder->connect('/cleanup/expire-cards', ['controller' => 'Cleanup', 'action' => 'expireCards'])
+            ->setMethods(['POST']);
+        // Drop the callsign_lookups cache. Use after enabling a better
+        // provider or to force a re-fetch of stale data.
+        $builder->connect('/cleanup/callsign-cache', ['controller' => 'Cleanup', 'action' => 'callsignCache'])
             ->setMethods(['POST']);
 
         // Filesystem maintenance: nuke cache files + Cake's in-memory caches,

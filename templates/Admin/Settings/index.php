@@ -101,6 +101,56 @@ $creditDefault = implode("\n", \App\Service\CardRenderer::DEFAULT_CREDIT_FOOTER)
   </p>
 </div>
 
+<h2>Callsign auto-complete</h2>
+<?php
+$callsignEnabled = (bool)($settings['callsign_lookup_enabled'] ?? false);
+$enabledProviders = array_filter(array_map('trim', explode(',', (string)($settings['callsign_lookup_providers'] ?? ''))));
+$providerMap = [
+    'qrz'     => 'QRZ.com (worldwide, scrape — stub)',
+    'mcmc'    => 'MCMC Malaysia (9M/9W, scrape — stub)',
+    'marts'   => 'MARTS member directory (9M/9W, scrape — stub)',
+    'radioid' => 'RadioID.net (worldwide DMR registry, JSON API)',
+    'rapi'    => 'Indonesia RAPI (YB-YH/JZ, scrape — stub)',
+];
+?>
+<div class="mb-4">
+  <div class="form-check mb-3">
+    <input type="hidden" name="callsign_lookup_enabled" value="0">
+    <input type="checkbox" class="form-check-input" id="callsignLookupEnabled"
+           name="callsign_lookup_enabled" value="1" <?= $callsignEnabled ? 'checked' : '' ?>>
+    <label class="form-check-label" for="callsignLookupEnabled">
+      Enable callsign auto-complete for the QSO form
+    </label>
+  </div>
+  <p class="form-text small">
+    When on, the QSO add form fetches name / QTH / grid for the typed callsign
+    from the enabled providers below, in the listed order. The first provider
+    that returns useful data wins; the result is cached for 90 days. Disable
+    globally to stop all outbound lookups (useful while developing offline
+    or while a provider is misbehaving).
+  </p>
+
+  <fieldset class="border rounded p-3 bg-light-subtle">
+    <legend class="float-none w-auto small fw-bold px-2">Provider order</legend>
+    <p class="form-text small mt-0">
+      Tick to enable. Order top-to-bottom defines priority — change the order
+      by un-ticking and re-ticking in your preferred sequence. Stub providers
+      (QRZ, MCMC, MARTS, RAPI) currently return no data; safe to leave enabled
+      while waiting for the scraper implementations.
+    </p>
+    <?php foreach ($providerMap as $code => $label): ?>
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" id="callsign_provider_<?= h($code) ?>"
+               name="callsign_provider[<?= h($code) ?>]" value="1"
+               <?= in_array($code, $enabledProviders, true) ? 'checked' : '' ?>>
+        <label class="form-check-label" for="callsign_provider_<?= h($code) ?>">
+          <code><?= h($code) ?></code> — <?= h($label) ?>
+        </label>
+      </div>
+    <?php endforeach; ?>
+  </fieldset>
+</div>
+
 <h2>Storage retention</h2>
 <div class="mb-4">
   <label class="form-label">Card retention (days)</label>

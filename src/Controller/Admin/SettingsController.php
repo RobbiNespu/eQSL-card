@@ -52,6 +52,7 @@ class SettingsController extends AppController
                 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
                 'eqsl_credit_template',
                 'card_retention_days',
+                'callsign_lookup_providers',
             ];
             $update = [];
             foreach ($allowed as $key) {
@@ -68,6 +69,15 @@ class SettingsController extends AppController
             // unchecked value (see settings/index.php) and coerce explicitly.
             if (array_key_exists('rate_limit_private_ip_bypass', $data)) {
                 $update['rate_limit_private_ip_bypass'] = (bool)$data['rate_limit_private_ip_bypass'];
+            }
+            if (array_key_exists('callsign_lookup_enabled', $data)) {
+                $update['callsign_lookup_enabled'] = (bool)$data['callsign_lookup_enabled'];
+            }
+            // Provider checkboxes arrive as `callsign_provider[radioid]=1` etc.
+            // Reassemble into a CSV string in checkbox order.
+            if (isset($data['callsign_provider']) && is_array($data['callsign_provider'])) {
+                $enabledCodes = array_keys(array_filter($data['callsign_provider']));
+                $update['callsign_lookup_providers'] = implode(',', $enabledCodes);
             }
             $settings->setMany($update);
 

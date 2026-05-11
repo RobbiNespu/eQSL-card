@@ -149,6 +149,21 @@ respectively. <code>.gitkeep</code> markers and subdirectory structure are prese
 
   <div class="col-md-4">
     <div class="card p-3">
+      <h3 class="h5">Callsign cache</h3>
+      <p class="display-6"><?= h($callsignCacheCount) ?></p>
+      <p class="text-muted small">Cached external lookups</p>
+      <?= $this->Form->create(null, ['url' => '/admin/cleanup/callsign-cache']) ?>
+      <button class="btn btn-warning"
+              <?= $callsignCacheCount === 0 ? 'disabled' : '' ?>
+              onclick="return confirm('Drop <?= h($callsignCacheCount) ?> cached callsign lookups? Subsequent lookups will hit upstream providers again.')">
+        Clear callsign cache
+      </button>
+      <?= $this->Form->end() ?>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card p-3">
       <h3 class="h5">Sessions</h3>
       <p class="display-6"><?= h($sessionStats['count']) ?></p>
       <p class="text-muted small"><?= h($fmtBytes($sessionStats['bytes'])) ?> on disk</p>

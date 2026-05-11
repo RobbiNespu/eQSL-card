@@ -115,6 +115,7 @@ class CleanupController extends AppController
                         'Cards.created_at <' => DateTime::now()->subDays((int)(new \App\Service\AppSettings())->get('card_retention_days', 0)),
                     ])->count()
                 : 0,
+            'callsignCacheCount' => $this->fetchTable('CallsignLookups')->find()->count(),
             'cacheStats' => $this->dirStats([TMP . 'cache']),
             'logStats' => $this->dirStats([LOGS], ['log']),
             'sessionStats' => $this->dirStats([TMP . 'sessions']),
@@ -345,6 +346,36 @@ class CleanupController extends AppController
         }
 
         $this->Flash->success("Soft-deleted {$soft} cards older than {$retention} days. Run 'Prune orphans' next to reclaim disk.");
+        return $this->redirect('/admin/cleanup');
+    }
+
+    /**
+     * POST /admin/cleanup/callsign-cache — wipe the callsign_lookups table.
+     * Use when a provider's data has gone stale or you've enabled a new
+     * (better) provider and want the chain to re-resolve.
+     */
+    public function callsignCache()
+    {
+        $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+
+        $service = new \App\Service\CallsignLookup\CallsignLookupService(
+            providers: [], // No providers needed for cache clear
+            settings: new \App\Service\AppSettings(),
+        );
+        $count = $service->clearCache();
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'cleanup.callsign_cache_cleared',
+                actorUserId: $userId,
+                metadata: ['rows_deleted' => $count],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        $this->Flash->success("Cleared {$count} cached callsign lookups.");
         return $this->redirect('/admin/cleanup');
     }
 
