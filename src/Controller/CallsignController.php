@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Service\AppSettings;
 use App\Service\CallsignLookup\CallsignLookupService;
+use App\Service\CallsignLookup\Providers\LocalDirectoryProvider;
 use App\Service\CallsignLookup\Providers\MartsProvider;
 use App\Service\CallsignLookup\Providers\McmcProvider;
 use App\Service\CallsignLookup\Providers\QrzProvider;
@@ -37,8 +38,13 @@ class CallsignController extends AppController
         // Build the provider chain. Keyed by code() so the orchestrator can
         // honor the admin priority order. Adding a new provider is a one-line
         // change here.
+        // Provider chain. `local` is the admin-curated directory and goes
+        // FIRST — once a callsign is in the directory, no external network
+        // call should happen for it. Order after that matches registration;
+        // admin can reorder via `callsign_lookup_providers` in settings.
         $service = new CallsignLookupService(
             providers: [
+                'local'   => new LocalDirectoryProvider(),
                 'qrz'     => new QrzProvider(),
                 'mcmc'    => new McmcProvider(),
                 'marts'   => new MartsProvider(),
@@ -49,20 +55,22 @@ class CallsignController extends AppController
         );
 
         if (!$service->isEnabled()) {
-            $this->setResponse($this->getResponse()->withStatus(404));
-            $this->set(['error' => 'Callsign lookup is disabled on this install.']);
-            $this->viewBuilder()->setOption('serialize', ['error']);
-            return null;
+            // Return a JSON body explaining why; the front-end logs this
+            // but doesn't surface it to the user.
+            return $this->response
+                ->withStatus(404)
+                ->withType('application/json')
+                ->withStringBody(json_encode(['error' => 'Callsign lookup is disabled on this install.']));
         }
 
         $result = $service->resolve($callsign);
         if ($result === null) {
-            $this->setResponse($this->getResponse()->withStatus(204));
-            return null;
+            // 204 = no content. CakePHP's view layer would otherwise look
+            // for a Json/lookup.php template here; returning the response
+            // object directly short-circuits that.
+            return $this->response->withStatus(204);
         }
-        $this->set([
-            'result' => $result->toArray(),
-        ]);
+        $this->set(['result' => $result->toArray()]);
         $this->viewBuilder()->setOption('serialize', ['result']);
         return null;
     }

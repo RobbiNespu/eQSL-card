@@ -22,7 +22,7 @@ final class CallsignControllerTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.AppSettings', 'app.CallsignLookups'];
+    protected array $fixtures = ['app.Users', 'app.AppSettings', 'app.CallsignLookups', 'app.CallsignDirectory'];
 
     protected function setUp(): void
     {
@@ -109,5 +109,32 @@ final class CallsignControllerTest extends TestCase
     {
         $this->get('/api/callsign/W1AW');
         $this->assertRedirectContains('/login');
+    }
+
+    public function testLocalDirectoryProviderServesUploadedRow(): void
+    {
+        // End-to-end: a row in callsign_directory should be returned without
+        // ever touching the cache or external providers, as long as 'local'
+        // is in the configured provider order.
+        $this->loginAs();
+        (new AppSettings())->setMany([
+            'callsign_lookup_enabled' => true,
+            'callsign_lookup_providers' => 'local,radioid',
+        ]);
+        $dir = $this->getTableLocator()->get('CallsignDirectory');
+        $dir->saveOrFail($dir->newEntity([
+            'callsign' => '9W2NSP', 'name' => 'Robbi Nespu', 'qth' => 'Penang',
+            'country' => 'Malaysia', 'license_class' => 'Class A',
+            'source_label' => 'MCMC 2026-Q1',
+            'imported_at' => DateTime::now(),
+        ], ['accessibleFields' => ['*' => true]]));
+
+        $this->get('/api/callsign/9W2NSP');
+        $this->assertResponseOk();
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $this->assertSame('local', $payload['result']['source'] ?? null);
+        $this->assertSame('Robbi Nespu', $payload['result']['name'] ?? null);
+        $this->assertSame('Penang', $payload['result']['qth'] ?? null);
+        $this->assertSame('Class A', $payload['result']['license_class'] ?? null);
     }
 }

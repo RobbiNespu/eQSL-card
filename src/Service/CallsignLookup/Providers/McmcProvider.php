@@ -9,20 +9,14 @@ use App\Service\CallsignLookup\CallsignProviderInterface;
 /**
  * MCMC Malaysia — official amateur radio callsign registry.
  *
- * STUB. Implementation deferred.
+ * DEFERRED. Live probing showed MCMC's site has reorganised; the historical
+ * amateur-radio pages now 404. When data IS published, it's in PDF format
+ * (e.g. AR_CallSign.pdf) which isn't suitable for live per-query scraping —
+ * the right architecture is admin-uploaded CSV → LocalDirectoryProvider.
  *
- * Strategy when implementing:
- *  - URL: MCMC publishes the list at https://www.mcmc.gov.my/ — exact path
- *    moves periodically. Last known live page is a downloadable PDF /
- *    table. The robust approach is to fetch + parse periodically (cron),
- *    seed a local lookup table, and have this provider read from that table
- *    rather than scraping live per-query.
- *  - Coverage is 9M (Malaysia) and 9W (West Malaysia) prefixes only —
- *    supports() narrows by prefix to avoid wasted calls for non-Malaysian
- *    callsigns.
- *  - Likely fields: callsign, name, license class (A/B), state.
- *
- * Until implementation, `lookup()` returns null and the chain falls through.
+ * Coverage is still 9M / 9W prefixes when populated; supports() keeps the
+ * prefix filter so the orchestrator never asks this provider about
+ * non-Malaysian callsigns even if a future revision implements live lookup.
  */
 final class McmcProvider implements CallsignProviderInterface
 {

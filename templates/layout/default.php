@@ -36,6 +36,7 @@
               <li><a class="dropdown-item" href="/admin/cards">All cards</a></li>
               <li><a class="dropdown-item" href="/admin/uploads">All uploads</a></li>
               <li><a class="dropdown-item" href="/admin/audit">Audit log</a></li>
+              <li><a class="dropdown-item" href="/admin/callsign-directory">Callsign directory</a></li>
               <li><a class="dropdown-item" href="/admin/cleanup">Cleanup</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="/admin/upgrade">Run migrations</a></li>

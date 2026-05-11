@@ -10,24 +10,25 @@ use App\Service\CallsignLookup\CallsignProviderInterface;
 /**
  * QRZ.com — worldwide callsign registry.
  *
- * STUB. Implementation deferred.
+ * DEFERRED. Live probing showed anonymous /db/{CALL} pages don't surface
+ * operator details — only OG meta tags (callsign, page title, avatar URL).
+ * Name / QTH / country / grid all sit behind QRZ's login wall. To actually
+ * resolve a callsign through QRZ we need ONE of:
  *
- * Strategy when implementing:
- *  - URL: https://www.qrz.com/db/{CALL}
- *  - QRZ TOS prohibits redistribution; cache hits are strictly per-user.
- *    The orchestrator's `callsign_lookups` cache is shared across users on
- *    this install — verify with the user / clarify privacy posture before
- *    enabling this provider for shared deployments.
- *  - Anonymous page renders most fields (name, QTH, country, grid). Detail
- *    fields (bio, photo, club, license expiry) require login. We only need
- *    the anonymous subset.
- *  - HTML parsing: use DOMDocument + XPath. The bio block lives under
- *    `<dl id="biodata">` (subject to change).
- *  - User-Agent: send a polite UA identifying this app + a contact URL.
+ *   1. A paid XML logbook subscription + credentials in app_settings, OR
+ *   2. An authenticated session cookie maintained by the app (fragile;
+ *      against QRZ TOS for unattended/automated logins).
  *
- * Until then, `lookup()` returns null so the orchestrator falls through to
- * the next provider. Admin can disable this code from settings to skip the
- * (no-op) call entirely.
+ * Until that's wired, this provider's `supports()` returns false so the
+ * orchestrator skips it entirely — no wasted HTTP, no log noise. The class
+ * stays here as the obvious extension point for a future "QRZ XML key"
+ * admin setting.
+ *
+ * If/when we ship the XML API path:
+ *   - Endpoint: https://xmldata.qrz.com/xml/current/?username=...&password=...
+ *   - Get a session key, then `&s={key}&callsign={CALL}`
+ *   - QRZ TOS forbids redistributing scraped data. Keep cache strictly
+ *     private + clarify with operators that the lookup happens.
  */
 final class QrzProvider implements CallsignProviderInterface
 {
@@ -38,17 +39,20 @@ final class QrzProvider implements CallsignProviderInterface
 
     public function label(): string
     {
-        return 'QRZ.com';
+        return 'QRZ.com (requires paid XML key — disabled until configured)';
     }
 
     public function supports(string $callsign): bool
     {
-        return (bool)preg_match('/^[A-Z0-9\/]{3,15}$/', $callsign);
+        // Anonymous scrape produces no useful data, so the orchestrator
+        // should never bother invoking lookup() until QRZ credentials are
+        // wired. supports() is the right gate — returning false is faster
+        // than returning true + null from lookup().
+        return false;
     }
 
     public function lookup(string $callsign): ?CallsignLookupResult
     {
-        // TODO: implement HTML scrape of https://www.qrz.com/db/{call}
         return null;
     }
 }

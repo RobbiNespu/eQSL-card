@@ -412,6 +412,18 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/cleanup/callsign-cache', ['controller' => 'Cleanup', 'action' => 'callsignCache'])
             ->setMethods(['POST']);
 
+        /*
+         * Callsign directory admin (M4-followup). CSV import / search / clear.
+         * The directory is the LocalDirectoryProvider's backing store and slots
+         * in front of external providers in the lookup chain.
+         */
+        $builder->connect('/callsign-directory', ['controller' => 'CallsignDirectory', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/callsign-directory/upload', ['controller' => 'CallsignDirectory', 'action' => 'upload'])
+            ->setMethods(['POST']);
+        $builder->connect('/callsign-directory/clear', ['controller' => 'CallsignDirectory', 'action' => 'clear'])
+            ->setMethods(['POST']);
+
         // Filesystem maintenance: nuke cache files + Cake's in-memory caches,
         // truncate logs, drop active sessions. Each is POST-only so a stray
         // GET (link prefetch, link preview, accidental refresh) cannot trigger

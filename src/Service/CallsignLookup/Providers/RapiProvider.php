@@ -10,17 +10,14 @@ use App\Service\CallsignLookup\CallsignProviderInterface;
  * Indonesia RAPI (Radio Antar Penduduk Indonesia) — citizen-band style
  * callsign registry for Indonesia.
  *
- * STUB. Implementation deferred.
+ * DEFERRED. RAPI's member directories are split across regional pages
+ * (per-province) and published as PDF / Excel lists rather than a single
+ * queryable API. Live per-query scraping would hammer the regional pages
+ * even when the data isn't on the page the user typed.
  *
- * Strategy when implementing:
- *  - URL: rapi.or.id publishes member lists per region (provincial). The
- *    site uses PHP-rendered pages; structure is regional.
- *  - Coverage is YB / YC / YD / YE / YF / YG / YH amateur prefixes plus
- *    the RAPI-specific JZ prefix for non-amateur callsign holders.
- *    supports() can prefix-filter on these. Confirm the official prefix
- *    list before shipping.
- *  - Pre-import + cron is the right architecture here too — live scraping
- *    per-query would hammer the regional pages.
+ * Same admin-uploaded CSV strategy applies: download official regional
+ * lists, convert to CSV, upload via /admin/callsign-directory, and let
+ * LocalDirectoryProvider serve them.
  */
 final class RapiProvider implements CallsignProviderInterface
 {

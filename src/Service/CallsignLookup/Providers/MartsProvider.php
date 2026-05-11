@@ -9,17 +9,11 @@ use App\Service\CallsignLookup\CallsignProviderInterface;
 /**
  * MARTS — Malaysia Amateur Radio Transmitters Society member directory.
  *
- * STUB. Implementation deferred.
- *
- * Strategy when implementing:
- *  - URL: marts.org.my publishes a member list (subset of MCMC) with
- *    additional fields like club affiliation and home QTH. Confirm exact
- *    URL + structure before scraping; this site is small and any change
- *    in their HTML will break the provider.
- *  - Likely a "members" page or a downloadable list. May require periodic
- *    pre-import like the MCMC strategy rather than per-query scrape.
- *  - Coverage: MARTS members only (subset of 9M/9W). supports() can be the
- *    same prefix filter as McmcProvider.
+ * DEFERRED. Live probing showed marts.org.my returns HTTP 508 (resource
+ * limit exceeded — shared hosting under load) often enough that live
+ * scraping isn't viable. The same pre-import / admin-CSV-upload strategy
+ * as MCMC fits here: download the official member list, upload via
+ * /admin/callsign-directory, and let LocalDirectoryProvider serve it.
  */
 final class MartsProvider implements CallsignProviderInterface
 {

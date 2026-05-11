@@ -106,11 +106,12 @@ $creditDefault = implode("\n", \App\Service\CardRenderer::DEFAULT_CREDIT_FOOTER)
 $callsignEnabled = (bool)($settings['callsign_lookup_enabled'] ?? false);
 $enabledProviders = array_filter(array_map('trim', explode(',', (string)($settings['callsign_lookup_providers'] ?? ''))));
 $providerMap = [
-    'qrz'     => 'QRZ.com (worldwide, scrape — stub)',
-    'mcmc'    => 'MCMC Malaysia (9M/9W, scrape — stub)',
-    'marts'   => 'MARTS member directory (9M/9W, scrape — stub)',
-    'radioid' => 'RadioID.net (worldwide DMR registry, JSON API)',
-    'rapi'    => 'Indonesia RAPI (YB-YH/JZ, scrape — stub)',
+    'local'   => 'Local directory — admin-imported CSV (recommended FIRST)',
+    'radioid' => 'RadioID.net — worldwide DMR registry, JSON API',
+    'qrz'     => 'QRZ.com — requires paid XML key, currently disabled',
+    'mcmc'    => 'MCMC Malaysia — use local directory; no live API',
+    'marts'   => 'MARTS Malaysia — use local directory; site unstable',
+    'rapi'    => 'Indonesia RAPI — use local directory; PDF-only sources',
 ];
 ?>
 <div class="mb-4">
