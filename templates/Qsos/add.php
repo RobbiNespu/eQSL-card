@@ -38,15 +38,18 @@ $initialState = h(json_encode([
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 ?>
 <?php
-// The Alpine factory lives in a <script> block below so we don't have to
-// worry about escaping JS string delimiters, apostrophes-in-comments, or
-// `?>` tokens against the HTML-attribute parser. The x-data attribute
-// itself stays short — it just calls the factory with the server-side
-// initial state and returns the data object Alpine processes.
-//
-// $this->start('script') queues the block into the layout's deferred
-// script slot so it runs after Alpine has loaded but before Alpine
-// processes the DOM (see layout/default.php for the load order).
+/*
+ * The Alpine factory lives in the <script> block below so we don't have
+ * to escape JS string delimiters, apostrophes-in-comments, or PHP
+ * close-tag tokens against the HTML-attribute parser. The x-data
+ * attribute stays short — it just calls the factory with the
+ * server-side initial state and returns the data object Alpine
+ * processes.
+ *
+ * $this->start('script') queues this block into the layout's deferred
+ * script slot so it runs after Alpine has loaded but before Alpine
+ * processes the DOM (see layout/default.php for the load order).
+ */
 $this->start('script');
 ?>
 <script>
