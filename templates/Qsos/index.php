@@ -80,7 +80,21 @@
     </tbody>
   </table>
 
-  <nav><?= $this->Paginator->numbers() ?></nav>
+  <?php
+  // Carry filters across page links. CakePHP's PaginatorHelper picks up
+  // current request query params by default but the URL builder needs to be
+  // told explicitly when we want only-non-empty filters in the link so the
+  // URL doesn't grow `?q=&band=&...` noise.
+  $paginatorOptions = ['url' => ['?' => array_filter([
+      'q' => $filters['search'] ?: null,
+      'band' => $filters['band'] ?: null,
+      'mode' => $filters['mode'] ?: null,
+      'from' => $filters['from'] ?: null,
+      'to' => $filters['to'] ?: null,
+      'qso_type' => $filters['qsoType'] ?: null,
+  ])]];
+  ?>
+  <nav><?= $this->Paginator->numbers($paginatorOptions) ?></nav>
 
   <!-- Bulk render modal: Alpine fully manages visibility (no Bootstrap .show class
        — that has display:block !important which would make the modal un-closable). -->
@@ -129,7 +143,12 @@
                      :style="`width: ${total ? (done * 100 / total) : 0}%`"
                      x-text="total ? Math.round(done * 100 / total) + '%' : '0%'"></div>
               </div>
-              <p x-show="finished" class="mt-3 text-success">Done!
+              <p x-show="skipped > 0" class="mt-3 text-warning small" x-cloak>
+                Skipped <span x-text="skipped"></span> QSO<span x-show="skipped !== 1">s</span> that already had a rendered card.
+                Delete the existing card from <a href="/cards">your library</a> to re-render.
+              </p>
+              <p x-show="finished" class="mt-3 text-success" x-cloak>
+                <span x-text="message || 'Done!'"></span>
                 <a href="/cards" class="btn btn-sm btn-primary">View library</a>
               </p>
             </div>

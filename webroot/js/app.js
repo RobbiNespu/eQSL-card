@@ -33,6 +33,8 @@ function bulkRenderForm() {
         uploadId: '',
         done: 0,
         total: 0,
+        skipped: 0,
+        message: '',
         jobToken: null,
         toggleOne(id, on) {
             id = parseInt(id, 10);
@@ -70,6 +72,8 @@ function bulkRenderForm() {
             this.done = data.done;
             this.total = data.total;
             this.finished = data.finished;
+            this.skipped = data.skipped || 0;
+            this.message = data.message || '';
             if (!this.finished) {
                 await this.pollNext(csrf);
             }
@@ -85,6 +89,7 @@ function bulkRenderForm() {
                 this.done = data.done;
                 this.total = data.total;
                 this.finished = data.finished;
+                this.skipped = data.skipped || this.skipped;
             }
         },
     };
