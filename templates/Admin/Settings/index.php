@@ -101,6 +101,19 @@ $creditDefault = implode("\n", \App\Service\CardRenderer::DEFAULT_CREDIT_FOOTER)
   </p>
 </div>
 
+<h2>Storage retention</h2>
+<div class="mb-4">
+  <label class="form-label">Card retention (days)</label>
+  <input type="number" name="card_retention_days" min="0"
+         value="<?= h($settings['card_retention_days'] ?? 0) ?>" class="form-control">
+  <p class="form-text small">
+    Soft-delete user-owned cards older than this many days when an admin runs
+    <a href="/admin/cleanup">Cleanup → Expire old cards</a>. Storage is
+    reclaimed by the subsequent <strong>Prune orphans</strong> sweep.
+    Set to <strong>0</strong> (default) to keep cards forever.
+  </p>
+</div>
+
 <h2>SMTP (overrides config/app_local.php at runtime if set)</h2>
 <div class="row">
   <div class="col-md-6 mb-3"><label>SMTP host</label>

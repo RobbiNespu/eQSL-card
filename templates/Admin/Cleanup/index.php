@@ -65,6 +65,35 @@
       <?php endif; ?>
     </div>
   </div>
+
+  <div class="col-md-12">
+    <div class="card p-3 mt-3">
+      <h2>Expire old user cards</h2>
+      <?php if (($cardRetentionDays ?? 0) <= 0): ?>
+        <p class="text-muted">
+          Disabled. Set <code>card_retention_days</code> in <a href="/admin/settings">Settings</a> to enable
+          age-based soft-deletion of user-owned cards. Storage is reclaimed when you
+          run <strong>Prune orphans</strong> after this.
+        </p>
+      <?php else: ?>
+        <p>
+          Retention: cards older than <strong><?= h($cardRetentionDays) ?> days</strong> will be
+          soft-deleted. They still occupy disk until you run <strong>Prune orphans</strong> next.
+        </p>
+        <p class="display-6"><?= h($cardsToExpire) ?></p>
+        <?php if ($cardsToExpire > 0): ?>
+          <?= $this->Form->create(null, ['url' => '/admin/cleanup/expire-cards']) ?>
+          <button class="btn btn-danger"
+                  onclick="return confirm('Soft-delete <?= h($cardsToExpire) ?> user-owned cards older than <?= h($cardRetentionDays) ?> days?')">
+            Expire <?= h($cardsToExpire) ?> cards
+          </button>
+          <?= $this->Form->end() ?>
+        <?php else: ?>
+          <p class="text-muted">No user cards older than <?= h($cardRetentionDays) ?> days.</p>
+        <?php endif; ?>
+      <?php endif; ?>
+    </div>
+  </div>
 </div>
 
 <?php

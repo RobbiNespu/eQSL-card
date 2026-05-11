@@ -103,6 +103,18 @@ class CleanupController extends AppController
                 ->orderBy(['Uploads.created_at' => 'ASC'])
                 ->limit(5)
                 ->all(),
+            // Retention preview — how many user cards would soft-delete on
+            // the next "Expire old cards" run. NULL retention means feature
+            // is off and we render the panel as informational only.
+            'cardRetentionDays' => (int)(new \App\Service\AppSettings())->get('card_retention_days', 0),
+            'cardsToExpire' => (int)(new \App\Service\AppSettings())->get('card_retention_days', 0) > 0
+                ? $this->fetchTable('Cards')->find()
+                    ->where([
+                        'Cards.user_id IS NOT' => null,
+                        'Cards.deleted_at IS' => null,
+                        'Cards.created_at <' => DateTime::now()->subDays((int)(new \App\Service\AppSettings())->get('card_retention_days', 0)),
+                    ])->count()
+                : 0,
             'cacheStats' => $this->dirStats([TMP . 'cache']),
             'logStats' => $this->dirStats([LOGS], ['log']),
             'sessionStats' => $this->dirStats([TMP . 'sessions']),
@@ -209,11 +221,15 @@ class CleanupController extends AppController
         foreach ($rows as $row) {
             // Best-effort file removal. The `@unlink` swallows ENOENT for
             // rows whose artifacts were already deleted out-of-band; that
-            // shouldn't block the row deletion itself.
+            // shouldn't block the row deletion itself. The thumbnail path
+            // is derived from png_path (.thumb.<ext>) — also unlinked here.
             foreach ([$row->png_path, $row->pdf_path] as $relPath) {
                 if ($relPath) {
                     @unlink(WWW_ROOT . $relPath);
                 }
+            }
+            if ($row->png_path) {
+                @unlink(WWW_ROOT . \App\Service\CardRenderer::thumbPathFor($row->png_path));
             }
             $cards->delete($row);
             $deleted++;
@@ -277,6 +293,58 @@ class CleanupController extends AppController
 
         $this->Flash->success("Pruned {$deleted} orphaned uploads older than {$days} days.");
 
+        return $this->redirect('/admin/cleanup');
+    }
+
+    /**
+     * POST /admin/cleanup/expire-cards — soft-delete user cards older than the
+     * `card_retention_days` admin setting. Storage is reclaimed on the next
+     * orphan-uploads sweep (the cleanup action chain is purge-guests →
+     * expire-cards → prune-uploads). When the retention setting is unset or
+     * <= 0, the action is a no-op — operators have to opt in to retention.
+     */
+    public function expireCards()
+    {
+        $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $retention = (int)(new \App\Service\AppSettings())->get('card_retention_days', 0);
+
+        if ($retention <= 0) {
+            $this->Flash->info('Card retention is disabled — set card_retention_days in Settings to enable.');
+            return $this->redirect('/admin/cleanup');
+        }
+
+        $cutoff = DateTime::now()->subDays($retention);
+        $cards = $this->fetchTable('Cards');
+        // User-owned, non-deleted cards older than the cutoff. Guest cards are
+        // handled by the existing purgeGuests action so this scope stays
+        // unambiguous.
+        $rows = $cards->find()
+            ->where([
+                'Cards.user_id IS NOT' => null,
+                'Cards.deleted_at IS' => null,
+                'Cards.created_at <' => $cutoff,
+            ])->all();
+
+        $soft = 0;
+        foreach ($rows as $row) {
+            $row->set('deleted_at', DateTime::now(), ['guard' => false]);
+            if ($cards->save($row)) {
+                $soft++;
+            }
+        }
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'cleanup.cards_expired',
+                actorUserId: $userId,
+                metadata: ['retention_days' => $retention, 'count' => $soft],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        $this->Flash->success("Soft-deleted {$soft} cards older than {$retention} days. Run 'Prune orphans' next to reclaim disk.");
         return $this->redirect('/admin/cleanup');
     }
 

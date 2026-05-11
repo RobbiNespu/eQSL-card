@@ -291,4 +291,64 @@ final class CleanupControllerTest extends TestCase
         $this->get('/admin/cleanup/sessions');
         $this->assertResponseError();
     }
+
+    public function testExpireCardsIsNoOpWhenRetentionDisabled(): void
+    {
+        $this->loginAs('admin');
+        // app_settings empty → retention is 0 → no-op flash + redirect.
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/admin/cleanup/expire-cards');
+        $this->assertRedirect('/admin/cleanup');
+
+        // Audit row should NOT exist — no work was done.
+        $audit = $this->getTableLocator()->get('AuditLogs');
+        $log = $audit->find()->where(['event' => 'cleanup.cards_expired'])->first();
+        $this->assertNull($log, 'no-op should not emit an audit row');
+    }
+
+    public function testExpireCardsSoftDeletesOldUserCards(): void
+    {
+        $admin = $this->loginAs('admin');
+        $tplId = $this->seedTemplate();
+        $visitId = $this->seedGuestVisit(); // unused; just satisfies the fixture
+        $upload = $this->seedUpload(userId: $admin);
+
+        // Seed 3 user-owned cards: 2 old (60 days), 1 fresh (10 days).
+        $cards = $this->getTableLocator()->get('Cards');
+        $oldIds = [];
+        foreach ([0, 1] as $i) {
+            $row = $cards->saveOrFail($cards->newEntity([
+                'user_id' => $admin, 'template_id' => $tplId, 'upload_id' => $upload->id,
+                'qso_data_json' => '{}',
+                'png_path' => "files/cards/old{$i}.webp", 'pdf_path' => null,
+            ]));
+            $cards->updateAll(['created_at' => DateTime::now()->subDays(60)], ['id' => $row->id]);
+            $oldIds[] = $row->id;
+        }
+        $fresh = $cards->saveOrFail($cards->newEntity([
+            'user_id' => $admin, 'template_id' => $tplId, 'upload_id' => $upload->id,
+            'qso_data_json' => '{}', 'png_path' => 'files/cards/fresh.webp', 'pdf_path' => null,
+        ]));
+        $cards->updateAll(['created_at' => DateTime::now()->subDays(10)], ['id' => $fresh->id]);
+
+        // Enable retention at 30 days.
+        (new \App\Service\AppSettings())->set('card_retention_days', 30);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/admin/cleanup/expire-cards');
+        $this->assertRedirect('/admin/cleanup');
+
+        foreach ($oldIds as $id) {
+            $row = $cards->find()->where(['id' => $id])->first();
+            $this->assertNotNull($row->deleted_at, "card #$id should be soft-deleted");
+        }
+        $freshRow = $cards->find()->where(['id' => $fresh->id])->first();
+        $this->assertNull($freshRow->deleted_at, 'fresh card stays alive');
+
+        $audit = $this->getTableLocator()->get('AuditLogs');
+        $log = $audit->find()->where(['event' => 'cleanup.cards_expired'])->first();
+        $this->assertNotNull($log);
+    }
 }

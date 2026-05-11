@@ -394,6 +394,10 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['POST']);
         $builder->connect('/cleanup/prune-uploads', ['controller' => 'Cleanup', 'action' => 'pruneUploads'])
             ->setMethods(['POST']);
+        // Soft-delete user cards older than card_retention_days (admin setting).
+        // No-op when the setting is 0 / unset — operators opt in to retention.
+        $builder->connect('/cleanup/expire-cards', ['controller' => 'Cleanup', 'action' => 'expireCards'])
+            ->setMethods(['POST']);
 
         // Filesystem maintenance: nuke cache files + Cake's in-memory caches,
         // truncate logs, drop active sessions. Each is POST-only so a stray

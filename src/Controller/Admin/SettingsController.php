@@ -51,13 +51,14 @@ class SettingsController extends AppController
                 'site_name', 'max_upload_mb', 'share_base_url',
                 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
                 'eqsl_credit_template',
+                'card_retention_days',
             ];
             $update = [];
             foreach ($allowed as $key) {
                 if (array_key_exists($key, $data)) {
                     $value = $data[$key];
-                    if ($key === 'max_upload_mb' || $key === 'smtp_port') {
-                        $value = (int)$value;
+                    if (in_array($key, ['max_upload_mb', 'smtp_port', 'card_retention_days'], true)) {
+                        $value = max(0, (int)$value);
                     }
                     $update[$key] = $value;
                 }
