@@ -1,0 +1,227 @@
+name: Deploy
+
+# -----------------------------------------------------------------------------
+# Deploys the app to shared hosting via FTPS.
+#
+# Trigger model:
+#   - Auto: every push to `master` runs tests, and on green, syncs over FTP.
+#   - Manual: workflow_dispatch with a `dry_run` toggle so you can rehearse a
+#     deploy (the FTP action prints what it WOULD upload/delete and exits
+#     without touching the server).
+#
+# What gets shipped:
+#   PHP source + composer's --no-dev vendor + webroot static files + the empty
+#   tmp/ and logs/ skeletons. Built locally in `.deploy/` then synced to the
+#   path you set in `FTP_SERVER_DIR`.
+#
+# What is NEVER touched on the server:
+#   - webroot/files/uploads/*    user-uploaded backgrounds
+#   - webroot/files/cards/*      generated card images + PDFs
+#   - config/app_local.php       DB credentials (written by the installer)
+#   - config/installed.lock,
+#     tmp/installed.lock         installer guards (re-running ruins setup)
+#   - tmp/cache/**, tmp/sessions/**, logs/**   runtime state
+#
+# Secrets you must configure in:
+#   Settings → Secrets and variables → Actions → New repository secret
+#
+#   FTP_SERVER       e.g. ftp.yourhost.com  (or the bare host without ftp:// prefix)
+#   FTP_USERNAME     FTP user
+#   FTP_PASSWORD     FTP password
+#   FTP_SERVER_DIR   absolute path on the server, with a trailing slash
+#                    e.g.  /public_html/   or   /htdocs/
+#
+# Optional variables (Settings → Variables):
+#   FTP_PROTOCOL     "ftps" (default, recommended) or "ftp" (plain, not safe)
+#   FTP_PORT         "21" (default) — override only if your host uses a non-
+#                    standard port (e.g. 990 for implicit FTPS)
+#   PROD_URL         e.g. https://eqsl.yourdomain  — shown next to the
+#                    deployment in the GitHub UI
+#
+# SFTP note:
+#   This workflow uses FTP/FTPS. If your host only offers SFTP, swap the
+#   `SamKirkland/FTP-Deploy-Action` step for `wlixcc/SFTP-Deploy-Action`
+#   or `appleboy/scp-action` — same secrets, different action signature.
+# -----------------------------------------------------------------------------
+
+on:
+  push:
+    branches: ['master']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        type: boolean
+        description: 'Dry run — simulate FTP transfer, change nothing on server'
+        default: false
+
+concurrency:
+  # One deploy at a time. Never cancel a deploy in flight — leaving the server
+  # in a half-synced state is worse than queueing.
+  group: ftp-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Gate the deploy on PHPUnit passing. Mirrors the test setup in ci.yml so
+  # we don't accidentally drift between the two workflows. Vitest isn't
+  # critical for shipping — its outputs are dev-tooling for the designer.
+  # --------------------------------------------------------------------------
+  test:
+    name: PHPUnit (gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.1
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: mbstring, intl, pdo_sqlite, gd, fileinfo
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --no-coverage
+        env:
+          DATABASE_TEST_URL: 'sqlite:///:memory:'
+          EMAIL_TRANSPORT_DEFAULT_URL: 'debug://localhost'
+
+  # --------------------------------------------------------------------------
+  # Build the production-ready tree and push it over FTP.
+  # --------------------------------------------------------------------------
+  deploy:
+    name: FTP deploy
+    runs-on: ubuntu-latest
+    needs: test
+    environment:
+      name: production
+      url: ${{ vars.PROD_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.1
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: mbstring, intl, gd, fileinfo, openssl
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install production dependencies (no dev)
+        run: |
+          composer install \
+            --no-dev \
+            --prefer-dist \
+            --no-progress \
+            --no-interaction \
+            --optimize-autoloader
+
+      - name: Stage deployable tree
+        run: |
+          mkdir -p .deploy
+          # Include rules MUST come before exclude rules — rsync uses
+          # first-match-wins, so listing .gitkeep includes up top is how we
+          # keep the empty tmp/cache, tmp/sessions, logs skeletons.
+          rsync -a \
+            --include='*.gitkeep' \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.docker/' \
+            --exclude='.superpowers/' \
+            --exclude='.phpunit.cache/' \
+            --exclude='.phpunit.result.cache' \
+            --exclude='.gitignore' \
+            --exclude='.gitattributes' \
+            --exclude='.editorconfig' \
+            --exclude='docker-compose.yml' \
+            --exclude='Dockerfile*' \
+            --exclude='dist/' \
+            --exclude='docs/' \
+            --exclude='node_modules/' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            --exclude='tests/' \
+            --exclude='phpunit.xml*' \
+            --exclude='scripts/' \
+            --exclude='coverage/' \
+            --exclude='config/app_local.php' \
+            --exclude='config/installed.lock' \
+            --exclude='tmp/cache/*' \
+            --exclude='tmp/cache/**/*' \
+            --exclude='tmp/sessions/*' \
+            --exclude='tmp/tests/*' \
+            --exclude='tmp/installed.lock' \
+            --exclude='tmp/debug_kit.sqlite' \
+            --exclude='logs/*.log' \
+            --exclude='.deploy/' \
+            ./ .deploy/
+
+          # Block direct web access to vendor/ for any host that maps it
+          # under the document root. Belt + braces alongside the framework's
+          # routing — even if .htaccess overrides ever get touched, vendor/
+          # paths still 403.
+          mkdir -p .deploy/vendor
+          cat > .deploy/vendor/.htaccess <<'EOF'
+          Require all denied
+          EOF
+
+      - name: Show what will ship (sanity check)
+        run: |
+          echo "=== top-level deploy tree ==="
+          ls -la .deploy/ | head -30
+          echo
+          echo "=== file count ==="
+          find .deploy/ -type f | wc -l
+          echo
+          echo "=== total size ==="
+          du -sh .deploy/
+
+      - name: FTP deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:       ${{ secrets.FTP_SERVER }}
+          username:     ${{ secrets.FTP_USERNAME }}
+          password:     ${{ secrets.FTP_PASSWORD }}
+          protocol:     ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          port:         ${{ vars.FTP_PORT || 21 }}
+          local-dir:    ./.deploy/
+          server-dir:   ${{ secrets.FTP_SERVER_DIR }}
+          # Per-deploy diff cache stored on the server so subsequent runs only
+          # upload changed files. Survives between workflow runs.
+          state-name:   .ftp-deploy-state.json
+          dry-run:      ${{ inputs.dry_run == true }}
+          # Second layer of protection so the action never touches anything
+          # that holds user data, runtime state, or first-install guards.
+          # The rsync stage above already excludes most of these from .deploy/,
+          # but the action's own `exclude` also tells it not to DELETE the
+          # remote copies even when the corresponding local file is missing.
+          exclude: |
+            **/.env
+            **/.env.*
+            **/.git*
+            webroot/files/uploads/**
+            webroot/files/cards/**
+            config/app_local.php
+            config/installed.lock
+            tmp/installed.lock
+            tmp/cache/**
+            tmp/sessions/**
+            logs/**
