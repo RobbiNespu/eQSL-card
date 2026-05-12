@@ -34,17 +34,17 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
         // Backlog: switching to Alpine's CSP-friendly build (alpinejs/csp)
         // and rewriting postLink call sites as explicit <form> + <button>
         // would let us drop both. Tracked but not blocking v1.
-        // Tailwind Play CDN (cdn.tailwindcss.com) runs the Tailwind JIT
-        // compiler in the browser — it loads as a script AND injects
-        // generated CSS into a <style> tag on the fly. Both its
-        // script-src and the inline style-src allowance are needed until
-        // we move to a pre-compiled production CSS build (Node build
-        // off the dev machine; ship the dist .css alongside the app).
+        // 'unsafe-inline' on style-src is still required for the
+        // handful of inline style attrs in templates. 'unsafe-inline' +
+        // 'unsafe-eval' on script-src are required by CakePHP
+        // Form->postLink (inline onclick) and Alpine (new Function
+        // evaluation) respectively. cdn.jsdelivr.net stays for Inter +
+        // Geist Mono web fonts and Alpine itself.
         return implode('; ', [
             "default-src 'self'",
             "img-src 'self' data: blob:",
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
             "font-src 'self' https://cdn.jsdelivr.net",
             "frame-ancestors 'none'",
             "base-uri 'self'",

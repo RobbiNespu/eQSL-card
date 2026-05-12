@@ -28,97 +28,12 @@
 </script>
 
 <!--
-  Style pipeline:
-    1. DaisyUI compiled CSS (component classes: .btn, .card, .alert, .badge,
-       .input, .modal, .dropdown, .navbar, ...). Loaded first so our
-       theme.css can override anything we want to look more shadcn-ish.
-    2. Tailwind Play CDN — utility classes (flex, gap, grid, p-*, m-*).
-       Loads as a <script> that JIT-compiles in the browser. Fine for
-       this app; for high-traffic prod, pre-compile and ship dist CSS.
-    3. theme.css — fonts, brand tokens, .btn/.card/.alert overrides,
-       and a small Bootstrap-compat shim (.row / .col-md-* / .mb-3 /
-       .d-flex …) so existing templates don't need re-classing.
-    4. app.css — page-level overrides on top of everything.
+  Single compiled CSS bundle: Tailwind base/components/utilities +
+  DaisyUI component classes + our theme.css brand layer, all in one
+  file. Build it with `npm run build:css` and commit the output.
 -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css">
-<script src="https://cdn.tailwindcss.com/3.4.3"></script>
-<script>
-  /*
-   * Tailwind + DaisyUI inline config. With the Play CDN we can override
-   * tokens here without a tailwind.config.js. The custom theme matches
-   * the emerald + zinc palette we use elsewhere.
-   */
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          ink:   '#09090b',
-          paper: '#fafafa',
-        },
-        fontFamily: {
-          sans: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
-          mono: ['"Geist Mono Variable"', 'ui-monospace', 'monospace'],
-        },
-      },
-    },
-    daisyui: {
-      themes: [
-        {
-          eqsl: {
-            'color-scheme':         'light',
-            'primary':              '#18181b',
-            'primary-content':      '#ffffff',
-            'secondary':            '#e4e4e7',
-            'secondary-content':    '#18181b',
-            'accent':               '#059669',
-            'accent-content':       '#ffffff',
-            'neutral':              '#52525b',
-            'neutral-content':      '#fafafa',
-            'base-100':             '#ffffff',
-            'base-200':             '#f4f4f5',
-            'base-300':             '#e4e4e7',
-            'base-content':         '#09090b',
-            'info':                 '#0284c7',
-            'success':              '#059669',
-            'warning':              '#d97706',
-            'error':                '#dc2626',
-            '--rounded-box':        '0.75rem',
-            '--rounded-btn':        '0.5rem',
-            '--rounded-badge':      '999px',
-            '--border-btn':         '1px',
-          },
-        },
-        {
-          'eqsl-dark': {
-            'color-scheme':         'dark',
-            'primary':              '#fafafa',
-            'primary-content':      '#18181b',
-            'secondary':            '#3f3f46',
-            'secondary-content':    '#fafafa',
-            'accent':               '#10b981',
-            'accent-content':       '#ffffff',
-            'neutral':              '#a1a1aa',
-            'neutral-content':      '#18181b',
-            'base-100':             '#18181b',
-            'base-200':             '#27272a',
-            'base-300':             '#3f3f46',
-            'base-content':         '#fafafa',
-            'info':                 '#38bdf8',
-            'success':              '#34d399',
-            'warning':              '#fbbf24',
-            'error':                '#f87171',
-            '--rounded-box':        '0.75rem',
-            '--rounded-btn':        '0.5rem',
-            '--rounded-badge':      '999px',
-            '--border-btn':         '1px',
-          },
-        },
-      ],
-    },
-  };
-</script>
-
-<link rel="stylesheet" href="<?= $this->Url->build('/css/theme.css') ?>">
+<link rel="stylesheet"
+      href="<?= $this->Url->build('/css/dist.css') ?>?v=<?= @filemtime(WWW_ROOT . 'css/dist.css') ?>">
 <link rel="stylesheet" href="<?= $this->Url->build('/css/app.css') ?>">
 <?= $this->fetch('meta') ?>
 </head>

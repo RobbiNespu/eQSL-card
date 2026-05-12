@@ -50,6 +50,36 @@ spec — see
 [Section 5 of the design spec](docs/superpowers/specs/2026-05-09-eqsl-card-design.md)
 for the canonical project layout.
 
+## Building the CSS bundle
+
+The UI ships as a pre-compiled CSS bundle at `webroot/css/dist.css`.
+It's regenerated on the developer's machine and committed to git so
+the shared host can serve it directly via FTP (no Node on the server).
+
+Install the toolchain once:
+
+    npm install
+
+Rebuild after any change to `templates/**/*.php`, `webroot/js/**/*.js`,
+or `webroot/css/theme.css`:
+
+    npm run build:css
+
+Or run in watch mode while iterating:
+
+    npm run watch:css
+
+The minified output is around 138 KB. PurgeCSS strips any utility class
+not used by the template / JS content paths. If you introduce a class
+name that's only inserted at runtime by Alpine (e.g. `class="something-${kind}"`),
+add it to the `safelist` in `tailwind.config.js`.
+
+Note: `watch:css` only rebuilds the Tailwind portion live. If you edit
+`webroot/css/theme.css` during a watch session you'll need to stop and
+re-run `npm run build:css` once because the script concatenates
+theme.css onto dist.css as a post-build step. Theme changes are
+infrequent so this is acceptable.
+
 ## Deployment
 
 Shared-hosting deployment (cPanel / DirectAdmin / similar) is documented in
