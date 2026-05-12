@@ -7,6 +7,27 @@
 <title><?= $this->fetch('title') ?: 'eQSL Card · Receiving Station' ?></title>
 
 <!--
+  Pre-paint theme resolver. Reads the user's saved preference from
+  localStorage (or falls back to the OS prefers-color-scheme media
+  query), then sets <html data-theme> before any stylesheet loads.
+  Without this, the page paints in light mode for one frame then
+  flips to dark — a classic FOUC.
+-->
+<script>
+  (function () {
+    var pref = localStorage.getItem('eqsl-theme') || 'system';
+    var resolved;
+    if (pref === 'dark')        resolved = 'eqsl-dark';
+    else if (pref === 'light')  resolved = 'eqsl';
+    else /* system */           resolved =
+      window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'eqsl-dark' : 'eqsl';
+    document.documentElement.setAttribute('data-theme', resolved);
+    document.documentElement.setAttribute('data-theme-pref', pref);
+  })();
+</script>
+
+<!--
   Style pipeline:
     1. DaisyUI compiled CSS (component classes: .btn, .card, .alert, .badge,
        .input, .modal, .dropdown, .navbar, ...). Loaded first so our
@@ -41,31 +62,58 @@
       },
     },
     daisyui: {
-      themes: [{
-        eqsl: {
-          'color-scheme':         'light',
-          'primary':              '#18181b',
-          'primary-content':      '#ffffff',
-          'secondary':            '#e4e4e7',
-          'secondary-content':    '#18181b',
-          'accent':               '#059669',
-          'accent-content':       '#ffffff',
-          'neutral':              '#52525b',
-          'neutral-content':      '#fafafa',
-          'base-100':             '#ffffff',
-          'base-200':             '#f4f4f5',
-          'base-300':             '#e4e4e7',
-          'base-content':         '#09090b',
-          'info':                 '#0284c7',
-          'success':              '#059669',
-          'warning':              '#d97706',
-          'error':                '#dc2626',
-          '--rounded-box':        '0.75rem',
-          '--rounded-btn':        '0.5rem',
-          '--rounded-badge':      '999px',
-          '--border-btn':         '1px',
+      themes: [
+        {
+          eqsl: {
+            'color-scheme':         'light',
+            'primary':              '#18181b',
+            'primary-content':      '#ffffff',
+            'secondary':            '#e4e4e7',
+            'secondary-content':    '#18181b',
+            'accent':               '#059669',
+            'accent-content':       '#ffffff',
+            'neutral':              '#52525b',
+            'neutral-content':      '#fafafa',
+            'base-100':             '#ffffff',
+            'base-200':             '#f4f4f5',
+            'base-300':             '#e4e4e7',
+            'base-content':         '#09090b',
+            'info':                 '#0284c7',
+            'success':              '#059669',
+            'warning':              '#d97706',
+            'error':                '#dc2626',
+            '--rounded-box':        '0.75rem',
+            '--rounded-btn':        '0.5rem',
+            '--rounded-badge':      '999px',
+            '--border-btn':         '1px',
+          },
         },
-      }],
+        {
+          'eqsl-dark': {
+            'color-scheme':         'dark',
+            'primary':              '#fafafa',
+            'primary-content':      '#18181b',
+            'secondary':            '#3f3f46',
+            'secondary-content':    '#fafafa',
+            'accent':               '#10b981',
+            'accent-content':       '#ffffff',
+            'neutral':              '#a1a1aa',
+            'neutral-content':      '#18181b',
+            'base-100':             '#18181b',
+            'base-200':             '#27272a',
+            'base-300':             '#3f3f46',
+            'base-content':         '#fafafa',
+            'info':                 '#38bdf8',
+            'success':              '#34d399',
+            'warning':              '#fbbf24',
+            'error':                '#f87171',
+            '--rounded-box':        '0.75rem',
+            '--rounded-btn':        '0.5rem',
+            '--rounded-badge':      '999px',
+            '--border-btn':         '1px',
+          },
+        },
+      ],
     },
   };
 </script>
@@ -74,7 +122,7 @@
 <link rel="stylesheet" href="<?= $this->Url->build('/css/app.css') ?>">
 <?= $this->fetch('meta') ?>
 </head>
-<body data-theme="eqsl">
+<body>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <nav class="navbar navbar-expand-lg">
   <div class="container">
