@@ -48,6 +48,7 @@
           <label class="form-label" for="share_password">Optional password</label>
           <input type="password" id="share_password" name="password" class="form-control"
                  autocomplete="new-password" placeholder="Leave blank for unprotected">
+          <p class="form-text">Recipients will need this password to view the shared card.</p>
         </div>
         <button class="btn btn-primary btn-sm">Share</button>
       <?= $this->Form->end() ?>

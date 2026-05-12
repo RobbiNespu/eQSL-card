@@ -141,12 +141,16 @@ function qsoFormState(initial) {
 
     <div class="col-md-6">
       <div class="field">
-        <label class="form-label" for="call-worked" x-text="isNet() ? 'Participant callsign' : 'Their callsign'">Their callsign</label>
+        <label class="form-label" for="call-worked">
+          <span x-text="isNet() ? 'Participant callsign' : 'Their callsign'">Their callsign</span>
+          <span class="req">*</span>
+        </label>
         <input type="text" id="call-worked" name="call_worked" class="form-control"
                x-model="callsign"
                @input.debounce.300ms="onCallsignInput()"
                @blur="onCallsignInput()"
                autocomplete="off" autocapitalize="characters" spellcheck="false"
+               placeholder="e.g. W1AW"
                required>
         <p class="form-text text-success" x-show="lookupSource" x-cloak>
           Auto-filled from <strong x-text="lookupSource"></strong>.
@@ -156,12 +160,18 @@ function qsoFormState(initial) {
     </div>
 
     <div class="col-md-6">
-      <?= $this->Form->control('qso_datetime_utc', [
-          'type'  => 'datetime-local',
-          'label' => 'Date / Time UTC',
-          'class' => 'form-control',
-          'required' => true,
-      ]) ?>
+      <div class="field">
+        <label class="form-label" for="qso-datetime-utc">Date / Time UTC <span class="req">*</span></label>
+        <?= $this->Form->control('qso_datetime_utc', [
+            'type'  => 'datetime-local',
+            'label' => false,
+            'id'    => 'qso-datetime-utc',
+            'class' => 'form-control',
+            'required' => true,
+            'templates' => ['inputContainer' => '{{content}}'],
+        ]) ?>
+        <p class="form-text">UTC — not your local time. Use a UTC clock to be sure.</p>
+      </div>
     </div>
 
     <!-- Net details: visible only in net mode. Inputs stay in the DOM so the
@@ -240,10 +250,17 @@ function qsoFormState(initial) {
 
     <!-- Frequency / band / mode --------------------------------------- -->
     <div class="col-md-4">
-      <?= $this->Form->control('frequency_mhz', [
-          'label' => 'Frequency (MHz)',
-          'class' => 'form-control',
-      ]) ?>
+      <div class="field">
+        <label class="form-label" for="frequency-mhz">Frequency (MHz)</label>
+        <?= $this->Form->control('frequency_mhz', [
+            'label' => false,
+            'id'    => 'frequency-mhz',
+            'class' => 'form-control',
+            'placeholder' => 'e.g. 14.07415',
+            'templates' => ['inputContainer' => '{{content}}'],
+        ]) ?>
+        <p class="form-text">Megahertz. Up to 4 decimal places.</p>
+      </div>
     </div>
     <div class="col-md-4">
       <?= $this->Form->control('band', [
@@ -298,6 +315,7 @@ function qsoFormState(initial) {
         <label class="form-label" for="grid-square">Grid square</label>
         <input type="text" id="grid-square" name="grid_square" class="form-control"
                x-model="gridSquare" placeholder="e.g. OJ02wx" autocomplete="off">
+        <p class="form-text">Maidenhead locator — 4 or 6 characters.</p>
       </div>
     </div>
     <div class="col-12">

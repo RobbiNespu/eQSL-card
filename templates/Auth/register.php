@@ -5,17 +5,19 @@
 
   <?= $this->Form->create($user) ?>
     <div class="field">
-      <label class="form-label" for="name">Name</label>
+      <label class="form-label" for="name">Name <span class="req">*</span></label>
       <?= $this->Form->control('name', [
           'class' => 'form-control',
           'label' => false,
           'id'    => 'name',
+          'required' => true,
+          'placeholder' => 'Your name',
           'templates' => ['inputContainer' => '{{content}}'],
       ]) ?>
     </div>
 
     <div class="field">
-      <label class="form-label" for="callsign">Callsign</label>
+      <label class="form-label" for="callsign">Callsign <span class="req">*</span></label>
       <?= $this->Form->control('callsign', [
           'class' => 'form-control',
           'label' => false,
@@ -23,20 +25,26 @@
           'autocapitalize' => 'characters',
           'autocomplete' => 'off',
           'spellcheck' => 'false',
+          'required' => true,
+          'placeholder' => 'e.g. 9W2NSP',
           'templates' => ['inputContainer' => '{{content}}'],
       ]) ?>
+      <p class="form-text">Your amateur radio callsign. Used on the eQSL cards you generate.</p>
     </div>
 
     <div class="field">
-      <label class="form-label" for="email">Email</label>
+      <label class="form-label" for="email">Email <span class="req">*</span></label>
       <?= $this->Form->control('email', [
           'type'  => 'email',
           'class' => 'form-control',
           'label' => false,
           'id'    => 'email',
           'autocomplete' => 'email',
+          'required' => true,
+          'placeholder' => 'you@example.com',
           'templates' => ['inputContainer' => '{{content}}'],
       ]) ?>
+      <p class="form-text">Used for sign-in and password resets. We never share it.</p>
     </div>
 
     <div class="field">

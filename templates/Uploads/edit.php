@@ -18,6 +18,7 @@
         <input type="text" id="author_name" name="author_name"
                value="<?= h($upload->author_name ?? '') ?>"
                class="form-control" placeholder="Leave blank if unknown">
+        <p class="form-text">Shown as the credit line on every future card that uses this image.</p>
       </div>
       <div class="field">
         <label class="form-label" for="license">License</label>

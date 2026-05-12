@@ -14,6 +14,7 @@
       <div class="field">
         <label class="form-label" for="avatar">Upload an avatar</label>
         <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/webp" class="form-control">
+        <p class="form-text">JPEG, PNG, or WebP. Square images look best.</p>
       </div>
       <button class="btn btn-sm btn-primary">Upload</button>
     <?= $this->Form->end() ?>

@@ -5,7 +5,8 @@
   <div class="col-md-2">
     <div class="field">
       <label class="form-label" for="days">Older than (days)</label>
-      <input type="number" id="days" name="days" value="<?= h($days) ?>" min="1" class="form-control">
+      <input type="number" id="days" name="days" value="<?= h($days) ?>" min="1" class="form-control" placeholder="30">
+      <p class="form-text">Items older than this many days are eligible for cleanup.</p>
     </div>
   </div>
   <div class="col-md-2 d-flex align-items-end">

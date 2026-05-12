@@ -88,6 +88,7 @@
       <label class="form-label" for="operator_name">Their name</label>
       <?= $this->Form->control('operator_name', [
           'class' => 'form-control', 'label' => false, 'id' => 'operator_name',
+          'placeholder' => 'Optional',
           'templates' => ['inputContainer' => '{{content}}'],
       ]) ?>
     </div>
