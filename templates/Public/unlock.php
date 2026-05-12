@@ -12,13 +12,18 @@
  * @var string $title
  */
 ?>
-<h1>Password required</h1>
-<p class="text-muted">This shared eQSL card is password-protected.</p>
+<div style="max-width: 420px; margin: 0 auto;">
+  <h1>Password required</h1>
+  <p>This shared eQSL card is password-protected. Enter the password the sender gave you to view it.</p>
 
-<?= $this->Form->create(null, ['url' => '/qsl/' . $slug . '/unlock']) ?>
-<div class="mb-3">
-  <label class="form-label">Password</label>
-  <input type="password" name="password" class="form-control" autocomplete="current-password" required>
+  <?= $this->Form->create(null, ['url' => '/qsl/' . $slug . '/unlock']) ?>
+    <div class="field">
+      <label class="form-label" for="password">Password</label>
+      <input type="password" id="password" name="password" class="form-control"
+             autocomplete="current-password" required>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-primary">Unlock</button>
+    </div>
+  <?= $this->Form->end() ?>
 </div>
-<button class="btn btn-primary">Unlock</button>
-<?= $this->Form->end() ?>

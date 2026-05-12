@@ -10,6 +10,10 @@
  * @var string $reason
  */
 ?>
-<h1>Share revoked</h1>
-<p class="text-muted"><?= h($reason ?? 'This share is no longer available.') ?></p>
-<p><a href="/" class="btn btn-link">Generate your own eQSL</a></p>
+<div style="max-width: 480px; margin: 0 auto; text-align: center; padding-top: var(--s-7);">
+  <h1>Share revoked</h1>
+  <p><?= h($reason ?? 'This share is no longer available.') ?></p>
+  <div class="d-flex justify-content-center mt-4">
+    <a class="btn btn-primary" href="/">Generate your own eQSL</a>
+  </div>
+</div>

@@ -1168,6 +1168,19 @@ details > summary::-webkit-details-marker { display: none; }
   color: #fff;
 }
 
+/* ---------- Description list (dl.row patterns) ---------- */
+dl.row { margin: 0 0 var(--s-4); }
+dl.dl-stack > dt,
+dl.dl-stack > dd { padding: var(--s-2) 0; border-bottom: 1px solid var(--border); }
+dl.dl-stack > dt {
+  font-weight: 500;
+  font-size: var(--t-sm);
+  color: var(--fg-muted);
+}
+dl.dl-stack > dd { margin-bottom: 0; color: var(--fg); }
+dl.dl-stack > dt:last-of-type,
+dl.dl-stack > dd:last-of-type { border-bottom: 0; }
+
 /* ---------- Radio-card (a <label> wrapping a hidden radio + content) ---------- */
 .radio-card {
   display: block;

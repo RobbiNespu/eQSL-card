@@ -1,4 +1,5 @@
 <h1><?= h($title) ?></h1>
+<p>Every eQSL you've generated. Click one to view, share, or download.</p>
 
 <?php if ($cards->count() === 0): ?>
   <div class="alert alert-info">You haven't generated any cards yet. <a href="/qsos">Render one from a QSO &rarr;</a></div>
@@ -20,26 +21,24 @@
           </a>
           <div class="card-body">
             <?php $qsoData = json_decode((string)$card->qso_data_json, true) ?: []; ?>
-            <h5 class="card-title"><?= h($qsoData['callsign'] ?? '—') ?></h5>
-            <p class="card-text small text-muted">
+            <h5 class="card-title mb-1"><?= h($qsoData['callsign'] ?? '—') ?></h5>
+            <p class="card-text mb-2">
               <?= h($qsoData['qso_datetime_utc'] ?? '') ?>
               · <?= h($qsoData['band'] ?? '') ?>
               · <?= h($qsoData['mode'] ?? '') ?>
             </p>
-            <p>
-              <?php if ($card->share_revoked_at): ?>
-                <span class="badge bg-secondary">Share revoked</span>
-              <?php elseif ($card->share_slug): ?>
-                <span class="badge bg-success">Shared</span>
-              <?php else: ?>
-                <span class="badge bg-light text-dark">Private</span>
-              <?php endif; ?>
-            </p>
+            <?php if ($card->share_revoked_at): ?>
+              <span class="badge bg-secondary">Share revoked</span>
+            <?php elseif ($card->share_slug): ?>
+              <span class="badge bg-success">Shared</span>
+            <?php else: ?>
+              <span class="badge bg-light">Private</span>
+            <?php endif; ?>
           </div>
         </div>
       </div>
     <?php endforeach; ?>
   </div>
 
-  <nav class="mt-3"><?= $this->Paginator->numbers() ?></nav>
+  <nav class="mt-4"><?= $this->Paginator->numbers() ?></nav>
 <?php endif; ?>

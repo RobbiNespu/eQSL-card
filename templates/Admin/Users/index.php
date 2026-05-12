@@ -1,6 +1,7 @@
 <h1><?= h($title) ?></h1>
+<p>Every registered operator. Search to find one, click Edit to change role, Delete to soft-delete.</p>
 
-<form method="get" class="row g-2 mb-3">
+<form method="get" class="row g-2 mb-4">
   <div class="col-md-6">
     <input type="search" name="q" value="<?= h($q) ?>" placeholder="Search by name, email, or callsign" class="form-control">
   </div>
@@ -14,8 +15,8 @@
       <tr>
         <td><?= h($u->name) ?></td>
         <td><?= h($u->email) ?></td>
-        <td><?= h($u->callsign) ?></td>
-        <td><span class="badge bg-<?= $u->role === 'admin' ? 'danger' : 'secondary' ?>"><?= h($u->role) ?></span></td>
+        <td><span class="callsign"><?= h($u->callsign) ?></span></td>
+        <td><span class="badge bg-<?= $u->role === 'admin' ? 'success' : 'secondary' ?>"><?= h($u->role) ?></span></td>
         <td><?= h($u->created_at?->format('Y-m-d')) ?></td>
         <td>
           <a class="btn btn-sm btn-outline-primary" href="/admin/users/<?= $u->id ?>/edit">Edit</a>

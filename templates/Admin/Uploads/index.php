@@ -1,6 +1,7 @@
 <h1><?= h($title) ?></h1>
+<p>Every background image on the site, owned by users or guests. Edit attribution or soft-delete from here.</p>
 
-<form method="get" class="row g-2 mb-3">
+<form method="get" class="row g-2 mb-4">
   <div class="col-md-2">
     <select name="kind" class="form-select">
       <option value="">All owners</option>

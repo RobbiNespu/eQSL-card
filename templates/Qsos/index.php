@@ -1,15 +1,24 @@
 <h1><?= h($title) ?></h1>
+<p>Your station log. Filter by callsign, type, band, or date range, then render eQSL cards individually or in bulk.</p>
 
-<form method="get" class="row g-2 mb-3">
-  <div class="col-md-2"><input type="search" name="q" value="<?= h($filters['search']) ?>" placeholder="Callsign" class="form-control"></div>
-  <div class="col-md-2">
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <a class="btn btn-primary" href="/qsos/new">+ New QSO</a>
+  <a class="btn btn-secondary" href="/qsos/import">Import ADIF / CSV</a>
+</div>
+
+<form method="get" class="row g-2 mb-4">
+  <div class="col-md-3 col-sm-6">
+    <input type="search" name="q" value="<?= h($filters['search']) ?>"
+           placeholder="Search callsign" class="form-control">
+  </div>
+  <div class="col-md-2 col-sm-6">
     <select name="qso_type" class="form-select">
       <option value=""<?= $filters['qsoType'] === '' ? ' selected' : '' ?>>All types</option>
-      <option value="contact"<?= $filters['qsoType'] === 'contact' ? ' selected' : '' ?>>Contact only</option>
-      <option value="net"<?= $filters['qsoType'] === 'net' ? ' selected' : '' ?>>Net only</option>
+      <option value="contact"<?= $filters['qsoType'] === 'contact' ? ' selected' : '' ?>>Contact</option>
+      <option value="net"<?= $filters['qsoType'] === 'net' ? ' selected' : '' ?>>Net</option>
     </select>
   </div>
-  <div class="col-md-2">
+  <div class="col-md-2 col-sm-6">
     <select name="transport" class="form-select">
       <option value=""<?= $filters['transport'] === '' ? ' selected' : '' ?>>All transports</option>
       <option value="rf"<?= $filters['transport'] === 'rf' ? ' selected' : '' ?>>RF only</option>
@@ -20,7 +29,7 @@
       <?php endforeach; ?>
     </select>
   </div>
-  <div class="col-md-2">
+  <div class="col-md-2 col-sm-6">
     <select name="band" class="form-select">
       <option value="">All bands</option>
       <?php foreach (\App\Service\HamRadio::bandOptions($filters['band']) as $b => $lbl): ?>
@@ -28,26 +37,33 @@
       <?php endforeach; ?>
     </select>
   </div>
-  <div class="col-md-1">
+  <div class="col-md-1 col-sm-6">
     <select name="mode" class="form-select">
-      <option value="">All modes</option>
+      <option value="">Modes</option>
       <?php foreach (\App\Service\HamRadio::modeOptions($filters['mode']) as $m => $lbl): ?>
         <option value="<?= h($m) ?>"<?= $filters['mode'] === $m ? ' selected' : '' ?>><?= h($lbl) ?></option>
       <?php endforeach; ?>
     </select>
   </div>
-  <div class="col-md-2"><input type="date" name="from" value="<?= h($filters['from']) ?>" class="form-control"></div>
-  <div class="col-md-2"><input type="date" name="to" value="<?= h($filters['to']) ?>" class="form-control"></div>
-  <div class="col-md-1"><button class="btn btn-primary w-100">Filter</button></div>
+  <div class="col-md-2 col-sm-6">
+    <input type="date" name="from" value="<?= h($filters['from']) ?>" class="form-control" title="From date">
+  </div>
+  <div class="col-md-2 col-sm-6">
+    <input type="date" name="to" value="<?= h($filters['to']) ?>" class="form-control" title="To date">
+  </div>
+  <div class="col-md-2 col-sm-12">
+    <button class="btn btn-primary w-100">Filter</button>
+  </div>
 </form>
 
 <?php if ($qsos->count() === 0): ?>
-  <div class="alert alert-info">No QSOs match your filter. <a href="/qsos/new">Add one</a> or <a href="/qsos/import">import an ADIF/CSV log</a>.</div>
+  <div class="alert alert-info">No QSOs match your filter. <a href="/qsos/new">Add one</a> or <a href="/qsos/import">import an ADIF / CSV log</a>.</div>
 <?php else: ?>
 <div x-data="bulkRenderForm()">
-  <div class="d-flex gap-2 mb-2 align-items-center">
-    <span x-text="`${selected.length} selected`"></span>
-    <button type="button" class="btn btn-sm btn-outline-primary" @click="openBulkModal()" x-bind:disabled="selected.length === 0">Bulk render selected</button>
+  <div class="d-flex gap-2 mb-3 align-items-center">
+    <span class="form-text" x-text="`${selected.length} selected`"></span>
+    <button type="button" class="btn btn-sm btn-outline-primary"
+            @click="openBulkModal()" x-bind:disabled="selected.length === 0">Bulk render selected</button>
   </div>
 
   <table class="table table-striped">

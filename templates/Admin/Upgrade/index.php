@@ -1,6 +1,5 @@
 <h1><?= h($title) ?></h1>
-
-<p>After uploading a new release zip via FTP, run pending migrations and clear caches here.</p>
+<p>After uploading a new release zip via FTP, run any pending database migrations and clear the framework caches from here.</p>
 
 <?php if ($migrationsResult): ?>
   <div class="alert alert-<?= $migrationsResult['ok'] ? 'success' : 'danger' ?>">

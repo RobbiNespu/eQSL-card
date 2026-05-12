@@ -1,35 +1,36 @@
 <h1><?= h($title) ?></h1>
+<p>Site-wide overview. Tiles below show totals; jump to the relevant admin area for detail.</p>
 
 <div class="row g-3 mb-4">
   <div class="col-md-3">
-    <div class="card text-center p-3">
+    <div class="card card-body text-center">
       <div class="display-6"><?= h($stats['users_total']) ?></div>
-      <div class="text-muted small">Users (<?= h($stats['users_admin']) ?> admin)</div>
+      <div class="form-text">Users (<?= h($stats['users_admin']) ?> admin)</div>
     </div>
   </div>
   <div class="col-md-3">
-    <div class="card text-center p-3">
+    <div class="card card-body text-center">
       <div class="display-6"><?= h($stats['cards_total']) ?></div>
-      <div class="text-muted small">Cards (<?= h($stats['cards_guest']) ?> guest-generated)</div>
+      <div class="form-text">Cards (<?= h($stats['cards_guest']) ?> guest-generated)</div>
     </div>
   </div>
   <div class="col-md-3">
-    <div class="card text-center p-3">
+    <div class="card card-body text-center">
       <div class="display-6"><?= h($stats['templates_total']) ?></div>
-      <div class="text-muted small">Templates (<?= h($stats['templates_pending']) ?> awaiting review)</div>
+      <div class="form-text">Templates (<?= h($stats['templates_pending']) ?> awaiting review)</div>
     </div>
   </div>
   <div class="col-md-3">
-    <div class="card text-center p-3">
+    <div class="card card-body text-center">
       <div class="display-6"><?= h($stats['storage_mb_uploads']) ?> MB</div>
-      <div class="text-muted small">Upload storage</div>
+      <div class="form-text">Upload storage</div>
     </div>
   </div>
 </div>
 
-<div class="row g-3">
+<div class="row g-4">
   <div class="col-md-6">
-    <h2>Quick links</h2>
+    <h2 class="h5">Quick links</h2>
     <ul class="list-group">
       <li class="list-group-item"><a href="/admin/settings">Settings (default eQSL background, SMTP, etc.)</a></li>
       <li class="list-group-item"><a href="/admin/templates/pending">Pending template moderation (<?= h($stats['templates_pending']) ?>)</a></li>
@@ -41,7 +42,7 @@
     </ul>
   </div>
   <div class="col-md-6">
-    <h2>Recent activity</h2>
+    <h2 class="h5">Recent activity</h2>
     <table class="table table-sm">
       <thead><tr><th>When</th><th>Event</th><th>Actor</th><th>Target</th></tr></thead>
       <tbody>

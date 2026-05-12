@@ -1,10 +1,11 @@
 <h1><?= h($title) ?></h1>
+<p>Preview, share, or download this eQSL card.</p>
 
-<div class="row">
+<div class="row g-4">
   <div class="col-md-8">
     <img src="/<?= h($card->png_path) ?>" alt="eQSL card" class="card-preview">
 
-    <div class="mt-3">
+    <div class="d-flex gap-2 mt-3">
       <a class="btn btn-primary" href="/<?= h($card->png_path) ?>" download>Download image</a>
       <a class="btn btn-secondary" href="/cards/<?= h($card->id) ?>/download.pdf">Download PDF</a>
       <a class="btn btn-link" href="/cards">Back to library</a>
@@ -12,10 +13,10 @@
   </div>
 
   <div class="col-md-4">
-    <h2>QSO details</h2>
-    <dl class="row">
+    <h2 class="h5">QSO details</h2>
+    <dl class="row dl-stack">
       <dt class="col-sm-5">Callsign</dt><dd class="col-sm-7"><?= h($qso['callsign'] ?? '—') ?></dd>
-      <dt class="col-sm-5">Date/Time UTC</dt><dd class="col-sm-7"><?= h($qso['qso_datetime_utc'] ?? '') ?></dd>
+      <dt class="col-sm-5">Date / Time UTC</dt><dd class="col-sm-7"><?= h($qso['qso_datetime_utc'] ?? '') ?></dd>
       <dt class="col-sm-5">Frequency</dt><dd class="col-sm-7"><?= h($qso['frequency_mhz'] ?? '') ?> MHz</dd>
       <dt class="col-sm-5">Band</dt><dd class="col-sm-7"><?= h($qso['band'] ?? '') ?></dd>
       <dt class="col-sm-5">Mode</dt><dd class="col-sm-7"><?= h($qso['mode'] ?? '') ?></dd>
@@ -29,24 +30,26 @@
     </dl>
 
     <hr>
-    <h3>Sharing</h3>
+    <h2 class="h5">Sharing</h2>
     <?php if ($shareUrl): ?>
-      <p>Public link:<br><code><?= h($shareUrl) ?></code></p>
+      <p class="form-text mb-2">Public link:</p>
+      <p><code style="word-break: break-all"><?= h($shareUrl) ?></code></p>
       <?= $this->Form->postLink('Revoke share', '/cards/' . $card->id . '/revoke', [
           'class' => 'btn btn-outline-danger btn-sm',
           'confirm' => 'Are you sure? The public link will return 410 Gone.',
       ]) ?>
     <?php elseif ($card->share_revoked_at): ?>
-      <p class="text-muted">Share was revoked on <?= h($card->share_revoked_at?->format('Y-m-d H:i')) ?>.</p>
-      <p class="text-muted small">A future "re-share" action lands in M3 polish.</p>
+      <p class="form-text">Share was revoked on <?= h($card->share_revoked_at?->format('Y-m-d H:i')) ?>.</p>
+      <p class="form-text">A future "re-share" action lands in M3 polish.</p>
     <?php else: ?>
-      <p class="text-muted">This card is private.</p>
+      <p class="form-text mb-2">This card is private. Generate a public link below.</p>
       <?= $this->Form->create(null, ['url' => '/cards/' . $card->id . '/share']) ?>
-      <div class="mb-2">
-        <label class="form-label small">Optional password (leave blank for unprotected)</label>
-        <input type="password" name="password" class="form-control form-control-sm" autocomplete="new-password">
-      </div>
-      <button class="btn btn-primary btn-sm">Share</button>
+        <div class="field">
+          <label class="form-label" for="share_password">Optional password</label>
+          <input type="password" id="share_password" name="password" class="form-control"
+                 autocomplete="new-password" placeholder="Leave blank for unprotected">
+        </div>
+        <button class="btn btn-primary btn-sm">Share</button>
       <?= $this->Form->end() ?>
     <?php endif; ?>
 

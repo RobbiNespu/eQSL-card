@@ -1,6 +1,7 @@
 <h1><?= h($title) ?></h1>
+<p>Append-only log of significant actions across the site. Filter by event type or by actor.</p>
 
-<form method="get" class="row g-2 mb-3">
+<form method="get" class="row g-2 mb-4">
   <div class="col-md-3">
     <select name="event" class="form-select">
       <option value="">All events</option>
