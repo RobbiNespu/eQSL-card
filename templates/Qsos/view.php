@@ -7,8 +7,8 @@ $h1 = ($isNet ? 'Net check-in by ' : 'QSO with ')
 ?>
 <?= $this->element('ui/page_header', [
     'title' => $h1,
-    'lede'  => 'Logged on ' . h($qso->qso_datetime_utc?->format('Y-m-d H:i')) . ' UTC via '
-               . h(\App\Service\Transport::label($qso->transport ?? null)) . '.',
+    'lede'  => 'Logged on ' . $qso->qso_datetime_utc?->format('Y-m-d H:i') . ' UTC via '
+               . \App\Service\Transport::label($qso->transport ?? null) . '.',
     'escape_title' => false,
 ]) ?>
 

@@ -1,5 +1,7 @@
-<h1><?= h($title) ?></h1>
-<p>Every card ever rendered — by users and by guests. Filter by owner type or date.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => 'Every card ever rendered — by users and by guests. Filter by owner type or date.',
+]) ?>
 
 <form method="get" class="row g-2 mb-4">
   <div class="col-md-2">
@@ -35,10 +37,10 @@
         <td><?= h($c->template->name ?? '?') ?></td>
         <td><?= h($c->created_at?->format('Y-m-d H:i')) ?></td>
         <td>
-          <?php if ($c->deleted_at): ?><span class="badge bg-danger">deleted</span>
-          <?php elseif ($c->share_revoked_at): ?><span class="badge bg-secondary">share revoked</span>
-          <?php elseif ($c->share_slug): ?><span class="badge bg-success">shared</span>
-          <?php else: ?><span class="badge bg-light text-dark">private</span>
+          <?php if ($c->deleted_at): ?>
+            <span class="badge bg-danger">deleted</span>
+          <?php else: ?>
+            <?= $this->element('ui/badge_share_status', ['card' => $c]) ?>
           <?php endif; ?>
         </td>
       </tr>

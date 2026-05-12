@@ -1,5 +1,7 @@
-<h1><?= h($title) ?></h1>
-<p>Append-only log of significant actions across the site. Filter by event type or by actor.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => 'Append-only log of significant actions across the site. Filter by event type or by actor.',
+]) ?>
 
 <form method="get" class="row g-2 mb-4">
   <div class="col-md-3">

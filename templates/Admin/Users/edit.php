@@ -1,10 +1,12 @@
-<h1><?= h($title) ?></h1>
-<p>Promote, demote, or update this user. Self-demotion is blocked at the controller level.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => 'Promote, demote, or update this user. Self-demotion is blocked at the controller level.',
+]) ?>
 
 <dl class="row dl-stack mb-4">
   <dt class="col-sm-3">Name</dt><dd class="col-sm-9"><?= h($user->name) ?></dd>
   <dt class="col-sm-3">Email</dt><dd class="col-sm-9"><?= h($user->email) ?></dd>
-  <dt class="col-sm-3">Callsign</dt><dd class="col-sm-9"><span class="callsign"><?= h($user->callsign) ?></span></dd>
+  <dt class="col-sm-3">Callsign</dt><dd class="col-sm-9"><?= $this->element('ui/callsign', ['call' => $user->callsign]) ?></dd>
   <dt class="col-sm-3">Joined</dt><dd class="col-sm-9"><?= h($user->created_at?->format('Y-m-d H:i')) ?></dd>
 </dl>
 

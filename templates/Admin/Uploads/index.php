@@ -1,5 +1,7 @@
-<h1><?= h($title) ?></h1>
-<p>Every background image on the site, owned by users or guests. Edit attribution or soft-delete from here.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => 'Every background image on the site, owned by users or guests. Edit attribution or soft-delete from here.',
+]) ?>
 
 <form method="get" class="row g-2 mb-4">
   <div class="col-md-2">
@@ -18,7 +20,7 @@
 </form>
 
 <?php if ($uploads->count() === 0): ?>
-  <div class="alert alert-info">No uploads match your filter.</div>
+  <?= $this->element('ui/empty_state', ['message' => 'No uploads match your filter.']) ?>
 <?php else: ?>
   <table class="table">
     <thead>

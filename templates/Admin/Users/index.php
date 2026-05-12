@@ -1,5 +1,7 @@
-<h1><?= h($title) ?></h1>
-<p>Every registered operator. Search to find one, click Edit to change role, Delete to soft-delete.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => 'Every registered operator. Search to find one, click Edit to change role, Delete to soft-delete.',
+]) ?>
 
 <form method="get" class="row g-2 mb-4">
   <div class="col-md-6">
@@ -15,7 +17,7 @@
       <tr>
         <td><?= h($u->name) ?></td>
         <td><?= h($u->email) ?></td>
-        <td><span class="callsign"><?= h($u->callsign) ?></span></td>
+        <td><?= $this->element('ui/callsign', ['call' => $u->callsign]) ?></td>
         <td><span class="badge bg-<?= $u->role === 'admin' ? 'success' : 'secondary' ?>"><?= h($u->role) ?></span></td>
         <td><?= h($u->created_at?->format('Y-m-d')) ?></td>
         <td>

@@ -2,7 +2,7 @@
 <p>User-submitted public templates that need moderation. Approving makes them visible in the public gallery; rejecting hides them with an optional reason.</p>
 
 <?php if ($pending->count() === 0): ?>
-  <div class="alert alert-info">No templates awaiting review.</div>
+  <?= $this->element('ui/empty_state', ['message' => 'No templates awaiting review.']) ?>
 <?php else: ?>
   <table class="table">
     <thead>
@@ -22,7 +22,7 @@
             <p class="form-text mb-0"><?= h($t->description) ?></p>
           </td>
           <td>
-            <span class="callsign"><?= h($t->user->callsign ?? '?') ?></span>
+            <?= $this->element('ui/callsign', ['call' => $t->user->callsign ?? '?']) ?>
             <span class="form-text d-block"><?= h($t->user->email ?? '') ?></span>
           </td>
           <td><?= h($t->created_at?->format('Y-m-d H:i')) ?></td>

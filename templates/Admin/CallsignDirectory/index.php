@@ -1,12 +1,7 @@
-<h1><?= h($title) ?></h1>
-
-<p class="text-muted">
-  Admin-curated callsign directory. The QSO auto-complete chain checks this
-  table first before reaching out to external providers (RadioID, etc.) —
-  so a callsign you've imported here resolves instantly with no upstream
-  network call. Useful when official sources (MCMC, MARTS, RAPI) publish
-  PDF / Excel lists that aren't suitable for live scraping.
-</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => "Admin-curated callsign directory. The QSO auto-complete chain checks this table first before reaching out to external providers — fast resolution and no upstream network call.",
+]) ?>
 
 <div class="row mb-4">
   <div class="col-md-7">

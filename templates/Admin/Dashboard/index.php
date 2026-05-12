@@ -1,5 +1,7 @@
-<h1><?= h($title) ?></h1>
-<p>Site-wide overview. Tiles below show totals; jump to the relevant admin area for detail.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => 'Site-wide overview. Tiles below show totals; jump to the relevant admin area for detail.',
+]) ?>
 
 <div class="row g-3 mb-4">
   <div class="col-md-3">
