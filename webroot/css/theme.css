@@ -1,777 +1,1043 @@
 /* =========================================================================
- *  MANUSCRIPT — eQSL Card design system (mono edition)
+ *  eQSL Card — design system (shadcn/ui-inspired)
  *
- *  A typed engineering field notebook. ONE typeface family (Geist Mono
- *  Variable, w 100..900) carries the entire interface. Hierarchy comes
- *  from size, weight, and letter-spacing — not font variety.
+ *  Goal: friendly, modern, age-neutral. Suitable for a 16-year-old getting
+ *  their first ticket and a 70-year-old DXer alike. Not punk, not playful,
+ *  not edgy — just legible and considered.
+ *
+ *  Core moves: white surface on warm-gray bg, zinc neutrals with an emerald
+ *  accent, rounded-md (8px) inputs and buttons, 40px minimum touch targets,
+ *  generous focus rings, soft shadows. Inter Variable carries the UI;
+ *  Geist Mono is reserved for code, callsigns, frequency, and tabular nums.
  *
  *  Conventions:
- *   - Spatial scale doubles (--s-1 = 4px → --s-9 = 96px). Avoid raw px.
- *   - Type scale uses --t-1 .. --t-10 (1.250 minor third, 16px base).
- *   - Colors are palette-only via vars. Don't introduce hex inline.
- *   - Section labels use `§` / `¶` prefixes; status indicators use
- *     [BRACKETED] form; rules use the ─ char OR a copper ribbon stripe.
- *   - Numbers always tabular (font-variant-numeric: tabular-nums).
+ *   - Use `.field` to wrap a single label+input+help triad.
+ *   - Use `.form-fieldset` (not raw <fieldset>) for grouped sections.
+ *   - Spacing uses --s-1..--s-9 (4px → 64px).
+ *   - All form controls get the same shape, regardless of Cake's
+ *     Form->control() output or hand-rolled markup.
+ *   - Border radius defaults to --r-md; no sharp corners outside of the
+ *     pixel-grid canvas preview.
  *
- *  Loaded AFTER bootstrap.min.css so :root variable overrides win.
+ *  Loaded AFTER bootstrap.min.css so :root overrides win.
  * ========================================================================= */
 
 /* ---------- 1. Fonts ---------- */
-/*
- * Single typeface for the whole interface: Geist Mono Variable (weight
- * axis 100..900) via Fontsource on jsdelivr. JetBrains Mono stays as
- * the fallback so legacy renders (cached cards) keep their consistent
- * look. CSP already permits cdn.jsdelivr.net for font + style sources.
- */
+@import url('https://cdn.jsdelivr.net/npm/@fontsource-variable/inter/index.css');
 @import url('https://cdn.jsdelivr.net/npm/@fontsource-variable/geist-mono/index.css');
-@import url('https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono/index.css');
 
 /* ---------- 2. Tokens ---------- */
 :root {
-  /* Palette — paper-warm, slightly cooler than the serif edition so
-     mono ink lands crisp on it. Tested every fg/bg pair in WCAG AA. */
-  --paper:      #f4efe6;
-  --paper-deep: #ebe5d7;
-  --paper-rule: #c8bfa9;
-  --ink:        #0a1322;
-  --ink-soft:   #353d52;
-  --ink-mute:   #6a7188;
-  --copper:     #b6601e;
-  --copper-deep:#8c4710;
-  --copper-fog: #ecdcc4;
-  --signal:     #c2410c;
-  --leaf:       #2f5d3a;
-  --rust:       #9a2f1f;
-  --ribbon-red: #b22b1f;        /* typewriter ribbon */
+  /* Surface palette — warm zinc, very subtle. Tested every fg/bg combo
+     against WCAG AA (and most pass AAA) at body sizes. */
+  --bg:            #fafafa;
+  --surface:       #ffffff;
+  --surface-2:     #f4f4f5;
+  --surface-3:     #e9e9eb;
+  --border:        #e4e4e7;
+  --border-strong: #d4d4d8;
+  --fg:            #09090b;        /* zinc-950 */
+  --fg-strong:     #18181b;        /* zinc-900 */
+  --fg-muted:      #52525b;        /* zinc-600 */
+  --fg-subtle:     #71717a;        /* zinc-500 */
 
-  /* Type scale — 1.250 minor third, base 16px. Mono is dense; expect
-     to use the larger sizes more freely than you would with sans. */
-  --t-1:  0.7188rem;
-  --t-2:  0.8125rem;
-  --t-3:  0.9375rem;
-  --t-4:  1rem;
-  --t-5:  1.1875rem;
-  --t-6:  1.5rem;
-  --t-7:  1.875rem;
-  --t-8:  2.375rem;
-  --t-9:  3rem;
-  --t-10: 3.75rem;
+  /* Accent — emerald-600/700. Friendly, "ham green", not punk. */
+  --accent:        #059669;
+  --accent-strong: #047857;
+  --accent-soft:   #ecfdf5;
+  --accent-ring:   rgba(5, 150, 105, 0.32);
 
-  /* Spatial scale */
-  --s-0: 2px;  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;
-  --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
-  --s-8: 64px; --s-9: 96px;
+  --info:          #0284c7;
+  --info-soft:     #f0f9ff;
+  --warning:       #d97706;
+  --warning-soft:  #fffbeb;
+  --danger:        #dc2626;
+  --danger-soft:   #fef2f2;
+  --success:       #059669;
+  --success-soft:  #ecfdf5;
 
-  /* Type families — only one, plus fallbacks for cached / offline. */
-  --font-display: 'Geist Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
-  --font-body:    'Geist Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
-  --font-mono:    'JetBrains Mono', 'Geist Mono Variable', ui-monospace, monospace;
+  /* Type families */
+  --font-sans:  'Inter Variable', -apple-system, BlinkMacSystemFont,
+                'Segoe UI', system-ui, sans-serif;
+  --font-mono:  'Geist Mono Variable', ui-monospace, 'SF Mono',
+                Consolas, 'Liberation Mono', monospace;
+
+  /* Type scale — base 16px, modular */
+  --t-xs:   0.8125rem;   /* 13px */
+  --t-sm:   0.875rem;    /* 14px */
+  --t-base: 1rem;        /* 16px */
+  --t-lg:   1.125rem;    /* 18px */
+  --t-xl:   1.25rem;     /* 20px */
+  --t-2xl:  1.5rem;      /* 24px */
+  --t-3xl:  1.875rem;    /* 30px */
+  --t-4xl:  2.25rem;     /* 36px */
+  --t-5xl:  3rem;        /* 48px */
+
+  /* Spacing — 4px grid */
+  --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
+  --s-5: 20px;  --s-6: 24px;  --s-7: 32px;  --s-8: 48px;  --s-9: 64px;
+
+  /* Radii */
+  --r-sm: 4px;
+  --r:    6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+
+  /* Shadows */
+  --sh-1: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --sh-2: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --sh-3: 0 4px 8px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --sh-4: 0 12px 28px rgba(15, 23, 42, 0.10), 0 4px 10px rgba(15, 23, 42, 0.05);
 
   /* Bootstrap variable overrides */
-  --bs-body-bg:        var(--paper);
-  --bs-body-color:     var(--ink);
-  --bs-body-font-family: var(--font-body);
-  --bs-body-font-size: var(--t-4);
-  --bs-body-line-height: 1.65;
+  --bs-body-bg:           var(--bg);
+  --bs-body-color:        var(--fg);
+  --bs-body-font-family:  var(--font-sans);
+  --bs-body-font-size:    var(--t-base);
+  --bs-body-line-height:  1.55;
 
-  --bs-primary:        #0a1322;
-  --bs-primary-rgb:    10, 19, 34;
-  --bs-secondary:      var(--ink-soft);
-  --bs-secondary-rgb:  53, 61, 82;
-  --bs-success:        var(--leaf);
-  --bs-success-rgb:    47, 93, 58;
-  --bs-info:           var(--copper);
-  --bs-info-rgb:       182, 96, 30;
-  --bs-warning:        #c08b18;
-  --bs-warning-rgb:    192, 139, 24;
-  --bs-danger:         var(--rust);
-  --bs-danger-rgb:     154, 47, 31;
+  --bs-primary:           #18181b;
+  --bs-primary-rgb:       24, 24, 27;
+  --bs-secondary:         #52525b;
+  --bs-secondary-rgb:     82, 82, 91;
+  --bs-success:           #059669;
+  --bs-success-rgb:       5, 150, 105;
+  --bs-info:              #0284c7;
+  --bs-info-rgb:          2, 132, 199;
+  --bs-warning:           #d97706;
+  --bs-warning-rgb:       217, 119, 6;
+  --bs-danger:            #dc2626;
+  --bs-danger-rgb:        220, 38, 38;
 
-  --bs-link-color:        var(--copper-deep);
-  --bs-link-hover-color:  var(--ink);
+  --bs-link-color:        var(--accent-strong);
+  --bs-link-hover-color:  var(--accent);
   --bs-link-decoration:   none;
-  --bs-link-hover-decoration: underline;
 
-  --bs-border-color:      var(--paper-rule);
-  --bs-border-radius:     0;
-  --bs-border-radius-sm:  0;
-  --bs-border-radius-lg:  0;
+  --bs-border-color:      var(--border);
+  --bs-border-radius:     var(--r-md);
+  --bs-border-radius-sm:  var(--r);
+  --bs-border-radius-lg:  var(--r-lg);
 }
 
-/* ---------- 3. Atmospheric background ---------- */
+/* ---------- 3. Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
 body {
-  background-color: var(--paper);
-  /*
-   * "Tape feed" — faint horizontal scanlines that recall a typed page
-   * or a TTY printer. Layered with two soft radial tints for warmth.
-   * Pure CSS, no asset.
-   */
-  background-image:
-    radial-gradient(circle at 18% 22%, rgba(182, 96, 30, 0.04) 0%, transparent 38%),
-    radial-gradient(circle at 82% 78%, rgba(10, 19, 34, 0.03) 0%, transparent 42%),
-    repeating-linear-gradient(0deg,
-      transparent 0,
-      transparent 27px,
-      rgba(200, 191, 169, 0.16) 27px,
-      rgba(200, 191, 169, 0.16) 28px);
-  background-attachment: fixed;
-  color: var(--ink);
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--t-base);
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Mono is dense; relax line-height a notch over the BS default. */
-  line-height: 1.65;
+  font-feature-settings: 'cv11', 'ss01';
 }
 
 /* ---------- 4. Typography ---------- */
-/*
- * One face. Hierarchy from:
- *   - weight (variable axis, 200/400/500/700/800 used)
- *   - size  (--t-1 .. --t-10)
- *   - letter-spacing (negative for display, positive for labels)
- *   - case (UPPERCASE for labels, sentence for body)
- */
-h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  color: var(--ink);
-  margin-top: 0;
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: var(--font-sans);
+  color: var(--fg);
+  margin: 0 0 var(--s-3);
+  font-weight: 600;
 }
 
 h1, .h1 {
-  font-size: var(--t-9);
-  font-weight: 800;
-  line-height: 1.02;
-  letter-spacing: -0.045em;
-  margin-bottom: var(--s-5);
-  padding-bottom: var(--s-4);
-  position: relative;
+  font-size: var(--t-4xl);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  margin-bottom: var(--s-4);
 }
-h1::after {
-  /* Ribbon rule under the H1 — three weights for visual rhythm. */
-  content: "";
-  position: absolute;
-  left: 0; bottom: 0;
-  width: var(--s-8);
-  height: 3px;
-  background: linear-gradient(to right,
-    var(--copper) 0,        var(--copper) 30%,
-    var(--ink) 30%,         var(--ink) 50%,
-    var(--paper-rule) 50%,  var(--paper-rule) 100%);
+h2, .h2 {
+  font-size: var(--t-2xl);
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin-top: var(--s-7);
+  margin-bottom: var(--s-3);
 }
-h2, .h2 { font-size: var(--t-7); font-weight: 700; line-height: 1.1;  letter-spacing: -0.03em; margin-top: var(--s-6); }
-h3, .h3 { font-size: var(--t-6); font-weight: 700; line-height: 1.18; letter-spacing: -0.02em; margin-top: var(--s-5); }
-h4, .h4 { font-size: var(--t-5); font-weight: 600; line-height: 1.28; letter-spacing: -0.01em; }
-h5, .h5 { font-size: var(--t-4); font-weight: 600; line-height: 1.4;  text-transform: uppercase; letter-spacing: 0.08em; }
-h6, .h6 { font-size: var(--t-2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-soft); }
+h3, .h3 {
+  font-size: var(--t-xl);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  margin-top: var(--s-6);
+}
+h4, .h4 { font-size: var(--t-lg);  line-height: 1.4; }
+h5, .h5 { font-size: var(--t-base); }
+h6, .h6 {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 
+/* Lede paragraph right after H1 */
 main h1:first-child + p,
 main h1 + p:first-of-type {
-  font-size: var(--t-5);
-  color: var(--ink-soft);
-  margin-bottom: var(--s-6);
-  max-width: 64ch;
+  font-size: var(--t-lg);
+  color: var(--fg-muted);
+  margin-bottom: var(--s-7);
+  max-width: 70ch;
+  line-height: 1.6;
 }
 
-/* Eyebrow — small-caps label above a section title.
-   Adds an automatic "§" prefix if .eyebrow--section class is set,
-   used in major page sections so the page reads like a numbered manual. */
+p { margin: 0 0 var(--s-4); }
+p:last-child { margin-bottom: 0; }
+
 .eyebrow {
   display: inline-block;
-  font-family: var(--font-body);
-  font-size: var(--t-1);
-  font-weight: 500;
-  letter-spacing: 0.18em;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--copper-deep);
+  color: var(--accent-strong);
   margin-bottom: var(--s-2);
 }
-.eyebrow--section::before {
-  content: "§ ";
-  color: var(--ink-mute);
-  font-weight: 400;
+
+/* Tabular nums for anything data-shaped */
+.tabular, table, .table, code, kbd, samp, pre,
+input[type="number"], input[type="date"], input[type="datetime-local"],
+.callsign, .frequency, .display-1, .display-2, .display-3,
+.display-4, .display-5, .display-6 {
+  font-variant-numeric: tabular-nums;
 }
 
-/* Tabular numbers everywhere data lives */
-.tabular, table, .table, code, kbd, samp, pre,
-input, select, textarea, .btn {
-  font-variant-numeric: tabular-nums;
+/* Inline callsigns get the mono treatment automatically */
+.table td strong, .callsign {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--fg);
+}
+
+a {
+  color: var(--accent-strong);
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
 code, kbd, samp, pre {
   font-family: var(--font-mono);
-  font-size: 0.92em;
-  background: var(--copper-fog);
-  color: var(--ink);
+  font-size: 0.9em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--fg);
   padding: 1px 6px;
-  border-radius: 0;
-  font-weight: 500;
+  border-radius: var(--r-sm);
 }
-pre code { background: transparent; padding: 0; }
-
-/* Bracket-style status indicators: <span class="status">[ON AIR]</span> */
-.status {
-  font-family: var(--font-display);
-  font-size: var(--t-2);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--copper-deep);
+pre {
+  padding: var(--s-3) var(--s-4);
+  overflow-x: auto;
+  line-height: 1.5;
 }
-.status::before { content: "["; color: var(--ink-mute); margin-right: 2px; }
-.status::after  { content: "]"; color: var(--ink-mute); margin-left: 2px; }
-
-a {
-  transition: color 120ms ease, text-decoration-color 120ms ease;
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-}
-a:hover { text-decoration-thickness: 1px; }
-
-/* Arrow-link convention: <a class="arrow-link">View card</a> renders
-   with a trailing "→" that nudges right on hover. */
-.arrow-link::after {
-  content: " →";
-  display: inline-block;
-  transition: transform 120ms ease;
-}
-.arrow-link:hover::after { transform: translateX(3px); }
-
-/* ---------- 5. Layout ---------- */
-.container { max-width: 1180px; }
-main.container { padding-top: var(--s-7); padding-bottom: var(--s-8); }
+pre code { background: transparent; border: 0; padding: 0; }
 
 hr {
   border: 0;
   height: 1px;
-  background: var(--paper-rule);
+  background: var(--border);
   opacity: 1;
   margin: var(--s-6) 0;
 }
 
-/* Section rule — a row of em-dashes typed across the page. */
-.section-rule {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  margin: var(--s-7) 0 var(--s-5);
-  font-family: var(--font-body);
-  color: var(--ink-mute);
-  font-size: var(--t-2);
-  letter-spacing: 0.05em;
+small, .small { font-size: var(--t-sm); }
+
+/* ---------- 5. Layout ---------- */
+.container { max-width: 1200px; }
+main.container {
+  padding-top: var(--s-7);
+  padding-bottom: var(--s-9);
 }
-.section-rule::before { content: "──────"; color: var(--copper); letter-spacing: -2px; }
-.section-rule::after  { content: ""; flex: 1; height: 1px; background: var(--paper-rule); }
+
+/* Section panel — a generic surface card for grouping content. Use this
+   in place of "border rounded p-3 bg-light-subtle" patterns. */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-5);
+}
+.panel--padded { padding: var(--s-6); }
+.panel + .panel { margin-top: var(--s-4); }
 
 /* ---------- 6. Navbar ---------- */
 .navbar {
-  background: transparent !important;
-  border-bottom: 1px solid var(--paper-rule);
-  padding-top: var(--s-4);
-  padding-bottom: var(--s-4);
-  backdrop-filter: blur(6px);
-  position: relative;
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--border);
+  padding-top: var(--s-3);
+  padding-bottom: var(--s-3);
 }
-.navbar::after {
-  /* Tape-feed accent — three short copper marks at the left of the
-     bottom rule. Recalls the perforations on a paper teletype feed. */
-  content: "";
-  position: absolute;
-  left: var(--s-4);
-  bottom: -1px;
-  width: 80px;
-  height: 1px;
-  background:
-    linear-gradient(to right, var(--copper) 0 22%, transparent 22% 33%,
-                              var(--copper) 33% 55%, transparent 55% 66%,
-                              var(--copper) 66% 88%, transparent 88% 100%);
-}
-.navbar .container { max-width: 1180px; }
+.navbar .container { max-width: 1200px; }
 
 .navbar-brand {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 700;
-  font-size: var(--t-4);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ink);
+  font-size: var(--t-lg);
+  letter-spacing: -0.01em;
+  color: var(--fg) !important;
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
 }
-.navbar-brand:hover { color: var(--ink); }
+.navbar-brand:hover { color: var(--accent-strong) !important; }
 .navbar-brand::before {
-  /* Prompt mark — a typewriter-style guillemet that anchors the wordmark. */
-  content: "» ";
-  color: var(--copper);
-  font-weight: 800;
+  /* Small rounded emerald square — a calm, modern mark.
+     Replaces the previous typewriter guillemet. */
+  content: "";
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r);
+  background: linear-gradient(135deg, #34d399 0%, var(--accent-strong) 100%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06),
+              0 1px 2px rgba(5,150,105,0.20);
 }
-
-.brand-mark {
-  /* Hidden in mono edition — the » prefix carries the visual stamp. */
-  display: none;
-}
+.brand-mark { display: none; }
 
 .navbar-nav .nav-link {
-  font-family: var(--font-body);
-  font-size: var(--t-2);
+  font-family: var(--font-sans);
+  font-size: var(--t-sm);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-soft) !important;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg-muted) !important;
   padding: var(--s-2) var(--s-3) !important;
-  position: relative;
-  transition: color 120ms ease;
+  border-radius: var(--r);
+  transition: color 120ms ease, background 120ms ease;
 }
 .navbar-nav .nav-link:hover,
 .navbar-nav .nav-link.active {
-  color: var(--ink) !important;
+  color: var(--fg) !important;
+  background: var(--surface-2);
 }
-.navbar-nav .nav-link:hover::after {
-  content: "";
-  position: absolute;
-  left: var(--s-3); right: var(--s-3);
-  bottom: 4px;
-  height: 1px;
-  background: var(--copper);
-}
-.navbar-nav .nav-item:last-child .nav-link { /* Sign-in / sign-out */ }
-.navbar .btn-primary { font-size: var(--t-1); }
+.navbar-nav .nav-link[href="/logout"] { color: var(--fg-muted) !important; }
+.navbar .btn-primary { font-size: var(--t-sm); padding: 0.45rem 0.9rem; min-height: 36px; }
 
-/* Admin dropdown — paper card with copper rule on left */
+/* Admin dropdown */
 .dropdown-menu {
-  background: var(--paper);
-  border: 1px solid var(--paper-rule);
-  border-radius: 0;
-  box-shadow:
-    -3px 0 0 0 var(--copper),
-    0 14px 32px -12px rgba(10, 19, 34, 0.22),
-    0 3px 8px rgba(10, 19, 34, 0.07);
-  padding: var(--s-2);
-  font-family: var(--font-body);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-3);
+  padding: var(--s-1);
+  font-family: var(--font-sans);
+  min-width: 220px;
 }
 .dropdown-item {
-  font-size: var(--t-2);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink) !important;
+  font-size: var(--t-sm);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg) !important;
   padding: var(--s-2) var(--s-3);
-  border-radius: 0;
+  border-radius: var(--r);
 }
 .dropdown-item:hover, .dropdown-item:focus {
-  background: var(--copper-fog);
-  color: var(--ink) !important;
+  background: var(--surface-2);
+  color: var(--fg) !important;
 }
-.dropdown-divider { border-color: var(--paper-rule); }
+.dropdown-divider { border-color: var(--border); margin: var(--s-1) 0; }
 
 /* ---------- 7. Buttons ---------- */
 .btn {
-  font-family: var(--font-body);
-  font-size: var(--t-2);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.55rem 1.2rem;
-  border-radius: 0;
-  border-width: 1px;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+  font-family: var(--font-sans);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 0.5rem 0.95rem;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  transition: background 120ms ease, color 120ms ease,
+              border-color 120ms ease, box-shadow 120ms ease,
+              transform 80ms ease;
+  white-space: nowrap;
 }
 .btn:active { transform: translateY(1px); }
+.btn:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
 
 .btn-primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
-  box-shadow: 3px 3px 0 0 var(--copper);   /* offset shadow — paper-stamp feel */
+  background: #18181b;
+  border-color: #18181b;
+  color: #ffffff;
 }
-.btn-primary:hover {
-  background: var(--copper-deep);
-  border-color: var(--copper-deep);
-  color: var(--paper);
-  box-shadow: 3px 3px 0 0 var(--ink);
-}
+.btn-primary:hover,
 .btn-primary:focus {
-  box-shadow: 3px 3px 0 0 var(--copper), 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+  background: #27272a;
+  border-color: #27272a;
+  color: #ffffff;
 }
 
 .btn-secondary {
-  background: transparent;
-  border-color: var(--ink);
-  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--fg);
 }
-.btn-secondary:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn-secondary:hover, .btn-secondary:focus {
+  background: var(--surface-2);
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
 
 .btn-outline-primary {
-  background: transparent;
-  border-color: var(--ink);
-  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--fg);
 }
-.btn-outline-primary:hover { background: var(--ink); color: var(--paper); }
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+  background: #18181b;
+  border-color: #18181b;
+  color: #ffffff;
+}
 
 .btn-outline-secondary, .btn-outline-info {
-  background: transparent;
-  border-color: var(--paper-rule);
-  color: var(--ink-soft);
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--fg-muted);
 }
 .btn-outline-secondary:hover, .btn-outline-info:hover {
-  border-color: var(--ink-soft);
-  color: var(--ink);
-  background: transparent;
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+.btn-outline-success {
+  background: var(--surface);
+  border-color: #a7f3d0;
+  color: var(--accent-strong);
+}
+.btn-outline-success:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .btn-outline-danger {
-  background: transparent;
-  border-color: var(--rust);
-  color: var(--rust);
+  background: var(--surface);
+  border-color: #fecaca;
+  color: var(--danger);
 }
-.btn-outline-danger:hover { background: var(--rust); color: var(--paper); }
+.btn-outline-danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.btn-outline-warning {
+  background: var(--surface);
+  border-color: #fde68a;
+  color: #b45309;
+}
+.btn-outline-warning:hover {
+  background: var(--warning);
+  border-color: var(--warning);
+  color: #fff;
+}
 
 .btn-link {
-  color: var(--copper-deep);
+  color: var(--accent-strong);
   text-decoration: none;
-  padding: 0;
-  text-transform: none;
-  letter-spacing: 0;
+  padding: 0.5rem 0.5rem;
+  border-color: transparent;
+  min-height: 40px;
 }
 .btn-link:hover {
-  color: var(--ink);
+  color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.btn-sm { font-size: var(--t-1); padding: 0.4rem 0.85rem; letter-spacing: 0.12em; }
+.btn-sm {
+  font-size: var(--t-xs);
+  padding: 0.32rem 0.7rem;
+  min-height: 32px;
+  border-radius: var(--r);
+}
+.btn-lg {
+  font-size: var(--t-base);
+  padding: 0.7rem 1.3rem;
+  min-height: 48px;
+}
 
 /* ---------- 8. Forms ---------- */
-.form-control, .form-select {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--paper-rule);
-  border-radius: 0;
-  padding: var(--s-2) 0;
-  font-family: var(--font-body);
-  font-size: var(--t-4);
-  color: var(--ink);
-  transition: border-color 120ms ease, background 120ms ease;
+/* Universal field wrapper — wraps a label + control + optional help.
+   Works for both manual <label>+<input> and Cake's Form->control() output. */
+.field,
+form .input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-bottom: var(--s-4);
+}
+/* Inside a Bootstrap grid row, gutters handle spacing — don't double up. */
+.row .field,
+.row form .input,
+.row .input {
+  margin-bottom: 0;
+}
+
+/* Inline checkbox/radio rows */
+form .input.checkbox,
+form .input.radio {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--s-2);
+}
+form .input.checkbox label,
+form .input.radio label {
+  margin: 0;
+}
+
+/* The control itself — covers Cake and Bootstrap variants alike */
+.form-control, .form-select,
+input.form-control, textarea.form-control,
+select.form-control {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.55rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: var(--t-base);
+  color: var(--fg);
+  min-height: 40px;
+  line-height: 1.5;
+  box-shadow: var(--sh-1);
+  transition: border-color 120ms ease, box-shadow 120ms ease,
+              background 120ms ease;
+}
+textarea.form-control {
+  min-height: 96px;
+  line-height: 1.55;
+  padding: 0.55rem 0.75rem;
+  resize: vertical;
+}
+.form-control:hover,
+.form-select:hover {
+  border-color: var(--border-strong);
 }
 .form-control:focus, .form-select:focus {
-  border-bottom-color: var(--copper);
-  border-bottom-width: 2px;
-  margin-bottom: -1px;
-  box-shadow: none;
-  background: transparent;
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  background: var(--surface);
 }
-.form-control::placeholder {
-  color: var(--ink-mute);
-  font-style: normal;
+.form-control::placeholder { color: var(--fg-subtle); }
+.form-control:disabled,
+.form-control[readonly] {
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  cursor: not-allowed;
 }
 
-.form-control-sm, .form-select-sm { font-size: var(--t-3); padding: 0.35rem 0; }
+.form-control-sm, .form-select-sm {
+  font-size: var(--t-sm);
+  padding: 0.38rem 0.6rem;
+  min-height: 34px;
+  border-radius: var(--r);
+}
+.form-control-lg {
+  font-size: var(--t-lg);
+  padding: 0.7rem 0.95rem;
+  min-height: 48px;
+}
 
-.form-label {
-  font-family: var(--font-body);
-  font-size: var(--t-1);
+/* Labels — same shape whether hand-rolled or generated by Cake */
+.form-label,
+form .input > label,
+form label.col-form-label {
+  font-family: var(--font-sans);
+  font-size: var(--t-sm);
   font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin-bottom: 0.25rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--fg);
+  margin: 0;
+  display: block;
 }
-.form-label.small { font-size: var(--t-1); }
-.form-text { color: var(--ink-mute); font-size: var(--t-2); font-weight: 400; }
+.form-label.small,
+.form-label-sm {
+  font-size: var(--t-xs);
+  color: var(--fg-muted);
+}
+/* The standard "required" marker — used as <span class="req">*</span> */
+.req, .form-label .text-danger, .form-label-required::after {
+  color: var(--danger);
+  font-weight: 500;
+  margin-left: 2px;
+}
 
+/* Help text under a field */
+.form-text,
+.form-help,
+form .input + .form-text {
+  font-size: var(--t-xs);
+  color: var(--fg-subtle);
+  margin: 0;
+  line-height: 1.55;
+}
+.form-text.text-success,
+.form-help.text-success { color: var(--accent-strong); }
+.form-text.text-warning { color: var(--warning); }
+.form-text.text-danger,
+.form-text.text-muted { color: var(--fg-subtle); }
+
+/* Error from Cake's validation helper */
+.error-message,
+.field-error {
+  color: var(--danger);
+  font-size: var(--t-xs);
+  margin: 0;
+  line-height: 1.55;
+}
+.form-control.is-invalid,
+.error-message + input,
+.error-message + select,
+.error-message + textarea {
+  border-color: var(--danger);
+}
+.form-control.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.22);
+}
+
+/* Checkboxes & radios — Bootstrap defaults with the new palette */
+.form-check {
+  padding-left: 1.5em;
+  margin-bottom: var(--s-2);
+}
 .form-check-input {
-  border-color: var(--ink-soft);
-  background-color: transparent;
-  border-radius: 0;
+  border: 1px solid var(--border-strong);
+  background-color: var(--surface);
+  border-radius: var(--r-sm);
+  width: 1.05em;
+  height: 1.05em;
+  margin-top: 0.28em;
+  margin-left: -1.5em;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
 }
+.form-check-input[type="radio"] { border-radius: 999px; }
+.form-check-input:hover { border-color: var(--accent); }
 .form-check-input:checked {
-  background-color: var(--ink);
-  border-color: var(--ink);
+  background-color: var(--accent);
+  border-color: var(--accent);
 }
-.form-check-input:focus { box-shadow: 0 0 0 2px var(--copper-fog); }
-.form-check-label { font-size: var(--t-3); color: var(--ink); }
+.form-check-input:focus {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-color: var(--accent);
+}
+.form-check-label {
+  font-size: var(--t-sm);
+  color: var(--fg);
+  line-height: 1.5;
+  cursor: pointer;
+}
 
-input[type="file"].form-control { padding-top: 0.4rem; padding-bottom: 0.4rem; }
+input[type="file"].form-control {
+  padding: 0.32rem 0.5rem;
+  cursor: pointer;
+}
+input[type="file"].form-control::file-selector-button {
+  margin-right: var(--s-3);
+  padding: 0.3rem 0.7rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  font-size: var(--t-sm);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+input[type="file"].form-control::file-selector-button:hover {
+  background: var(--surface-3);
+}
+
 input[type="color"].form-control-color {
-  padding: 0;
-  border: 1px solid var(--paper-rule);
-  border-radius: 0;
-  height: 2rem;
-  width: 3rem;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  height: 38px;
+  width: 56px;
+  cursor: pointer;
 }
 
-/* btn-check (radio-button-styled) — the QSO type / transport toggles */
+/* btn-check (segmented control — QSO type toggle) */
 .btn-check + .btn {
-  background: transparent;
-  border-color: var(--paper-rule);
-  color: var(--ink-soft);
-  box-shadow: none;
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+.btn-check + .btn:hover {
+  background: var(--surface-2);
+  color: var(--fg);
 }
 .btn-check:checked + .btn {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
-  box-shadow: 3px 3px 0 0 var(--copper);
+  background: #18181b;
+  border-color: #18181b;
+  color: #ffffff;
+}
+.btn-check:focus-visible + .btn {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.btn-group .btn-check + .btn { border-radius: 0; }
+.btn-group .btn-check:first-child + .btn { border-top-left-radius: var(--r-md); border-bottom-left-radius: var(--r-md); }
+.btn-group .btn-check:last-of-type + .btn { border-top-right-radius: var(--r-md); border-bottom-right-radius: var(--r-md); }
+
+/* Form fieldset — grouped sub-section inside a form (e.g. Net details) */
+.form-fieldset {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-4) var(--s-5) var(--s-5);
+  margin: var(--s-3) 0 var(--s-2);
+  box-shadow: var(--sh-1);
+}
+.form-fieldset > .form-fieldset__legend,
+.form-fieldset > legend {
+  font-family: var(--font-sans);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin: 0 0 var(--s-3);
+  padding: 0;
+  width: auto;
+  float: none;
+  border: 0;
+  display: block;
 }
 
 /* ---------- 9. Tables ---------- */
 .table {
-  --bs-table-bg: transparent;
-  --bs-table-color: var(--ink);
-  --bs-table-border-color: var(--paper-rule);
-  --bs-table-striped-bg: rgba(182, 96, 30, 0.04);
-  font-size: var(--t-3);
-  font-family: var(--font-body);
-  border-collapse: collapse;
-  margin-bottom: var(--s-5);
+  --bs-table-bg:           transparent;
+  --bs-table-color:        var(--fg);
+  --bs-table-border-color: var(--border);
+  font-size: var(--t-sm);
+  margin-bottom: var(--s-6);
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
 }
 .table thead th {
-  font-family: var(--font-body);
   font-weight: 600;
-  font-size: var(--t-1);
-  letter-spacing: 0.16em;
+  font-size: var(--t-xs);
   text-transform: uppercase;
-  color: var(--ink-soft);
-  background: transparent;
-  border-bottom: 1px solid var(--ink-soft);
-  padding: var(--s-3) var(--s-2);
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: var(--s-3) var(--s-4);
+  white-space: nowrap;
 }
 .table tbody td {
-  padding: var(--s-3) var(--s-2);
-  border-bottom: 1px solid var(--paper-rule);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
+  background: var(--surface);
 }
 .table tbody tr:last-child td { border-bottom: 0; }
-.table tbody tr:hover { background: rgba(182, 96, 30, 0.05); }
-
-/* Callsigns stay in the same mono face — no font switch needed. */
-.table td strong { font-weight: 700; color: var(--ink); }
+.table tbody tr:hover td { background: var(--surface-2); }
+.table-striped tbody tr:nth-of-type(odd) td { background: var(--surface-2); }
+.table-striped tbody tr:hover td { background: var(--surface-3); }
 
 /* ---------- 10. Cards ---------- */
 .card {
-  background: transparent;
-  border: 1px solid var(--paper-rule);
-  border-radius: 0;
-  box-shadow: none;
-  transition: box-shadow 200ms ease, transform 200ms ease;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+  transition: box-shadow 160ms ease, border-color 160ms ease,
+              transform 160ms ease;
+}
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--sh-2);
 }
 .card-body { padding: var(--s-5); }
-.card-img-top { border-radius: 0; }
-.card-title { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
-.card-text { font-size: var(--t-3); color: var(--ink-soft); }
-
-/* ---------- 11. Badges, alerts ---------- */
-.badge {
-  font-family: var(--font-body);
+.card-title {
   font-weight: 600;
-  font-size: var(--t-1);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  border-radius: 0;
-  padding: 0.3em 0.7em;
-  background: transparent !important;
-  border: 1px solid currentColor;
+  font-size: var(--t-lg);
+  letter-spacing: -0.01em;
+  margin-bottom: var(--s-1);
+  color: var(--fg);
 }
-.badge::before { content: "["; opacity: 0.5; margin-right: 2px; }
-.badge::after  { content: "]"; opacity: 0.5; margin-left: 2px; }
-.badge.bg-info { color: var(--copper-deep); }
-.badge.bg-success { color: var(--leaf); }
-.badge.bg-secondary, .badge.bg-light { color: var(--ink-soft); }
-.badge.bg-danger { color: var(--rust); }
-.badge.bg-warning { color: #a07410; }
+.card-text { font-size: var(--t-sm); color: var(--fg-muted); line-height: 1.6; }
+.card-img-top { border-bottom: 1px solid var(--border); }
+
+/* ---------- 11. Badges & alerts ---------- */
+.badge {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 999px;
+  padding: 0.22em 0.65em;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+.badge.bg-info       { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
+.badge.bg-success    { background: var(--accent-soft); color: var(--accent-strong); border-color: #a7f3d0; }
+.badge.bg-secondary,
+.badge.bg-light      { background: var(--surface-2); color: var(--fg-muted); border-color: var(--border); }
+.badge.bg-danger     { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+.badge.bg-warning    { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.badge.bg-dark       { background: #1f1f23; color: #fff; border-color: #1f1f23; }
 
 .alert {
-  background: transparent;
-  border-radius: 0;
-  border: 0;
-  border-left: 3px solid var(--copper);
-  padding: var(--s-4) var(--s-5);
-  font-size: var(--t-3);
-  font-family: var(--font-body);
-  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  font-size: var(--t-sm);
+  line-height: 1.6;
+  color: var(--fg);
 }
-.alert::before {
-  /* Section mark in the gutter, like a manuscript margin note. */
-  content: "¶";
-  position: absolute;
-  left: -1px; top: var(--s-3);
-  background: var(--paper);
-  width: 3px;
-  height: 18px;
-  text-indent: -3px;
-  color: var(--copper);
-  font-size: var(--t-3);
-  line-height: 18px;
-  font-weight: 700;
-}
-.alert-info { border-left-color: var(--copper); }
-.alert-success { border-left-color: var(--leaf); }
-.alert-success::before { color: var(--leaf); }
-.alert-warning { border-left-color: #c08b18; }
-.alert-warning::before { color: #c08b18; }
-.alert-danger { border-left-color: var(--rust); }
-.alert-danger::before { color: var(--rust); }
-.alert-light { border-left-color: var(--paper-rule); color: var(--ink-soft); }
-.alert-light::before { color: var(--paper-rule); }
+.alert a { font-weight: 500; }
+.alert-info    { border-left-color: var(--info);    background: var(--info-soft);    border-color: #bae6fd; }
+.alert-success { border-left-color: var(--success); background: var(--success-soft); border-color: #a7f3d0; }
+.alert-warning { border-left-color: var(--warning); background: var(--warning-soft); border-color: #fde68a; }
+.alert-danger  { border-left-color: var(--danger);  background: var(--danger-soft);  border-color: #fecaca; }
+.alert-light   { border-left-color: var(--border-strong); }
 
-/* ---------- 12. Page-specific touches ---------- */
-
-/* Card preview / share landing — paper stamp shadow */
+/* ---------- 12. Card preview & list affordances ---------- */
 .card-preview {
   display: block;
   max-width: 100%;
   height: auto;
-  border-radius: 0;
-  background: var(--paper);
-  box-shadow:
-    0 0 0 1px var(--paper-rule),
-    8px 8px 0 0 var(--copper-fog),
-    0 24px 48px -18px rgba(10, 19, 34, 0.18);
-  transition: transform 300ms cubic-bezier(0.2, 0, 0.1, 1), box-shadow 300ms ease;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-3);
+  transition: box-shadow 200ms ease, transform 200ms ease;
 }
 .card-preview:hover {
-  transform: translateY(-3px);
-  box-shadow:
-    0 0 0 1px var(--ink-soft),
-    8px 8px 0 0 var(--copper),
-    0 28px 56px -16px rgba(10, 19, 34, 0.24);
-}
-
-/* Card library grid — paper photos pinned, with offset shadows */
-.row.g-3 > .col-md-4 > .card {
-  position: relative;
-}
-.row.g-3 > .col-md-4 > .card:hover {
   transform: translateY(-2px);
-  box-shadow: 4px 4px 0 0 var(--copper-fog), 0 6px 14px -4px rgba(10, 19, 34, 0.12);
+  box-shadow: var(--sh-4);
 }
 
 .list-group-item {
-  background: transparent;
-  border-color: var(--paper-rule);
-  font-family: var(--font-body);
-  font-size: var(--t-3);
+  background: var(--surface);
+  border-color: var(--border);
+  font-size: var(--t-sm);
+  padding: var(--s-3) var(--s-4);
 }
-.list-group-item:hover { background: var(--copper-fog); }
+.list-group-item:hover { background: var(--surface-2); }
 
-/* Pagination — typed page numbers with dot separators */
+/* ---------- 13. Pagination ---------- */
 .page-item .page-link {
-  color: var(--ink-soft);
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0.5rem 0.7rem;
-  font-family: var(--font-body);
-  font-size: var(--t-3);
+  color: var(--fg-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin: 0 2px;
+  padding: 0.4rem 0.75rem;
+  font-size: var(--t-sm);
+  min-width: 36px;
+  text-align: center;
   font-weight: 500;
 }
 .page-item .page-link:hover {
-  background: transparent;
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  text-decoration-color: var(--copper);
+  background: var(--surface-2);
+  color: var(--fg);
+  border-color: var(--border-strong);
 }
 .page-item.active .page-link {
-  background: transparent;
-  color: var(--ink);
-  font-weight: 700;
-  position: relative;
+  background: #18181b;
+  border-color: #18181b;
+  color: #fff;
 }
-.page-item.active .page-link::after {
+.page-item.disabled .page-link { color: var(--fg-subtle); cursor: not-allowed; }
+
+/* ---------- 14. Display headings (stat tiles) ---------- */
+.display-1, .display-2, .display-3,
+.display-4, .display-5, .display-6 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  color: var(--fg);
+}
+.display-6 { font-size: var(--t-5xl); margin: var(--s-2) 0; }
+
+/* ---------- 15. Modal ---------- */
+.modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+.modal-header {
+  border-bottom: 1px solid var(--border);
+  padding: var(--s-4) var(--s-5);
+}
+.modal-body { padding: var(--s-5); }
+.modal-footer { border-top: 1px solid var(--border); padding: var(--s-4) var(--s-5); gap: var(--s-2); }
+.modal-title { font-weight: 600; font-size: var(--t-lg); margin: 0; }
+
+/* ---------- 16. Disclosure (details/summary) ---------- */
+details {
+  border-radius: var(--r);
+}
+details > summary {
+  cursor: pointer;
+  font-weight: 500;
+  font-size: var(--t-sm);
+  padding: var(--s-2) 0;
+  color: var(--fg);
+  list-style: none;
+  position: relative;
+  padding-left: 1.25em;
+  transition: color 120ms ease;
+}
+details > summary:hover { color: var(--accent-strong); }
+details > summary::before {
   content: "";
   position: absolute;
-  left: 50%; bottom: 4px;
-  width: 16px; height: 2px;
-  background: var(--copper);
-  transform: translateX(-50%);
+  left: 2px;
+  top: 50%;
+  margin-top: -3px;
+  width: 6px; height: 6px;
+  border-right: 1.5px solid var(--fg-muted);
+  border-bottom: 1.5px solid var(--fg-muted);
+  transform: rotate(-45deg);
+  transition: transform 120ms ease;
+}
+details[open] > summary::before {
+  transform: rotate(45deg) translate(2px, -2px);
+}
+details > summary::-webkit-details-marker { display: none; }
+
+/* ---------- 17. Progress ---------- */
+.progress {
+  background: var(--surface-2);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+.progress-bar {
+  background: var(--accent);
+  color: transparent;
+  transition: width 200ms ease;
 }
 
-/* "Display 6" — used on cleanup tile counts — typed-figure treatment */
-.display-6 {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: var(--t-10);
-  line-height: 0.95;
-  letter-spacing: -0.05em;
-  color: var(--ink);
-  margin: var(--s-3) 0;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Existing app.css already defined .card-preview; we override above. */
+/* ---------- 18. Misc utilities ---------- */
 [x-cloak] { display: none !important; }
-.field-error { color: var(--rust); font-size: var(--t-2); font-weight: 500; }
 
-.row.g-3 { row-gap: var(--s-5); }
+.bg-light-subtle { background: var(--surface-2) !important; }
+.text-muted, .text-secondary { color: var(--fg-subtle) !important; }
+.text-success { color: var(--accent-strong) !important; }
+.text-danger  { color: var(--danger) !important; }
+.text-warning { color: #b45309 !important; }
+.text-info    { color: #075985 !important; }
 
-/* ---------- 13. Footer ---------- */
+/* "kbd"-styled status chip */
+.status {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  padding: 0.2em 0.6em;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+}
+
+/* ---------- 19. Focus rings (catch-all) ---------- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r);
+}
+.btn:focus-visible,
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  outline: 0;
+}
+
+/* ---------- 20. Footer ---------- */
 .site-footer {
   margin-top: var(--s-9);
   padding: var(--s-7) 0 var(--s-8);
-  font-family: var(--font-body);
-  font-size: var(--t-2);
-  color: var(--ink-mute);
-  position: relative;
+  font-size: var(--t-sm);
+  color: var(--fg-muted);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
 }
-.site-footer .container { position: relative; }
-.site-footer__rule {
-  display: block;
-  height: 1px;
-  background: var(--paper-rule);
-  margin-bottom: var(--s-5);
-  position: relative;
-}
-.site-footer__rule::before {
-  /* Three copper marks tracking left to right, like sprocket holes */
-  content: "";
-  position: absolute;
-  top: -1px; left: 0;
-  width: 120px;
-  height: 3px;
-  background:
-    linear-gradient(to right, var(--copper) 0 18%, transparent 18% 32%,
-                              var(--copper) 32% 50%, transparent 50% 64%,
-                              var(--copper) 64% 82%, transparent 82% 100%);
-}
-.site-footer p { margin: 0; line-height: 1.7; letter-spacing: 0.02em; }
+.site-footer__rule { display: none; }
+.site-footer p { margin: 0; line-height: 1.7; }
 .site-footer .eyebrow { display: block; margin-bottom: var(--s-2); }
 .site-footer a {
-  color: var(--ink-soft);
-  border-bottom: 1px solid var(--paper-rule);
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
   padding-bottom: 1px;
 }
 .site-footer a:hover {
-  color: var(--ink);
-  border-bottom-color: var(--copper);
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent);
   text-decoration: none;
 }
 .footer-mono {
   font-family: var(--font-mono);
   font-size: 0.92em;
-  color: var(--ink-soft);
-  background: var(--copper-fog);
-  padding: 1px 5px;
+  color: var(--fg-muted);
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
 }
 
-/* ---------- 14. Light scrollbar ---------- */
+/* ---------- 21. Scrollbars ---------- */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--paper-rule) transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
-*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: var(--paper-rule); border-radius: 0; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 2px solid var(--bg);
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--fg-subtle); }
 
-/* ---------- 15. Focus rings ---------- */
-:focus-visible {
-  outline: 2px solid var(--copper);
-  outline-offset: 2px;
-  border-radius: 0;
+/* ---------- 22. Print ---------- */
+@media print {
+  body { background: white; }
+  .navbar, .site-footer, .btn { display: none; }
 }
 
-/* ---------- 16. Print ---------- */
-@media print {
-  body { background: white; background-image: none; }
-  .navbar, .site-footer, .btn { display: none; }
-  h1::after, .site-footer__rule::before, .navbar::after { display: none; }
+/* ---------- 23. Responsive type ---------- */
+@media (max-width: 640px) {
+  h1, .h1 { font-size: var(--t-3xl); }
+  h2, .h2 { font-size: var(--t-xl); }
+  main.container { padding-top: var(--s-5); }
+  .btn { min-height: 44px; }   /* slightly larger on small screens */
+  .form-control, .form-select { min-height: 44px; }
 }
