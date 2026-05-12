@@ -123,7 +123,11 @@ final class CardsControllerIndexTest extends TestCase
         $this->seedUserAndLogin();
         $this->get('/cards');
         $this->assertResponseOk();
-        $this->assertResponseContains("haven't generated any cards");
+        // The empty_state ui element h()-escapes its message, so the
+        // apostrophe in "haven't" renders as &#039;. Assert on a substring
+        // either side of the escape so the test stays robust to message
+        // tweaks.
+        $this->assertResponseContains('generated any cards');
     }
 
     public function testShareBadges(): void

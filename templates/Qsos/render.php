@@ -1,10 +1,12 @@
+<?php
+$callsignHtml = $this->element('ui/callsign', ['call' => $qso->call_worked]);
+$detailLine = 'QSO with ' . $callsignHtml
+    . ' on ' . h($qso->qso_datetime_utc?->format('Y-m-d H:i')) . ' UTC'
+    . ($qso->band ? ' · ' . h($qso->band) : '')
+    . ($qso->mode ? ' · ' . h($qso->mode) : '');
+?>
 <h1><?= h($title) ?></h1>
-<p>
-  QSO with <strong><?= h($qso->call_worked) ?></strong>
-  on <?= h($qso->qso_datetime_utc?->format('Y-m-d H:i')) ?> UTC
-  <?php if ($qso->band): ?>· <?= h($qso->band) ?><?php endif; ?>
-  <?php if ($qso->mode): ?>· <?= h($qso->mode) ?><?php endif; ?>
-</p>
+<p><?= $detailLine ?></p>
 
 <?= $this->Form->create(null, ['type' => 'file']) ?>
 

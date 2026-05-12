@@ -1,15 +1,16 @@
 <?php $isNet = ($qso->qso_type ?? 'contact') === 'net'; ?>
-<h1>
-  <?= $isNet ? 'Net check-in by' : 'QSO with' ?>
-  <span class="callsign"><?= h($qso->call_worked) ?></span>
-  <?php if ($isNet): ?>
-    <span class="badge bg-info ms-2">NET</span>
-  <?php endif; ?>
-</h1>
-<p>
-  Logged on <?= h($qso->qso_datetime_utc?->format('Y-m-d H:i')) ?> UTC
-  via <?= h(\App\Service\Transport::label($qso->transport ?? null)) ?>.
-</p>
+<?php
+$h1 = ($isNet ? 'Net check-in by ' : 'QSO with ')
+    . $this->element('ui/callsign', ['call' => $qso->call_worked])
+    . ' '
+    . $this->element('ui/badge_qso_type', ['qso' => $qso]);
+?>
+<?= $this->element('ui/page_header', [
+    'title' => $h1,
+    'lede'  => 'Logged on ' . h($qso->qso_datetime_utc?->format('Y-m-d H:i')) . ' UTC via '
+               . h(\App\Service\Transport::label($qso->transport ?? null)) . '.',
+    'escape_title' => false,
+]) ?>
 
 <?php if ($isNet): ?>
   <h2 class="h5">Net details</h2>

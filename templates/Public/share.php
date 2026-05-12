@@ -30,7 +30,7 @@ $absolutePng = $this->Url->build($pngUrl, ['fullBase' => true]);
 <meta name="twitter:card" content="summary_large_image">
 <?php $this->end(); ?>
 
-<h1>eQSL card from <?= h($operatorCallsign ?: '—') ?></h1>
+<h1>eQSL card from <?= $this->element('ui/callsign', ['call' => $operatorCallsign]) ?></h1>
 <p>Shared eQSL — download the image or PDF below, or scroll to see the full QSO record.</p>
 
 <img class="card-preview" src="<?= h($pngUrl) ?>" alt="eQSL card from <?= h($operatorCallsign) ?>">
@@ -42,8 +42,8 @@ $absolutePng = $this->Url->build($pngUrl, ['fullBase' => true]);
 
 <h2 class="h5 mt-5">QSO details</h2>
 <dl class="row dl-stack">
-  <dt class="col-sm-3">Confirmed by</dt><dd class="col-sm-9"><span class="callsign"><?= h($operatorCallsign ?: '—') ?></span></dd>
-  <dt class="col-sm-3">For QSO with</dt><dd class="col-sm-9"><span class="callsign"><?= h($qsoData['callsign'] ?? '—') ?></span></dd>
+  <dt class="col-sm-3">Confirmed by</dt><dd class="col-sm-9"><?= $this->element('ui/callsign', ['call' => $operatorCallsign]) ?></dd>
+  <dt class="col-sm-3">For QSO with</dt><dd class="col-sm-9"><?= $this->element('ui/callsign', ['call' => $qsoData['callsign'] ?? '']) ?></dd>
   <dt class="col-sm-3">Date / Time UTC</dt><dd class="col-sm-9"><?= h($qsoData['qso_datetime_utc'] ?? '') ?></dd>
   <dt class="col-sm-3">Frequency</dt><dd class="col-sm-9"><?= h($qsoData['frequency_mhz'] ?? '') ?> MHz</dd>
   <dt class="col-sm-3">Band / Mode</dt><dd class="col-sm-9"><?= h($qsoData['band'] ?? '') ?> / <?= h($qsoData['mode'] ?? '') ?></dd>

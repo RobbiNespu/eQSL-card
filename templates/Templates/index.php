@@ -17,7 +17,7 @@
   $renderGrid = function ($collection, $tabName, $emptyMessage, $showEdit, $showClone) { ?>
     <div role="tabpanel" x-show="tab === <?= "'" . h($tabName) . "'" ?>" x-cloak>
       <?php if ($collection->count() === 0): ?>
-        <div class="alert alert-info"><?= h($emptyMessage) ?></div>
+        <?= $this->element('ui/empty_state', ['message' => $emptyMessage]) ?>
       <?php else: ?>
         <div class="row g-3">
           <?php foreach ($collection as $t): ?>

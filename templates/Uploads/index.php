@@ -1,10 +1,14 @@
-<h1><?= h($title) ?></h1>
-<p class="text-muted">Background images you've uploaded. Pick any of these in <a href="/qsos">render-from-QSO</a> to skip re-uploading.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => "Background images you've uploaded. Pick any of these when you render an eQSL to skip re-uploading.",
+]) ?>
 
 <?php if ($uploads->count() === 0): ?>
-  <div class="alert alert-info">
-    No backgrounds yet. Upload one via the <a href="/qsos">render-from-QSO flow</a> or the <a href="/">guest form</a> and it'll appear here.
-  </div>
+  <?= $this->element('ui/empty_state', [
+      'message'   => 'No backgrounds yet.',
+      'cta_url'   => '/qsos',
+      'cta_label' => 'Upload one via the render-from-QSO flow',
+  ]) ?>
 <?php else: ?>
   <div class="row g-3">
     <?php foreach ($uploads as $u): ?>

@@ -1,23 +1,21 @@
-<h1><?= h($title) ?></h1>
-<p>Every eQSL you've generated. Click one to view, share, or download.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => "Every eQSL you've generated. Click one to view, share, or download.",
+]) ?>
 
 <?php if ($cards->count() === 0): ?>
-  <div class="alert alert-info">You haven't generated any cards yet. <a href="/qsos">Render one from a QSO &rarr;</a></div>
+  <?= $this->element('ui/empty_state', [
+      'message'   => "You haven't generated any cards yet.",
+      'cta_url'   => '/qsos',
+      'cta_label' => 'Render one from a QSO',
+  ]) ?>
 <?php else: ?>
   <div class="row g-3">
     <?php foreach ($cards as $card): ?>
       <div class="col-md-4">
         <div class="card h-100">
-          <?php
-          // Thumbnails are written alongside the full card as <uuid>.thumb.webp.
-          // Old cards rendered before this commit don't have one — fall back
-          // to the full image rather than a broken <img>.
-          $thumbPath = \App\Service\CardRenderer::thumbPathFor($card->png_path);
-          $thumbAbs = WWW_ROOT . $thumbPath;
-          $previewSrc = is_file($thumbAbs) ? $thumbPath : $card->png_path;
-          ?>
           <a href="/cards/<?= $card->id ?>">
-            <img src="/<?= h($previewSrc) ?>" class="card-img-top" alt="eQSL card preview" loading="lazy">
+            <?= $this->element('ui/card_thumb', ['card' => $card]) ?>
           </a>
           <div class="card-body">
             <?php $qsoData = json_decode((string)$card->qso_data_json, true) ?: []; ?>
@@ -27,13 +25,7 @@
               · <?= h($qsoData['band'] ?? '') ?>
               · <?= h($qsoData['mode'] ?? '') ?>
             </p>
-            <?php if ($card->share_revoked_at): ?>
-              <span class="badge bg-secondary">Share revoked</span>
-            <?php elseif ($card->share_slug): ?>
-              <span class="badge bg-success">Shared</span>
-            <?php else: ?>
-              <span class="badge bg-light">Private</span>
-            <?php endif; ?>
+            <?= $this->element('ui/badge_share_status', ['card' => $card]) ?>
           </div>
         </div>
       </div>

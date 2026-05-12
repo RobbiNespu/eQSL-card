@@ -45,7 +45,11 @@
       <a href="/cards" class="btn btn-link btn-sm">View all &rarr;</a>
     </div>
     <?php if ($recentCards->count() === 0): ?>
-      <div class="alert alert-light">No cards yet. <a href="/qsos">Render one from a QSO</a>.</div>
+      <?= $this->element('ui/empty_state', [
+          'message'   => 'No cards yet.',
+          'cta_url'   => '/qsos',
+          'cta_label' => 'Render one from a QSO',
+      ]) ?>
     <?php else: ?>
       <div class="row g-2">
         <?php foreach ($recentCards as $c): ?>
@@ -68,14 +72,18 @@
       <a href="/qsos" class="btn btn-link btn-sm">View all &rarr;</a>
     </div>
     <?php if ($recentQsos->count() === 0): ?>
-      <div class="alert alert-light">No QSOs yet. <a href="/qsos/new">Add one</a> or <a href="/qsos/import">import a log</a>.</div>
+      <?= $this->element('ui/empty_state', [
+          'message'   => 'No QSOs yet.',
+          'cta_url'   => '/qsos/new',
+          'cta_label' => 'Add one',
+      ]) ?>
     <?php else: ?>
       <table class="table table-sm">
         <thead><tr><th>Callsign</th><th>UTC</th><th>Band</th><th>Mode</th></tr></thead>
         <tbody>
           <?php foreach ($recentQsos as $q): ?>
             <tr>
-              <td><a href="/qsos/<?= $q->id ?>"><span class="callsign"><?= h($q->call_worked) ?></span></a></td>
+              <td><a href="/qsos/<?= $q->id ?>"><?= $this->element('ui/callsign', ['call' => $q->call_worked]) ?></a></td>
               <td><?= h($q->qso_datetime_utc?->format('Y-m-d H:i')) ?></td>
               <td><?= h($q->band) ?></td>
               <td><?= h($q->mode) ?></td>

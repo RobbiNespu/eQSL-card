@@ -1,5 +1,7 @@
-<h1><?= h($title) ?></h1>
-<p>Your station log. Filter by callsign, type, band, or date range, then render eQSL cards individually or in bulk.</p>
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => 'Your station log. Filter by callsign, type, band, or date range, then render eQSL cards individually or in bulk.',
+]) ?>
 
 <div class="d-flex gap-2 mb-3 flex-wrap">
   <a class="btn btn-primary" href="/qsos/new">+ New QSO</a>
@@ -57,7 +59,11 @@
 </form>
 
 <?php if ($qsos->count() === 0): ?>
-  <div class="alert alert-info">No QSOs match your filter. <a href="/qsos/new">Add one</a> or <a href="/qsos/import">import an ADIF / CSV log</a>.</div>
+  <?= $this->element('ui/empty_state', [
+      'message'   => 'No QSOs match your filter.',
+      'cta_url'   => '/qsos/new',
+      'cta_label' => 'Add one',
+  ]) ?>
 <?php else: ?>
 <div x-data="bulkRenderForm()">
   <div class="d-flex gap-2 mb-3 align-items-center">
@@ -85,14 +91,8 @@
         <td><input type="checkbox" :value="<?= $qso->id ?>" @change="toggleOne(<?= $qso->id ?>, $event.target.checked)"></td>
         <td>
           <strong><?= h($qso->call_worked) ?></strong>
-          <?php if (($qso->qso_type ?? 'contact') === 'net'): ?>
-            <span class="badge bg-info text-dark ms-1" title="Net check-in<?= $qso->net_title ? ': ' . h($qso->net_title) : '' ?>">NET</span>
-          <?php endif; ?>
-          <?php if (\App\Service\Transport::isInternet($qso->transport ?? null)): ?>
-            <span class="badge bg-secondary ms-1" title="<?= h(\App\Service\Transport::label($qso->transport)) ?><?= $qso->transport_meta ? ' · ' . h($qso->transport_meta) : '' ?>">
-              <?= h(strtoupper((string)$qso->transport)) ?>
-            </span>
-          <?php endif; ?>
+          <?= $this->element('ui/badge_qso_type', ['qso' => $qso]) ?>
+          <?= $this->element('ui/badge_transport', ['qso' => $qso]) ?>
         </td>
         <td><?= h($qso->qso_datetime_utc?->format('Y-m-d H:i')) ?></td>
         <td><?= h($qso->frequency_mhz) ?></td>

@@ -1,7 +1,8 @@
-<h1>Import logbook</h1>
-
 <?php if ($stage === 'upload'): ?>
-  <p>Upload an ADIF (.adi/.adif) or CSV (.csv) export from your logging program. We'll parse it locally, show you a summary, and only persist the rows you confirm.</p>
+  <?= $this->element('ui/page_header', [
+      'title' => 'Import logbook',
+      'lede'  => "Upload an ADIF (.adi/.adif) or CSV (.csv) export from your logging program. We'll parse it locally, show you a summary, and only persist the rows you confirm.",
+  ]) ?>
 
   <?= $this->Form->create(null, ['type' => 'file']) ?>
     <div class="field">
@@ -14,7 +15,10 @@
     </div>
   <?= $this->Form->end() ?>
 <?php else: ?>
-  <p>Review what the parser found, then confirm the import.</p>
+  <?= $this->element('ui/page_header', [
+      'title' => 'Import logbook',
+      'lede'  => 'Review what the parser found, then confirm the import.',
+  ]) ?>
 
   <h2 class="h5">Summary</h2>
   <ul>
