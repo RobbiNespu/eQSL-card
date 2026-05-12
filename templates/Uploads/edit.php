@@ -3,7 +3,7 @@
 
 <div class="row g-4">
   <div class="col-md-4">
-    <img src="/<?= h($upload->storage_path) ?>" alt="" class="img-fluid rounded">
+    <img src="/<?= h($upload->storage_path) ?>" alt="" class="img-fluid rounded" loading="lazy">
     <p class="form-text mt-2">
       <?= h($upload->original_filename) ?><br>
       <?= h($upload->width_px) ?>×<?= h($upload->height_px) ?> ·

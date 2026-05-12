@@ -5,7 +5,7 @@
   <div class="col-md-3">
     <h2 class="h5">Avatar</h2>
     <?php if ($user->avatar_path): ?>
-      <img src="/<?= h($user->avatar_path) ?>" alt="avatar" class="img-fluid rounded mb-3" style="max-width: 200px">
+      <img src="/<?= h($user->avatar_path) ?>" alt="avatar" class="img-fluid rounded mb-3" style="max-width: 200px" loading="lazy">
     <?php else: ?>
       <div class="bg-light text-center text-muted py-5 rounded mb-3">No avatar yet</div>
     <?php endif; ?>

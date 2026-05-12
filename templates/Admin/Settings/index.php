@@ -11,14 +11,14 @@
     <?php if ($hasCustomBg): ?>
       <p class="form-text mb-2"><strong>Active:</strong> admin override</p>
       <img src="/files/templates/_default-bg.jpg?v=<?= h(filemtime(WWW_ROOT . 'files/templates/_default-bg.jpg')) ?>"
-           class="img-fluid rounded" style="max-width: 240px" alt="default bg">
+           class="img-fluid rounded" style="max-width: 240px" alt="default bg" loading="lazy">
       <?= $this->Form->postLink('Reset to bundled default', '/admin/settings/background/reset', [
           'class'   => 'btn btn-sm btn-outline-danger mt-2',
           'confirm' => 'Delete admin override and fall back to the bundled background?',
       ]) ?>
     <?php elseif ($hasBundledBg): ?>
       <p class="form-text mb-2"><strong>Active:</strong> bundled fallback (<code>_demo-bg.jpg</code>)</p>
-      <img src="/files/templates/_demo-bg.jpg" class="img-fluid rounded" style="max-width: 240px" alt="bundled bg">
+      <img src="/files/templates/_demo-bg.jpg" class="img-fluid rounded" style="max-width: 240px" alt="bundled bg" loading="lazy">
     <?php else: ?>
       <p class="form-text text-danger">No background available — guests cannot generate eQSLs without uploading.</p>
     <?php endif; ?>

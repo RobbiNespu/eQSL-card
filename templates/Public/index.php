@@ -153,7 +153,7 @@
   <canvas x-ref="canvas" hidden></canvas>
   <button type="button" class="btn btn-secondary mt-2" @click="capture()">Capture</button>
   <input type="hidden" name="background_capture" x-model="captured">
-  <img class="card-preview mt-2" x-show="captured" :src="captured">
+  <img class="card-preview mt-2" x-show="captured" :src="captured" loading="lazy">
 </div>
 
 <!-- Attribution — only relevant when actually uploading or capturing. -->
