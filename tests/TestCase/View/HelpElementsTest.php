@@ -78,4 +78,39 @@ final class HelpElementsTest extends TestCase
         $this->assertStringNotContainsString('<script>', $out);
         $this->assertStringContainsString('&lt;script&gt;', $out);
     }
+
+    public function testScreenshotRendersImgWithAltAndCaption(): void
+    {
+        $out = $this->view->element('ui/screenshot', [
+            'src' => '/files/help/cards/render/template-picker.webp',
+            'alt' => 'The template picker',
+            'caption' => 'Pick a template from the system gallery.',
+        ]);
+        $this->assertStringContainsString('src="/files/help/cards/render/template-picker.webp"', $out);
+        $this->assertStringContainsString('alt="The template picker"', $out);
+        $this->assertStringContainsString('Pick a template from the system gallery.', $out);
+        $this->assertStringContainsString('loading="lazy"', $out);
+    }
+
+    public function testScreenshotRendersDarkVariantWhenProvided(): void
+    {
+        $out = $this->view->element('ui/screenshot', [
+            'src' => '/files/help/cards/render/template-picker.webp',
+            'darkSrc' => '/files/help/cards/render/template-picker.dark.webp',
+            'alt' => 'The template picker',
+        ]);
+        $this->assertStringContainsString('template-picker.webp', $out);
+        $this->assertStringContainsString('template-picker.dark.webp', $out);
+        // Two <img> tags — one for each theme.
+        $this->assertSame(2, substr_count($out, '<img'));
+    }
+
+    public function testScreenshotOmitsCaptionWhenNotGiven(): void
+    {
+        $out = $this->view->element('ui/screenshot', [
+            'src' => '/files/help/foo.webp',
+            'alt' => 'foo',
+        ]);
+        $this->assertStringNotContainsString('<figcaption', $out);
+    }
 }
