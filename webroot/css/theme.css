@@ -321,6 +321,46 @@ main.container {
 .navbar-nav .nav-link[href="/logout"] { color: var(--fg-muted) !important; }
 .navbar .btn-primary { font-size: var(--t-sm); padding: 0.45rem 0.9rem; min-height: 36px; }
 
+/* Hamburger toggler — visible below the lg breakpoint */
+.navbar-toggler {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 0.4rem 0.55rem;
+  background: var(--surface);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.navbar-toggler:hover { background: var(--surface-2); border-color: var(--border-strong); }
+.navbar-toggler:focus { box-shadow: 0 0 0 3px var(--accent-ring); }
+.navbar-toggler-icon {
+  /* Three thin black bars — replaces Bootstrap's default SVG which is
+     light gray on a dark fill that clashes with the white navbar. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke='%2318181b' stroke-width='2' stroke-linecap='round' d='M4 8h22M4 15h22M4 22h22'/></svg>");
+  width: 22px; height: 22px;
+}
+
+/* Collapsed menu — stack links full-width with comfortable spacing */
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--border);
+  }
+  .navbar-nav { gap: 2px; }
+  .navbar-nav .nav-link {
+    padding: var(--s-3) var(--s-3) !important;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .navbar-nav .dropdown-menu {
+    border: 0;
+    box-shadow: none;
+    padding-left: var(--s-3);
+    background: transparent;
+  }
+  .navbar .btn-primary { width: 100%; justify-content: center; margin-top: var(--s-2); }
+}
+
 /* Admin dropdown */
 .dropdown-menu {
   background: var(--surface);
@@ -1033,11 +1073,59 @@ details > summary::-webkit-details-marker { display: none; }
   .navbar, .site-footer, .btn { display: none; }
 }
 
-/* ---------- 23. Responsive type ---------- */
+/* ---------- 23. Responsive ---------- */
 @media (max-width: 640px) {
   h1, .h1 { font-size: var(--t-3xl); }
   h2, .h2 { font-size: var(--t-xl); }
-  main.container { padding-top: var(--s-5); }
-  .btn { min-height: 44px; }   /* slightly larger on small screens */
-  .form-control, .form-select { min-height: 44px; }
+  main.container { padding-top: var(--s-5); padding-bottom: var(--s-7); }
+
+  /* Touch targets bump to the 44px AAA minimum */
+  .btn,
+  .form-control, .form-select,
+  input.form-control, textarea.form-control { min-height: 44px; }
+  .btn-sm { min-height: 38px; }
+
+  /* QSO log table — let any wide table scroll horizontally without
+     bleeding through the page edge. .table itself doesn't have a
+     wrapper element on every page, so we apply this to a containing
+     row/col instead. */
+  .table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--r-md);
+    /* When a table goes display:block, its inner thead/tbody still
+       behaves table-ish if we keep them as table elements. */
+  }
+  .table thead, .table tbody, .table tfoot { display: table; width: 100%; table-layout: auto; }
+
+  /* The QSO type toggle is a btn-group of 2 — stack them so they're easy
+     to tap rather than squeezing into one row. */
+  .btn-group { flex-wrap: wrap; }
+  .btn-check + .btn { flex: 1 1 50%; }
+
+  /* Filter form on /qsos: collapse the 7-up row to full-width fields */
+  .row.g-2 > [class*="col-md-"] { margin-bottom: var(--s-2); }
+
+  /* Modal dialog — fill the viewport on phones */
+  .modal-dialog { margin: var(--s-3); }
+
+  /* Footer — wrap the long inline list rather than overflowing */
+  .site-footer p { font-size: var(--t-xs); }
+}
+
+/* iOS Safari otherwise zooms the viewport when focusing an input
+   whose font is < 16px. Body type is 16px, but small variants are 14px,
+   so explicitly hold them at 16px on touch devices for inputs. */
+@media (max-width: 991.98px) {
+  input.form-control, select.form-select, textarea.form-control,
+  .form-control-sm, .form-select-sm {
+    font-size: 16px;
+  }
+}
+
+/* Tablet — drop a column on dashboard stat tiles so they don't shrink
+   to unreadable widths between 768 and 991px */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .display-6 { font-size: var(--t-4xl); }
 }

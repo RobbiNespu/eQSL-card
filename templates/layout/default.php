@@ -11,12 +11,18 @@
 <?= $this->fetch('meta') ?>
 </head>
 <body>
-<nav class="navbar navbar-expand">
+<nav class="navbar navbar-expand-lg">
   <div class="container">
     <a class="navbar-brand" href="/" aria-label="eQSL Card — Receiving Station">
       eQSL Card
       <span class="brand-mark" aria-hidden="true"></span>
     </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#mainNav" aria-controls="mainNav"
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainNav">
     <ul class="navbar-nav ms-auto">
       <?php if ($this->getRequest()->getAttribute('identity')): ?>
         <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
@@ -55,6 +61,7 @@
         <li class="nav-item"><a class="nav-link btn btn-primary text-white" href="/register">Create account</a></li>
       <?php endif; ?>
     </ul>
+    </div>
   </div>
 </nav>
 <main class="container">
