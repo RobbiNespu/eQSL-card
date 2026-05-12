@@ -58,6 +58,7 @@
         <li class="nav-item"><a class="nav-link" href="/cards">Cards</a></li>
         <li class="nav-item"><a class="nav-link" href="/uploads">Library</a></li>
         <li class="nav-item"><a class="nav-link" href="/templates">Templates</a></li>
+        <li class="nav-item"><a class="nav-link" href="/help">Help</a></li>
         <?php
         $identity = $this->getRequest()->getAttribute('identity');
         $userData = method_exists($identity, 'getOriginalData') ? $identity->getOriginalData() : null;
@@ -87,6 +88,7 @@
         </li>
       <?php else: ?>
         <li class="nav-item"><a class="nav-link" href="/login">Sign in</a></li>
+        <li class="nav-item"><a class="nav-link" href="/help">Help</a></li>
         <li class="nav-item"><a class="nav-link btn btn-primary text-white" href="/register">Create account</a></li>
       <?php endif; ?>
       <li class="nav-item">
@@ -128,6 +130,7 @@
     <p>
       <span class="eyebrow">Station log</span>
       Open-source eQSL card workbench for amateur radio operators ·
+      <a href="/help">Help</a> ·
       Built by <a href="https://robbi.my" rel="noopener">Robbi Nespu</a> ·
       9W2NSP · <span class="footer-mono"><?= date('Y-m-d') ?> UTC</span>
     </p>

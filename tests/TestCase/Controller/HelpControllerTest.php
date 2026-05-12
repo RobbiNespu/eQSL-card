@@ -12,9 +12,10 @@ final class HelpControllerTest extends TestCase
 
     public function testIndexReturns200WhenLoggedOut(): void
     {
-        // The /help/index.php template doesn't exist yet (lands in Task 2.2).
-        // Skip until then so this commit stays revertable.
-        $this->markTestSkipped('Awaits Task 2.2 (Help/index.php template)');
+        $this->get('/help');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Getting started');
+        $this->assertResponseContains('Welcome to eQSL Card');
     }
 
     public function testKnownArticleReturns200(): void
