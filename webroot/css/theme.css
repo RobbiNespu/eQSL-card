@@ -1457,3 +1457,141 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   border-color: var(--border-strong) !important;
   background: var(--surface-2) !important;
 }
+
+/* =========================================================================
+ *  Docs portal (/help) — two-pane layout with persistent sidebar
+ * ========================================================================= */
+.help-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: var(--s-6);
+  align-items: start;
+}
+.help-sidebar {
+  position: sticky;
+  top: var(--s-5);
+  max-height: calc(100vh - var(--s-7));
+  overflow-y: auto;
+  font-size: var(--t-sm);
+}
+.help-sidebar__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.help-sidebar__list ul {
+  list-style: none;
+  padding-left: var(--s-3);
+  margin: var(--s-1) 0 var(--s-3);
+}
+.help-sidebar__category-label {
+  display: block;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin: var(--s-3) 0 var(--s-1);
+}
+.help-sidebar__link {
+  display: block;
+  padding: 0.4rem var(--s-3);
+  border-radius: var(--r);
+  color: var(--fg-muted);
+  text-decoration: none;
+  line-height: 1.4;
+}
+.help-sidebar__link:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+  text-decoration: none;
+}
+.help-sidebar__link.is-active,
+.help-sidebar__link[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 500;
+}
+.help-sidebar__mobile-toggle > summary {
+  display: none;
+}
+.help-sidebar__crumb-sep { margin: 0 var(--s-1); color: var(--fg-subtle); }
+
+.help-content {
+  max-width: 70ch;
+  font-size: var(--t-base);
+  line-height: 1.65;
+}
+.help-content h2 { margin-top: var(--s-7); }
+.help-content h3 { margin-top: var(--s-5); }
+.help-content img { max-width: 100%; height: auto; }
+.help-content figure { margin: var(--s-5) 0; }
+.help-content figcaption {
+  font-size: var(--t-sm);
+  color: var(--fg-muted);
+  margin-top: var(--s-2);
+}
+.help-content pre.mermaid {
+  background: var(--surface-2);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  text-align: center;
+}
+
+.help-prev-next {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-8);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--border);
+}
+.help-prev-next a {
+  display: inline-block;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  text-decoration: none;
+  flex: 1 1 0;
+  background: var(--surface);
+}
+.help-prev-next a:hover { border-color: var(--accent); background: var(--surface-2); text-decoration: none; }
+.help-prev-next .help-prev-next__label {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--fg-muted);
+  margin-bottom: 2px;
+}
+.help-prev-next__next { text-align: right; }
+
+/* Mobile: stack the sidebar above the content and collapse it via <details>. */
+@media (max-width: 991.98px) {
+  .help-shell {
+    grid-template-columns: 1fr;
+  }
+  .help-sidebar {
+    position: static;
+    max-height: none;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: var(--s-3);
+    background: var(--surface);
+    margin-bottom: var(--s-5);
+  }
+  .help-sidebar__mobile-toggle > summary {
+    display: list-item;
+    cursor: pointer;
+    font-weight: 500;
+    padding: var(--s-2) 0;
+  }
+  .help-sidebar__list {
+    margin-top: var(--s-3);
+  }
+}
+@media (min-width: 992px) {
+  .help-sidebar__mobile-toggle[open] > .help-sidebar__list,
+  .help-sidebar__mobile-toggle > .help-sidebar__list {
+    display: block; /* always shown on desktop regardless of <details> state */
+  }
+}
