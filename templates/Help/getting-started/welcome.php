@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Welcome to eQSL Card — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="What eQSL Card is, who it's for, and what you can do with it.">
+<?php $this->end(); ?>
 
 <?= $this->element('ui/page_header', [
     'title' => $title,

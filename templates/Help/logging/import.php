@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Import an ADIF / CSV log — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="Bulk-import an ADIF or CSV export from your existing logging program.">
+<?php $this->end(); ?>
 
 <?= $this->element('ui/page_header', [
     'title' => $title,

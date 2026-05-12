@@ -11,6 +11,9 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
 <?php $this->end(); ?>
 
 <h1><?= h($title) ?></h1>
+<p class="form-text mb-3">
+  <a href="/help/templates/designer">📖 Designer guide →</a>
+</p>
 
 <div x-data="designer(<?= h(json_encode([
     'mode' => $mode,

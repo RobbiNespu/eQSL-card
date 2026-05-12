@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Glossary — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="Definitions of common amateur-radio and eQSL terms used across the eQSL Card site.">
+<?php $this->end(); ?>
 
 <?= $this->element('ui/page_header', [
     'title' => $title,

@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Your first eQSL card — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="5-minute quick start: from sign-up to generated, downloadable eQSL card.">
+<?php $this->end(); ?>
 <?php $this->set('useMermaid', true); ?>
 
 <?= $this->element('ui/page_header', [

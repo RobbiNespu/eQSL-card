@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'How templates work — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="How system, public, and personal templates work in eQSL Card.">
+<?php $this->end(); ?>
 
 <?= $this->element('ui/page_header', [
     'title' => $title,

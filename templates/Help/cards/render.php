@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Generate an eQSL card — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="Pick a template + background and generate a personalised eQSL card from any logged QSO.">
+<?php $this->end(); ?>
 
 <?= $this->element('ui/page_header', [
     'title' => $title,

@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'First-time install + setup — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="First-time installation + first-admin setup walkthrough for the eQSL Card site.">
+<?php $this->end(); ?>
 
 <?= $this->element('ui/page_header', [
     'title' => $title,

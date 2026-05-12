@@ -4,6 +4,9 @@
         ? 'Update this log entry. Saved values still feed any cards rendered from this QSO.'
         : 'Log a contact or a net check-in. The form adapts to which kind of QSO you select below.' ?>
 </p>
+<p class="form-text mb-3">
+  <a href="/help/logging/add-qso">📖 How does this form work? →</a>
+</p>
 
 <?php
 // Alpine state for the contact/net toggle. Initial value comes from the

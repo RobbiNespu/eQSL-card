@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Share a card publicly — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="Create a public share link for an eQSL card, optionally protected with a password.">
+<?php $this->end(); ?>
 <?php $this->set('useMermaid', true); ?>
 
 <?= $this->element('ui/page_header', [

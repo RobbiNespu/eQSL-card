@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Create an account — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="Sign up walkthrough — email, callsign, password, what each field is for.">
+<?php $this->end(); ?>
 
 <?= $this->element('ui/page_header', [
     'title' => $title,

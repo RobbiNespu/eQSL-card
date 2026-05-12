@@ -1,4 +1,8 @@
 <?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Log a contact — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="Step-by-step guide to logging a contact or net check-in in eQSL Card.">
+<?php $this->end(); ?>
 
 <?= $this->element('ui/page_header', [
     'title' => $title,

@@ -80,6 +80,16 @@ re-run `npm run build:css` once because the script concatenates
 theme.css onto dist.css as a post-build step. Theme changes are
 infrequent so this is acceptable.
 
+## Documentation
+
+In-app help portal lives at `/help` once the site is running. Covers
+getting started, logging QSOs, generating cards, sharing, template
+design, admin setup, and a glossary of amateur-radio terms.
+
+Articles are static PHP templates under `templates/Help/{category}/{slug}.php`
+driven by `App\Service\HelpCatalog`. Add or edit pages by editing the
+catalog + the template file, then committing — no database, no admin UI.
+
 ## Deployment
 
 Shared-hosting deployment (cPanel / DirectAdmin / similar) is documented in
