@@ -1306,3 +1306,56 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   input.form-control, select.form-select, textarea.form-control,
   .form-control-sm, .form-select-sm { font-size: 16px; }
 }
+
+/* =========================================================================
+ *  Dark mode — token overrides for [data-theme="eqsl-dark"]
+ *
+ *  Every component reads from var(--token), so re-binding the tokens
+ *  inside a [data-theme="eqsl-dark"] block flips the entire UI in one
+ *  shot. No per-component rules needed.
+ * ========================================================================= */
+[data-theme="eqsl-dark"] {
+  --bg:            #0a0a0a;       /* zinc-950 page bg */
+  --surface:       #18181b;       /* zinc-900 cards/inputs */
+  --surface-2:     #27272a;       /* zinc-800 secondary surface */
+  --surface-3:     #3f3f46;       /* zinc-700 elevated hover */
+  --border:        #27272a;       /* one step up from surface so the
+                                     border still reads */
+  --border-strong: #3f3f46;
+  --fg:            #fafafa;
+  --fg-strong:     #ffffff;       /* button primary becomes white-on-dark */
+  --fg-muted:      #a1a1aa;       /* zinc-400 */
+  --fg-subtle:     #71717a;       /* zinc-500 reads on both modes */
+  --accent:        #10b981;       /* emerald-500 — punchier on dark */
+  --accent-strong: #34d399;       /* emerald-400 for hover */
+  --accent-soft:   #064e3b;       /* emerald-900 — soft fill inverted */
+  --accent-ring:   rgba(16, 185, 129, 0.4);
+
+  --info:          #38bdf8;       /* sky-400 */
+  --info-soft:     #082f49;       /* sky-950 */
+  --warning:       #fbbf24;       /* amber-400 */
+  --warning-soft:  #422006;       /* amber-950 */
+  --danger:        #f87171;       /* red-400 */
+  --danger-soft:   #450a0a;       /* red-950 */
+  --success:       #34d399;
+  --success-soft:  #064e3b;
+
+  /* Shadows: solid dark backgrounds eat soft shadows. Use heavier alpha. */
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sh-2: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --sh-3: 0 4px 8px rgba(0, 0, 0, 0.55), 0 2px 4px rgba(0, 0, 0, 0.35);
+  --sh-4: 0 12px 28px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Image previews can look washed-out on dark surfaces. Drop a subtle
+   border so they still feel "framed". */
+[data-theme="eqsl-dark"] .card-preview,
+[data-theme="eqsl-dark"] .img-fluid {
+  border: 1px solid var(--border-strong);
+}
+
+/* The navbar hamburger SVG is currently hard-coded dark zinc. On dark
+   mode it disappears; swap to a light stroke. */
+[data-theme="eqsl-dark"] .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke='%23fafafa' stroke-width='2' stroke-linecap='round' d='M4 8h22M4 15h22M4 22h22'/></svg>");
+}
