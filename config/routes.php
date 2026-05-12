@@ -99,6 +99,12 @@ return function (RouteBuilder $routes): void {
             ->setPatterns(['token' => '[A-Za-z0-9_\-]{43}'])
             ->setMethods(['GET']);
 
+        // Public docs portal — no auth required.
+        $builder->connect('/help', ['controller' => 'Help', 'action' => 'index']);
+        $builder->connect('/help/{category}/{slug}', ['controller' => 'Help', 'action' => 'view'])
+            ->setPatterns(['category' => '[a-z][a-z0-9-]*', 'slug' => '[a-z][a-z0-9-]*'])
+            ->setPass(['category', 'slug']);
+
         /*
          * Logbook routes (M2-T2/T3).
          * `index` is paginated list with search/filter; `view` shows a single
