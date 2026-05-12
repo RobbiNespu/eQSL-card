@@ -130,8 +130,13 @@
   <nav><?= $this->Paginator->numbers($paginatorOptions) ?></nav>
 
   <!-- Bulk render modal: Alpine fully manages visibility (no Bootstrap .show class
-       — that has display:block !important which would make the modal un-closable). -->
+       — that has display:block !important which would make the modal un-closable).
+       focusTrap.attach() runs once at hydration; activate/deactivate fire on
+       modalOpen flips so Tab can't escape and ESC closes. -->
   <div x-show="modalOpen" x-cloak tabindex="-1"
+       x-init="$el._trap = window.focusTrap.attach($el);
+               $el.addEventListener('focustrap:escape', () => closeModal())"
+       x-effect="modalOpen ? $el._trap.activate() : $el._trap.deactivate()"
        style="position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1050; overflow-y: auto;">
     <div class="modal-dialog">
       <div class="modal-content">
