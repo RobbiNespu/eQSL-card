@@ -20,9 +20,9 @@ final class HelpControllerTest extends TestCase
 
     public function testKnownArticleReturns200(): void
     {
-        // Article stubs ship in Task 4.1; until then the rendered template
-        // is missing. Skip and let Task 4 enable the assertion.
-        $this->markTestSkipped('Awaits Task 4.1 article stubs');
+        $this->get('/help/getting-started/welcome');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Welcome to eQSL Card');
     }
 
     public function testUnknownCategoryReturns404(): void

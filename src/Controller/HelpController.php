@@ -42,6 +42,6 @@ final class HelpController extends AppController
         }
         $this->set(compact('category', 'slug'));
         $this->set('title', HelpCatalog::pageLabel($category, $slug));
-        $this->render("Help/{$category}/{$slug}");
+        $this->render("/Help/{$category}/{$slug}");
     }
 }
