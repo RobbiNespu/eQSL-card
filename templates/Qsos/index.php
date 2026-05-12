@@ -133,7 +133,7 @@
        — that has display:block !important which would make the modal un-closable). -->
   <div x-show="modalOpen" x-cloak tabindex="-1"
        style="position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1050; overflow-y: auto;">
-    <div class="modal-dialog" style="margin: 5rem auto;">
+    <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Bulk render eQSL cards</h5>

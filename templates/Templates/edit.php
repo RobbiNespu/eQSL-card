@@ -22,7 +22,7 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
     'layoutJson' => $template->layout_json ?? '{"fields":[]}',
 ])) ?>)" class="row">
 
-  <div class="col-md-3">
+  <div class="col-lg-3">
     <h2>Template details</h2>
     <div class="mb-3">
       <label class="form-label">Name</label>
@@ -74,7 +74,7 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
     </details>
   </div>
 
-  <div class="col-md-6">
+  <div class="col-lg-6">
     <div class="mb-2">
       <label class="form-label small">Preview background (optional)</label>
       <input type="file" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp"
@@ -87,7 +87,7 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
     <p class="text-muted small mt-2">Preview at fit-to-column. Final render is at <span x-text="canvasWidth"></span> &times; <span x-text="canvasHeight"></span> px.</p>
   </div>
 
-  <div class="col-md-3">
+  <div class="col-lg-3">
     <h2>Selected field</h2>
     <template x-if="selectedField">
       <div>
