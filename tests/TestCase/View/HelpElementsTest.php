@@ -50,4 +50,32 @@ final class HelpElementsTest extends TestCase
         $this->assertStringContainsString('href="/help/getting-started/welcome"', $out);
         $this->assertStringContainsString('href="/help/admin/install"', $out);
     }
+
+    public function testCalloutDefaultIsNote(): void
+    {
+        $out = $this->view->element('ui/callout', ['body' => 'Heads up.']);
+        $this->assertStringContainsString('callout callout-note', $out);
+        $this->assertStringContainsString('Heads up.', $out);
+    }
+
+    public function testCalloutVariantTip(): void
+    {
+        $out = $this->view->element('ui/callout', ['body' => 'Try this.', 'variant' => 'tip']);
+        $this->assertStringContainsString('callout-tip', $out);
+        $this->assertStringContainsString('Tip', $out); // emoji prefix label
+    }
+
+    public function testCalloutVariantWarning(): void
+    {
+        $out = $this->view->element('ui/callout', ['body' => 'Careful.', 'variant' => 'warning']);
+        $this->assertStringContainsString('callout-warning', $out);
+        $this->assertStringContainsString('Warning', $out);
+    }
+
+    public function testCalloutEscapesBody(): void
+    {
+        $out = $this->view->element('ui/callout', ['body' => '<script>x</script>']);
+        $this->assertStringNotContainsString('<script>', $out);
+        $this->assertStringContainsString('&lt;script&gt;', $out);
+    }
 }
