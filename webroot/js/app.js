@@ -59,6 +59,70 @@
   });
 })();
 
+/*
+ * Three-state theme toggle: light → dark → system → light.
+ *   - localStorage key 'eqsl-theme' stores the user's chosen state.
+ *   - The pre-paint <script> in the layout's <head> reads this and
+ *     applies the right data-theme on <html> before any CSS loads.
+ *   - This handler runs *after* the navbar is in the DOM. It updates
+ *     localStorage + re-runs the same resolver to flip data-theme.
+ *   - Sun icon shows in dark mode; moon shows in light mode. The
+ *     "system" state defaults to whichever the OS prefers and shows
+ *     the matching icon.
+ */
+(function () {
+  function resolve(pref) {
+    if (pref === 'dark') return 'eqsl-dark';
+    if (pref === 'light') return 'eqsl';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'eqsl-dark' : 'eqsl';
+  }
+
+  function applyIcons() {
+    var theme = document.documentElement.getAttribute('data-theme');
+    var sun  = document.querySelector('.theme-icon--sun');
+    var moon = document.querySelector('.theme-icon--moon');
+    if (!sun || !moon) return;
+    if (theme === 'eqsl-dark') { sun.style.display = ''; moon.style.display = 'none'; }
+    else                       { sun.style.display = 'none'; moon.style.display = ''; }
+  }
+
+  function setTitle(pref) {
+    var btn = document.getElementById('themeToggle');
+    if (!btn) return;
+    btn.setAttribute('title', 'Theme: ' + pref + ' (click to cycle)');
+  }
+
+  function cycle() {
+    var current = localStorage.getItem('eqsl-theme') || 'system';
+    var next = current === 'light' ? 'dark'
+             : current === 'dark'  ? 'system'
+             :                       'light';
+    localStorage.setItem('eqsl-theme', next);
+    var resolved = resolve(next);
+    document.documentElement.setAttribute('data-theme', resolved);
+    document.documentElement.setAttribute('data-theme-pref', next);
+    applyIcons();
+    setTitle(next);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    applyIcons();
+    setTitle(localStorage.getItem('eqsl-theme') || 'system');
+    var btn = document.getElementById('themeToggle');
+    if (btn) btn.addEventListener('click', cycle);
+  });
+
+  /* If the OS preference changes while a "system" user has the page open,
+     update without requiring a reload. */
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+    if ((localStorage.getItem('eqsl-theme') || 'system') === 'system') {
+      document.documentElement.setAttribute('data-theme', resolve('system'));
+      applyIcons();
+    }
+  });
+})();
+
 function cameraForm() {
     return {
         mode: 'default',
