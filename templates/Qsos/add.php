@@ -152,7 +152,8 @@ function qsoFormState(initial) {
                autocomplete="off" autocapitalize="characters" spellcheck="false"
                placeholder="e.g. W1AW"
                required>
-        <p class="form-text text-success" x-show="lookupSource" x-cloak>
+        <p class="form-text text-success" x-show="lookupSource" x-cloak
+           role="status" aria-live="polite">
           Auto-filled from <strong x-text="lookupSource"></strong>.
           <button type="button" class="btn-link" style="padding: 0; min-height: 0;" @click="clearLookup()">Clear</button>
         </p>

@@ -75,6 +75,7 @@
 <?= $this->fetch('meta') ?>
 </head>
 <body data-theme="eqsl">
+<a href="#main-content" class="skip-link">Skip to main content</a>
 <nav class="navbar navbar-expand-lg">
   <div class="container">
     <a class="navbar-brand" href="/" aria-label="eQSL Card — Receiving Station">
@@ -129,7 +130,7 @@
     </div>
   </div>
 </nav>
-<main class="container">
+<main class="container" id="main-content" tabindex="-1">
   <?= $this->Flash->render() ?>
   <?= $this->fetch('content') ?>
 </main>

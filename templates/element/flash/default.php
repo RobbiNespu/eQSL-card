@@ -9,4 +9,4 @@ if (!isset($params['escape']) || $params['escape'] !== false) {
     $message = h($message);
 }
 ?>
-<div class="alert <?= h($extra) ?>"><?= $message ?></div>
+<div class="alert <?= h($extra) ?>" role="alert"><?= $message ?></div>

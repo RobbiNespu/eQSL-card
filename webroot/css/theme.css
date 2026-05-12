@@ -159,6 +159,28 @@ pre code { background: transparent; border: 0; padding: 0; }
 hr { border: 0; height: 1px; background: var(--border); opacity: 1; margin: var(--s-6) 0; }
 small, .small { font-size: var(--t-sm); }
 
+/* Skip link — invisible until keyboard-focused, then jumps to main content.
+   First focusable element on the page so Tab from the top brings it up. */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--s-3);
+  background: var(--fg-strong);
+  color: #fff;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  text-decoration: none;
+  font-weight: 500;
+  z-index: 9999;
+  transition: top 120ms ease;
+}
+.skip-link:focus {
+  top: var(--s-3);
+  color: #fff;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Tabular numerals for data-shaped content */
 table, .table, code, kbd, samp, pre,
 input[type="number"], input[type="date"], input[type="datetime-local"],

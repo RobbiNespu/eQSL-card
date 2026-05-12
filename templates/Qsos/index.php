@@ -137,7 +137,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Bulk render eQSL cards</h5>
-          <button type="button" class="btn-close" @click="closeModal()"></button>
+          <button type="button" class="btn-close" @click="closeModal()" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <template x-if="!started">
@@ -169,7 +169,7 @@
             </div>
           </template>
           <template x-if="started">
-            <div>
+            <div role="status" aria-live="polite">
               <p>Rendering <span x-text="done"></span> of <span x-text="total"></span>...</p>
               <div class="progress">
                 <div class="progress-bar"
