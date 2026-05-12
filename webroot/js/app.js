@@ -1,3 +1,64 @@
+/*
+ * Tiny replacement for the two pieces of Bootstrap JS we used to load:
+ *   - data-toggle="dropdown"  → toggle .show on the next .dropdown-menu sibling
+ *   - data-toggle="collapse"  → toggle .show on the element matching data-target
+ *
+ * We previously read these from data-bs-* attributes (Bootstrap 5 native).
+ * Now templates author them as data-toggle / data-target so the markup is
+ * library-neutral. The existing dropdown/collapse markup stays unchanged.
+ *
+ * Why not Alpine? Alpine is loaded last (after this script) for an
+ * unrelated reason, and we want the navbar to start working before
+ * Alpine has hydrated the rest of the page.
+ */
+(function () {
+  function closeAllDropdowns(except) {
+    document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+      if (m !== except) m.classList.remove('show');
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    const trigger = e.target.closest('[data-toggle]');
+    if (trigger) {
+      const kind = trigger.getAttribute('data-toggle');
+
+      if (kind === 'dropdown') {
+        e.preventDefault();
+        const wrap = trigger.closest('.dropdown, .nav-item');
+        const menu = wrap ? wrap.querySelector('.dropdown-menu') : null;
+        if (!menu) return;
+        const wasOpen = menu.classList.contains('show');
+        closeAllDropdowns(menu);
+        menu.classList.toggle('show', !wasOpen);
+        trigger.setAttribute('aria-expanded', !wasOpen ? 'true' : 'false');
+        return;
+      }
+
+      if (kind === 'collapse') {
+        e.preventDefault();
+        const sel = trigger.getAttribute('data-target');
+        const target = sel ? document.querySelector(sel) : null;
+        if (!target) return;
+        const open = !target.classList.contains('show');
+        target.classList.toggle('show', open);
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        return;
+      }
+    }
+
+    /* Clicking outside any open dropdown closes them all. */
+    if (!e.target.closest('.dropdown-menu')) {
+      closeAllDropdowns(null);
+    }
+  });
+
+  /* Escape key closes any open dropdown — keyboard accessibility. */
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeAllDropdowns(null);
+  });
+})();
+
 function cameraForm() {
     return {
         mode: 'default',
