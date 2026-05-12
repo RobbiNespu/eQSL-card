@@ -1125,6 +1125,74 @@ details > summary::-webkit-details-marker { display: none; }
 
 [x-cloak] { display: none !important; }
 
+/* ---------- Tabs (Alpine-managed) ---------- */
+.tab-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 0 var(--s-5);
+  padding: 4px;
+  list-style: none;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  width: fit-content;
+}
+.tab-tabs > li { display: inline-flex; }
+.tab-tab {
+  background: transparent;
+  border: 0;
+  padding: 0.45rem 0.95rem;
+  font-family: var(--font-sans);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--fg-muted);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.tab-tab:hover { color: var(--fg); }
+.tab-tab.is-active {
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--sh-1);
+}
+.tab-tab:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* ---------- Toggled button state ---------- */
+.btn.btn-active,
+.btn-outline-primary.btn-active {
+  background: var(--fg-strong);
+  border-color: var(--fg-strong);
+  color: #fff;
+}
+
+/* ---------- Radio-card (a <label> wrapping a hidden radio + content) ---------- */
+.radio-card {
+  display: block;
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+.radio-card:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.radio-card input[type="radio"] {
+  position: absolute;
+  top: var(--s-2); right: var(--s-2);
+  width: 16px; height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.radio-card:has(input[type="radio"]:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
 .status {
   font-family: var(--font-mono);
   font-size: 0.78rem;

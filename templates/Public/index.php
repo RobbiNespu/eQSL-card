@@ -48,10 +48,16 @@
 
 <hr>
 <h2>Background</h2>
-<div class="btn-group" role="group">
-  <button type="button" class="btn btn-outline-primary" @click="mode='default'" :class="mode==='default' && 'active'">Use site default</button>
-  <button type="button" class="btn btn-outline-primary" @click="mode='upload'" :class="mode==='upload' && 'active'">Upload</button>
-  <button type="button" class="btn btn-outline-primary" @click="startCamera()" :class="mode==='camera' && 'active'">Use camera</button>
+<div class="btn-group" role="group" aria-label="Background source">
+  <button type="button" class="btn btn-outline-primary"
+          :class="mode==='default' && 'btn-active'"
+          @click="mode='default'">Use site default</button>
+  <button type="button" class="btn btn-outline-primary"
+          :class="mode==='upload' && 'btn-active'"
+          @click="mode='upload'">Upload</button>
+  <button type="button" class="btn btn-outline-primary"
+          :class="mode==='camera' && 'btn-active'"
+          @click="startCamera()">Use camera</button>
 </div>
 
 <div class="mt-3" x-show="mode==='default'">
