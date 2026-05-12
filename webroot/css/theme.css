@@ -1359,3 +1359,101 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
 [data-theme="eqsl-dark"] .navbar-toggler-icon {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><path stroke='%23fafafa' stroke-width='2' stroke-linecap='round' d='M4 8h22M4 15h22M4 22h22'/></svg>");
 }
+
+/* -------------------------------------------------------------------------
+ *  Per-component dark-mode fixes (static audit, m1-foundation)
+ *
+ *  Several "primary" / "active" components were authored as:
+ *      background: var(--fg-strong); color: #fff;
+ *  In light mode --fg-strong is zinc-900, so white-on-near-black reads.
+ *  In dark mode --fg-strong flips to #ffffff, producing white-on-white
+ *  and invisible label text. Same trap on `.bg-dark`, hover states of
+ *  .btn-primary / .btn-outline-primary, the segmented .btn-check checked
+ *  state, the active pagination link, and the toggled .btn-active.
+ *
+ *  Strategy: in dark mode swap these to read against the (now-light)
+ *  --fg-strong surface by using --bg (page bg = zinc-950) as the label
+ *  colour. That gives dark text on a white pill in dark mode, mirroring
+ *  the light-mode white-on-black pill.
+ * ------------------------------------------------------------------------- */
+[data-theme="eqsl-dark"] .skip-link,
+[data-theme="eqsl-dark"] .skip-link:focus,
+[data-theme="eqsl-dark"] .btn-primary,
+[data-theme="eqsl-dark"] .btn-outline-primary:hover,
+[data-theme="eqsl-dark"] .btn-check:checked + .btn,
+[data-theme="eqsl-dark"] .page-item.active .page-link,
+[data-theme="eqsl-dark"] .btn.btn-active,
+[data-theme="eqsl-dark"] .btn-outline-primary.btn-active,
+[data-theme="eqsl-dark"] .bg-dark {
+  color: var(--bg) !important;
+}
+
+/* .btn-primary:hover / :focus hard-codes the light-mode darker shade
+   (#27272a). In dark mode that becomes near-invisible bg-on-bg; instead,
+   step back toward the page bg so hover still differentiates. */
+[data-theme="eqsl-dark"] .btn-primary:hover,
+[data-theme="eqsl-dark"] .btn-primary:focus {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+/* Tinted badge surfaces were authored with light-mode pastel fills
+   (#e0f2fe / #fee2e2 / #fef3c7) and dark ink colours. On a dark page
+   the pastel pill is fine, but on dark surfaces it can read as too
+   bright; swap to the *-soft tokens (which already invert) for a more
+   muted, theme-consistent look. */
+[data-theme="eqsl-dark"] .badge.bg-info {
+  background: var(--info-soft);
+  color: var(--info);
+  border-color: var(--info);
+}
+[data-theme="eqsl-dark"] .badge.bg-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+[data-theme="eqsl-dark"] .badge.bg-warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-color: var(--warning);
+}
+[data-theme="eqsl-dark"] .badge.bg-success {
+  border-color: var(--accent);
+}
+[data-theme="eqsl-dark"] .badge.bg-dark {
+  background: var(--surface-2);
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+
+/* Alert decorative borders were tinted with light-mode pastels
+   (#bae6fd / #a7f3d0 / #fde68a / #fecaca). Those don't read on the
+   dark alert surface; fall back to the regular border token. */
+[data-theme="eqsl-dark"] .alert-info,
+[data-theme="eqsl-dark"] .alert-success,
+[data-theme="eqsl-dark"] .alert-warning,
+[data-theme="eqsl-dark"] .alert-danger {
+  border-color: var(--border);
+}
+
+/* .text-warning and .text-info hard-code amber-700 / sky-800 — dark
+   inks meant for light surfaces. On dark mode they sink into the bg.
+   Re-point to the dark-mode-flipped token colour. */
+[data-theme="eqsl-dark"] .text-warning { color: var(--warning) !important; }
+[data-theme="eqsl-dark"] .text-info    { color: var(--info)    !important; }
+
+/* .btn-outline-{success,danger,warning} border-color is a light-mode
+   pastel hex; on dark mode it sits awkwardly against the dark surface.
+   Use the matching coloured token instead. */
+[data-theme="eqsl-dark"] .btn-outline-success { border-color: var(--accent); }
+[data-theme="eqsl-dark"] .btn-outline-danger  { border-color: var(--danger); }
+[data-theme="eqsl-dark"] .btn-outline-warning { border-color: var(--warning); color: var(--warning); }
+
+/* Template designer canvas wrap uses inline styles (border #ccc / bg
+   #f8f9fa) which can't be flipped via CSS alone. Override scoped to the
+   designer page via the x-ref selector. */
+[data-theme="eqsl-dark"] [x-ref="canvasWrap"] {
+  border-color: var(--border-strong) !important;
+  background: var(--surface-2) !important;
+}
