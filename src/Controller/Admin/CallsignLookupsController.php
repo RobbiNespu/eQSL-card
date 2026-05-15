@@ -64,38 +64,19 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Paginated list of cached callsigns + the source-of-data settings.
+     * Source-of-data settings only. The browse / search / per-row CRUD
+     * surface moved to /admin/callsign-lookups/all (combined view) so this
+     * page can stay focused on the chain configuration.
      */
     public function index(): void
     {
-        $table = $this->fetchTable('CallsignLookups');
-
-        $q = trim((string)$this->request->getQuery('q', ''));
-        $query = $table->find();
-        if ($q !== '') {
-            $query->where(['callsign LIKE' => '%' . strtoupper($q) . '%']);
-        }
-        $query->orderBy(['fetched_at' => 'DESC']);
-
-        $lookups = $this->paginate($query, ['limit' => 50]);
-
         $settings = new AppSettings();
         $enabled = (bool)$settings->get('callsign_lookup_enabled', false);
         $providerCsv = (string)$settings->get('callsign_lookup_providers', '');
         $enabledProviders = array_values(array_filter(array_map('trim', explode(',', $providerCsv))));
 
-        // The local provider reads from its own `callsign_directory` table
-        // (admin-curated CSV). Surface that count next to the cache count so
-        // the operator isn't confused after a CSV upload — those rows live on
-        // /admin/callsign-lookups/provider/local, not in the cache list below.
-        $directoryCount = $this->fetchTable('CallsignDirectory')->find()->count();
-
         $this->set([
             'title'            => 'Callsign auto-complete',
-            'lookups'          => $lookups,
-            'q'                => $q,
-            'totalCount'       => $table->find()->count(),
-            'directoryCount'   => $directoryCount,
             'callsignEnabled'  => $enabled,
             'providerMap'      => self::PROVIDER_MAP,
             'enabledProviders' => $enabledProviders,

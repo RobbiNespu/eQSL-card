@@ -19,7 +19,13 @@
   <div class="col-sm-4">
     <div class="card p-2 text-center">
       <p class="display-6 mb-0"><?= h($cacheCount) ?></p>
-      <p class="text-muted small mb-0">From external cache</p>
+      <p class="text-muted small mb-2">From external cache</p>
+      <?php if ($cacheCount > 0): ?>
+        <?= $this->Form->postLink('Clear external cache', '/admin/callsign-lookups/clear', [
+            'class'   => 'btn btn-outline-danger btn-sm',
+            'confirm' => 'Delete every cached row? The chain will re-fetch on demand. QSO history is untouched.',
+        ]) ?>
+      <?php endif; ?>
     </div>
   </div>
   <div class="col-sm-4">
