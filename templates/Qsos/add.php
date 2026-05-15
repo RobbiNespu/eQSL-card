@@ -279,40 +279,60 @@ function qsoFormState(initial) {
             'placeholder' => 'e.g. 14.07415',
             'templates' => ['inputContainer' => '{{content}}'],
         ]) ?>
-        <p class="form-text">Megahertz. Up to 4 decimal places.</p>
+        <p class="form-text small mb-0">Megahertz. Up to 4 decimal places.</p>
       </div>
     </div>
     <div class="col-md-4">
-      <?= $this->Form->control('band', [
-          'label'   => 'Band',
-          'type'    => 'select',
-          'class'   => 'form-select',
-          'options' => \App\Service\HamRadio::bandOptions($qso->band ?? null),
-          'empty'   => '— pick a band —',
-      ]) ?>
+      <div class="field">
+        <label class="form-label" for="band">Band</label>
+        <?= $this->Form->control('band', [
+            'label'   => false,
+            'id'      => 'band',
+            'type'    => 'select',
+            'class'   => 'form-select',
+            'options' => \App\Service\HamRadio::bandOptions($qso->band ?? null),
+            'empty'   => '— pick a band —',
+            'templates' => ['inputContainer' => '{{content}}'],
+        ]) ?>
+      </div>
     </div>
     <div class="col-md-4">
-      <?= $this->Form->control('mode', [
-          'label'   => 'Mode',
-          'type'    => 'select',
-          'class'   => 'form-select',
-          'options' => \App\Service\HamRadio::modeOptions($qso->mode ?? null),
-          'empty'   => '— pick a mode —',
-      ]) ?>
+      <div class="field">
+        <label class="form-label" for="mode">Mode</label>
+        <?= $this->Form->control('mode', [
+            'label'   => false,
+            'id'      => 'mode',
+            'type'    => 'select',
+            'class'   => 'form-select',
+            'options' => \App\Service\HamRadio::modeOptions($qso->mode ?? null),
+            'empty'   => '— pick a mode —',
+            'templates' => ['inputContainer' => '{{content}}'],
+        ]) ?>
+      </div>
     </div>
 
     <!-- Signal report ------------------------------------------------- -->
     <div class="col-md-3">
-      <?= $this->Form->control('rst_sent', [
-          'label' => 'RST sent',
-          'class' => 'form-control',
-      ]) ?>
+      <div class="field">
+        <label class="form-label" for="rst-sent">RST sent</label>
+        <?= $this->Form->control('rst_sent', [
+            'label' => false,
+            'id'    => 'rst-sent',
+            'class' => 'form-control',
+            'templates' => ['inputContainer' => '{{content}}'],
+        ]) ?>
+      </div>
     </div>
     <div class="col-md-3">
-      <?= $this->Form->control('rst_received', [
-          'label' => 'RST received',
-          'class' => 'form-control',
-      ]) ?>
+      <div class="field">
+        <label class="form-label" for="rst-received">RST received</label>
+        <?= $this->Form->control('rst_received', [
+            'label' => false,
+            'id'    => 'rst-received',
+            'class' => 'form-control',
+            'templates' => ['inputContainer' => '{{content}}'],
+        ]) ?>
+      </div>
     </div>
 
     <!-- Operator details (Alpine-bound so callsign autofill can populate). -->
@@ -339,12 +359,17 @@ function qsoFormState(initial) {
       </div>
     </div>
     <div class="col-12">
-      <?= $this->Form->control('notes', [
-          'type'  => 'textarea',
-          'rows'  => 3,
-          'label' => 'Notes',
-          'class' => 'form-control',
-      ]) ?>
+      <div class="field">
+        <label class="form-label" for="notes">Notes</label>
+        <?= $this->Form->control('notes', [
+            'type'  => 'textarea',
+            'rows'  => 3,
+            'label' => false,
+            'id'    => 'notes',
+            'class' => 'form-control',
+            'templates' => ['inputContainer' => '{{content}}'],
+        ]) ?>
+      </div>
     </div>
   </div>
 
