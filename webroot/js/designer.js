@@ -83,6 +83,24 @@ function designer(initial) {
             // the final commit (also triggered by handles for resize).
             this.fabricCanvas.on('object:moving', (e) => this.syncCanvasToField(e.target));
             this.fabricCanvas.on('object:modified', (e) => this.syncCanvasToField(e.target));
+
+            // Alt+click cycles through overlapping objects at the same point,
+            // bottom-to-top, so the user can reach fields buried under others.
+            // We hook mouse:up (after Fabric's own selection logic has already
+            // run) so our override wins without fighting the internal handler.
+            this.fabricCanvas.on('mouse:up', (e) => {
+                if (!e.e.altKey) return;
+                const pointer = this.fabricCanvas.getPointer(e.e);
+                const hits = this.fabricCanvas.getObjects().filter(o => o.containsPoint(pointer));
+                if (hits.length < 2) return;
+                const active = this.fabricCanvas.getActiveObject();
+                const pos = hits.indexOf(active);
+                // Cycle downward through the stack (wraps from bottom back to top).
+                const next = hits[pos <= 0 ? hits.length - 1 : pos - 1];
+                this.fabricCanvas.setActiveObject(next);
+                this.fabricCanvas.requestRenderAll();
+                this.handleSelection(next);
+            });
         },
 
         applyViewportScale() {
@@ -260,6 +278,31 @@ function designer(initial) {
                 }
             });
             this.fabricCanvas?.requestRenderAll();
+        },
+
+        // Select a field from the layers panel by its fields-array index.
+        selectFieldByIndex(idx) {
+            const obj = this.fieldObjects.get(idx);
+            if (!obj || !this.fabricCanvas) return;
+            this.fabricCanvas.setActiveObject(obj);
+            this.fabricCanvas.requestRenderAll();
+            this.selectedField = this.fields[idx] || null;
+        },
+
+        bringForward() {
+            if (!this.selectedField) return;
+            const obj = this.fieldObjects.get(this.fields.indexOf(this.selectedField));
+            if (!obj) return;
+            this.fabricCanvas.bringForward(obj);
+            this.fabricCanvas.requestRenderAll();
+        },
+
+        sendBackward() {
+            if (!this.selectedField) return;
+            const obj = this.fieldObjects.get(this.fields.indexOf(this.selectedField));
+            if (!obj) return;
+            this.fabricCanvas.sendBackwards(obj);
+            this.fabricCanvas.requestRenderAll();
         },
 
         // M3-T5 — designer preview background. The URL is preview-only:

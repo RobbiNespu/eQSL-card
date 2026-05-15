@@ -91,6 +91,22 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
   </div>
 
   <div class="col-lg-3">
+    <h2>Layers</h2>
+    <p class="form-text small mb-1">Click a field to select it. <kbd>Alt</kbd>+click on canvas to cycle through overlapping fields.</p>
+    <template x-if="fields.length === 0">
+      <p class="text-muted small">No fields yet.</p>
+    </template>
+    <div class="list-group list-group-flush mb-3" x-show="fields.length > 0">
+      <template x-for="(field, idx) in fields" :key="idx">
+        <button type="button"
+                class="list-group-item list-group-item-action py-1 px-2 small text-truncate"
+                :class="selectedField === field ? 'active' : ''"
+                @click="selectFieldByIndex(idx)"
+                x-text="field.placeholder || '(empty)'">
+        </button>
+      </template>
+    </div>
+
     <h2>Selected field</h2>
     <template x-if="selectedField">
       <div>
@@ -151,7 +167,11 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
           </div>
         </details>
 
-        <button type="button" class="btn btn-outline-danger btn-sm mt-2" @click="deleteSelectedField()">Delete field</button>
+        <div class="d-flex gap-1 mt-2 mb-1">
+          <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" @click="bringForward()" title="Move this field one layer forward (closer to front)">&#8679; Forward</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" @click="sendBackward()" title="Move this field one layer backward (closer to back)">&#8681; Backward</button>
+        </div>
+        <button type="button" class="btn btn-outline-danger btn-sm w-100" @click="deleteSelectedField()">Delete field</button>
       </div>
     </template>
     <template x-if="!selectedField">
