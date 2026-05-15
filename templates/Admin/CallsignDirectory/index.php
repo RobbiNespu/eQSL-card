@@ -18,7 +18,19 @@
                placeholder='e.g. "MCMC 2026-Q1" or "MARTS roster"'
                maxlength="80">
       </div>
-      <button class="btn btn-primary">Import</button>
+      <div class="d-flex gap-2 align-items-center">
+        <button class="btn btn-primary">Import</button>
+        <a href="/files/templates/sample-callsign-directory.csv"
+           download="sample-callsign-directory.csv"
+           class="btn btn-outline-secondary btn-sm">
+          &darr; Download sample CSV
+        </a>
+      </div>
+      <p class="form-text small mt-2">
+        Not sure of the format? Grab the sample above — it has the canonical
+        headers and four example rows you can edit in any spreadsheet. Save as
+        CSV and upload here.
+      </p>
       <p class="form-text small mt-2">
         <strong>Headers accepted:</strong>
         <code>callsign</code> (required; aliases: <code>call</code>, <code>call_sign</code>, <code>indicatif</code>, <code>panggilan</code>),

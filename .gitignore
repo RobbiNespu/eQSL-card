@@ -58,6 +58,7 @@ webroot/files/avatars/*
 !webroot/files/templates/.gitkeep
 !webroot/files/templates/.htaccess
 !webroot/files/templates/_demo-bg.jpg
+!webroot/files/templates/sample-callsign-directory.csv
 !webroot/files/avatars/.gitkeep
 !webroot/files/avatars/.htaccess
 !webroot/files/fonts/
