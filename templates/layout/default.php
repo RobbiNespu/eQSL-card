@@ -66,22 +66,23 @@
         $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
         ?>
         <?php if ($isAdmin): ?>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#" role="button"
-               aria-expanded="false">Admin</a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="/admin">Dashboard</a></li>
-              <li><a class="dropdown-item" href="/admin/settings">Settings</a></li>
-              <li><a class="dropdown-item" href="/admin/templates/pending">Pending templates</a></li>
-              <li><a class="dropdown-item" href="/admin/users">Users</a></li>
-              <li><a class="dropdown-item" href="/admin/cards">All cards</a></li>
-              <li><a class="dropdown-item" href="/admin/uploads">All uploads</a></li>
-              <li><a class="dropdown-item" href="/admin/audit">Audit log</a></li>
-              <li><a class="dropdown-item" href="/admin/callsign-directory">Callsign directory</a></li>
-              <li><a class="dropdown-item" href="/admin/cleanup">Cleanup</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="/admin/upgrade">Run migrations</a></li>
-            </ul>
+          <li class="nav-item">
+            <details class="dropdown dropdown-end">
+              <summary class="nav-link cursor-pointer select-none list-none">Admin &#9662;</summary>
+              <ul class="dropdown-content menu bg-base-100 rounded-box shadow-lg p-1 mt-1 w-52 border border-base-300" style="z-index:1010;">
+                <li><a href="/admin">Dashboard</a></li>
+                <li><a href="/admin/settings">Settings</a></li>
+                <li><a href="/admin/templates/pending">Pending templates</a></li>
+                <li><a href="/admin/users">Users</a></li>
+                <li><a href="/admin/cards">All cards</a></li>
+                <li><a href="/admin/uploads">All uploads</a></li>
+                <li><a href="/admin/audit">Audit log</a></li>
+                <li><a href="/admin/callsign-directory">Callsign directory</a></li>
+                <li><a href="/admin/cleanup">Cleanup</a></li>
+                <li><hr class="my-1 border-base-300 opacity-50"></li>
+                <li><a href="/admin/upgrade">Run migrations</a></li>
+              </ul>
+            </details>
           </li>
         <?php endif; ?>
         <li class="nav-item">
