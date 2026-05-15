@@ -144,8 +144,10 @@ class QsosController extends AppController
             ->all();
 
         // User's existing uploads (capped) for the bulk-render background picker.
+        // Soft-deleted uploads (deleted_at non-null) must drop out — they're
+        // hidden from /uploads and the on-disk file is already gone.
         $userUploads = $this->fetchTable('Uploads')->find()
-            ->where(['user_id' => $userId])
+            ->where(['user_id' => $userId, 'Uploads.deleted_at IS' => null])
             ->orderBy(['Uploads.created_at' => 'DESC'])
             ->limit(20)
             ->all();
@@ -465,8 +467,11 @@ class QsosController extends AppController
             ]])
             ->orderBy(['Templates.is_system' => 'DESC', 'Templates.created_at' => 'DESC']);
 
+        // Skip soft-deleted uploads — they're hidden from /uploads and the
+        // on-disk JPEG is already gone, so offering them in the picker would
+        // surface a 404 on the next step.
         $existingUploads = $this->fetchTable('Uploads')->find()
-            ->where(['user_id' => $userId])
+            ->where(['user_id' => $userId, 'Uploads.deleted_at IS' => null])
             ->orderBy(['created_at' => 'DESC'])
             ->limit(20);
 
@@ -552,7 +557,7 @@ class QsosController extends AppController
                 // predicate is the authorization check — picking another
                 // user's upload id 404s before any disk access.
                 $upload = $this->fetchTable('Uploads')->find()
-                    ->where(['id' => $uploadId, 'user_id' => $userId])
+                    ->where(['id' => $uploadId, 'user_id' => $userId, 'Uploads.deleted_at IS' => null])
                     ->firstOrFail();
                 // Use the row's stored attribution for library re-use.
                 $authorName = $upload->author_name;
@@ -826,7 +831,7 @@ class QsosController extends AppController
         $qso = $qsos->find()->where(['id' => $qsoId, 'user_id' => $userId])->firstOrFail();
         $template = $this->fetchTable('Templates')->get($templateId);
         $upload = $this->fetchTable('Uploads')->find()
-            ->where(['id' => $uploadId, 'user_id' => $userId])
+            ->where(['id' => $uploadId, 'user_id' => $userId, 'Uploads.deleted_at IS' => null])
             ->firstOrFail();
 
         $finalPath = WWW_ROOT . $upload->storage_path;
