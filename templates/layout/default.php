@@ -34,7 +34,8 @@
 -->
 <link rel="stylesheet"
       href="<?= $this->Url->build('/css/dist.css') ?>?v=<?= @filemtime(WWW_ROOT . 'css/dist.css') ?>">
-<link rel="stylesheet" href="<?= $this->Url->build('/css/app.css') ?>">
+<link rel="stylesheet"
+      href="<?= $this->Url->build('/css/app.css') ?>?v=<?= @filemtime(WWW_ROOT . 'css/app.css') ?>">
 <?= $this->fetch('meta') ?>
 </head>
 <body>
