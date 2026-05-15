@@ -83,7 +83,11 @@
         <tbody>
           <?php foreach ($recentQsos as $q): ?>
             <tr>
-              <td><a href="/qsos/<?= $q->id ?>"><?= $this->element('ui/callsign', ['call' => $q->call_worked]) ?></a></td>
+              <td>
+                <a href="/qsos/<?= $q->id ?>"><?= $this->element('ui/callsign', ['call' => $q->call_worked]) ?></a>
+                <?= $this->element('ui/badge_qso_type', ['qso' => $q]) ?>
+                <?= $this->element('ui/badge_transport', ['qso' => $q]) ?>
+              </td>
               <td><?= h($q->qso_datetime_utc?->format('Y-m-d H:i')) ?></td>
               <td><?= h($q->band) ?></td>
               <td><?= h($q->mode) ?></td>
