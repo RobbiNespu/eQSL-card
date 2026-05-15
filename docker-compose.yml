@@ -7,6 +7,7 @@ services:
     environment:
       - DATABASE_URL=mysql://eqsl:eqsl@db:3306/eqsl?encoding=utf8mb4
       - EMAIL_TRANSPORT_DEFAULT_URL=smtp://mailhog:1025
+      - DEBUG=true
     depends_on:
       db:
         condition: service_healthy
