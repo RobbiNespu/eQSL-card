@@ -551,6 +551,17 @@ class QsosController extends AppController
                         'author_name' => $authorName,
                         'license' => $license,
                     ]));
+                } elseif ($upload->deleted_at !== null) {
+                    // Resurrect a soft-deleted dedup hit. The on-disk file was
+                    // just rewritten above (rename of $tmpDest into the sha-
+                    // addressed slot), so the row is coherent again. Without
+                    // this, a fresh insert would hit the UNIQUE(sha256_hash)
+                    // constraint and the downstream renderQsoCard call would
+                    // 404 on its `deleted_at IS null` lookup.
+                    $upload->set('deleted_at', null, ['guard' => false]);
+                    $upload->set('author_name', $authorName, ['guard' => false]);
+                    $upload->set('license', $license, ['guard' => false]);
+                    $uploads->saveOrFail($upload);
                 }
             } else {
                 // Re-use one of the user's previous uploads. The `user_id`
