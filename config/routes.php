@@ -434,6 +434,8 @@ return function (RouteBuilder $routes): void {
          */
         $builder->connect('/callsign-lookups', ['controller' => 'CallsignLookups', 'action' => 'index'])
             ->setMethods(['GET']);
+        $builder->connect('/callsign-lookups/all', ['controller' => 'CallsignLookups', 'action' => 'all'])
+            ->setMethods(['GET']);
         $builder->connect('/callsign-lookups/settings', ['controller' => 'CallsignLookups', 'action' => 'saveSettings'])
             ->setMethods(['POST']);
         $builder->connect('/callsign-lookups/clear', ['controller' => 'CallsignLookups', 'action' => 'clear'])

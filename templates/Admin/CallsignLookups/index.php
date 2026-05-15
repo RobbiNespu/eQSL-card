@@ -75,6 +75,12 @@
   </div>
 </div>
 
+<p class="mb-3">
+  <a class="btn btn-outline-primary btn-sm" href="/admin/callsign-lookups/all">
+    View all known callsigns (combined) &rarr;
+  </a>
+</p>
+
 <!-- ── Cache list ──────────────────────────────────────────────────── -->
 <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
   <div>

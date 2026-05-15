@@ -103,6 +103,104 @@ class CallsignLookupsController extends AppController
     }
 
     /**
+     * Unified view across both data sources.
+     *
+     * Joins the admin-curated `callsign_directory` (CSV-uploaded) with the
+     * opportunistic `callsign_lookups` cache (auto-fetched by the chain) so
+     * the operator can see every callsign the install knows about in one
+     * place. Dedupes by callsign — directory wins for the row shown, but a
+     * cached counterpart is flagged via `also_cached` so the admin can spot
+     * stale cache entries that have since been superseded by a CSV upload.
+     *
+     * Done as a PHP-side merge (not SQL UNION) because the two tables have
+     * different columns and we want a tidy `source_type`/`source_detail`
+     * shape in the view; the typical install has thousands of rows at most,
+     * well within PHP memory budgets. Pagination is also in-memory for the
+     * same reason — when it stops scaling, swap to a UNION query.
+     */
+    public function all(): void
+    {
+        $q = trim((string)$this->request->getQuery('q', ''));
+
+        $dirQuery = $this->fetchTable('CallsignDirectory')->find()->disableHydration();
+        $cacheQuery = $this->fetchTable('CallsignLookups')->find()->disableHydration();
+        if ($q !== '') {
+            $upper = '%' . strtoupper($q) . '%';
+            $dirQuery->where(['callsign LIKE' => $upper]);
+            $cacheQuery->where(['callsign LIKE' => $upper]);
+        }
+        $directoryRows = $dirQuery->all()->toList();
+        $cacheRows = $cacheQuery->all()->toList();
+
+        // Directory first: it's the authoritative source the chain consults
+        // ahead of the cache, so its values should win when both stores hold
+        // the same callsign.
+        $byCall = [];
+        foreach ($directoryRows as $row) {
+            $byCall[$row['callsign']] = [
+                'callsign'      => $row['callsign'],
+                'name'          => $row['name'],
+                'qth'           => $row['qth'],
+                'country'       => $row['country'],
+                'grid_square'   => $row['grid_square'],
+                'license_class' => $row['license_class'],
+                'source_type'   => 'directory',
+                'source_detail' => $row['source_label'] ?? null,
+                'updated_at'    => $row['imported_at'] ?? null,
+                'id'            => $row['id'],
+                'cache_id'      => null,
+                'also_cached'   => false,
+            ];
+        }
+        foreach ($cacheRows as $row) {
+            $call = $row['callsign'];
+            if (isset($byCall[$call])) {
+                // Same callsign in both stores. Keep the directory row; just
+                // flag that a cache counterpart exists so the admin sees it
+                // and can clean up.
+                $byCall[$call]['also_cached'] = true;
+                $byCall[$call]['cache_id']    = $row['id'];
+                continue;
+            }
+            $byCall[$call] = [
+                'callsign'      => $row['callsign'],
+                'name'          => $row['name'],
+                'qth'           => $row['qth'],
+                'country'       => $row['country'],
+                'grid_square'   => $row['grid_square'],
+                'license_class' => $row['license_class'],
+                'source_type'   => 'cache',
+                'source_detail' => $row['source'] ?? null,
+                'updated_at'    => $row['fetched_at'] ?? null,
+                'id'            => $row['id'],
+                'cache_id'      => $row['id'],
+                'also_cached'   => false,
+            ];
+        }
+        ksort($byCall);
+        $combined = array_values($byCall);
+
+        // In-memory pagination — 50/page is generous enough that most installs
+        // fit on one page, while keeping the rendered HTML bounded.
+        $perPage    = 50;
+        $totalRows  = count($combined);
+        $totalPages = max(1, (int)ceil($totalRows / $perPage));
+        $page       = max(1, min($totalPages, (int)$this->request->getQuery('page', 1)));
+        $pageRows   = array_slice($combined, ($page - 1) * $perPage, $perPage);
+
+        $this->set([
+            'title'          => 'All known callsigns',
+            'q'              => $q,
+            'callsigns'      => $pageRows,
+            'directoryCount' => count($directoryRows),
+            'cacheCount'     => count($cacheRows),
+            'uniqueCount'    => $totalRows,
+            'page'           => $page,
+            'totalPages'     => $totalPages,
+        ]);
+    }
+
+    /**
      * Edit a single cache row. The natural key `callsign` is immutable
      * here — changing it would create a duplicate (UNIQUE constraint) or
      * orphan whatever the user typed. They can delete + let the chain
