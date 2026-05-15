@@ -29,13 +29,17 @@
       be first so admin-curated data wins before external scrapers run.
     </p>
     <?php foreach ($providerMap as $code => $label): ?>
-      <div class="form-check">
-        <input type="checkbox" class="form-check-input" id="cs_provider_<?= h($code) ?>"
-               name="callsign_provider[<?= h($code) ?>]" value="1"
-               <?= in_array($code, $enabledProviders, true) ? 'checked' : '' ?>>
-        <label class="form-check-label" for="cs_provider_<?= h($code) ?>">
-          <code><?= h($code) ?></code> — <?= h($label) ?>
-        </label>
+      <div class="d-flex align-items-center justify-content-between gap-2 py-1">
+        <div class="form-check mb-0 flex-grow-1">
+          <input type="checkbox" class="form-check-input" id="cs_provider_<?= h($code) ?>"
+                 name="callsign_provider[<?= h($code) ?>]" value="1"
+                 <?= in_array($code, $enabledProviders, true) ? 'checked' : '' ?>>
+          <label class="form-check-label" for="cs_provider_<?= h($code) ?>">
+            <code><?= h($code) ?></code> — <?= h($label) ?>
+          </label>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm"
+           href="/admin/callsign-lookups/provider/<?= h($code) ?>">Settings &rarr;</a>
       </div>
     <?php endforeach; ?>
   </div>

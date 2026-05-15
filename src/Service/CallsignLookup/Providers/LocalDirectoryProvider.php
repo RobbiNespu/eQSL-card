@@ -15,7 +15,7 @@ use Cake\ORM\TableRegistry;
  * Operator workflow:
  *   1. Download official member list from MCMC / MARTS / RAPI / ...
  *   2. Convert to CSV (one row per callsign).
- *   3. Upload via /admin/callsign-directory.
+ *   3. Upload via /admin/callsign-lookups/provider/local.
  *   4. This provider serves the row on every subsequent lookup.
  *
  * Always positioned EARLIER in the orchestrator chain than external

@@ -446,6 +446,22 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['POST']);
+        // Per-provider settings live under /admin/callsign-lookups/provider/{code}
+        // so the chain UI can hand off to a dedicated config page for each one.
+        // `local` mounts the existing CallsignDirectory controller (CSV manager);
+        // the other codes resolve to a generic `provider($code)` action on
+        // CallsignLookupsController which renders a status/info page until
+        // the corresponding scraper is implemented and needs real settings.
+        $builder->connect('/callsign-lookups/provider/local', ['controller' => 'CallsignDirectory', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/callsign-lookups/provider/local/upload', ['controller' => 'CallsignDirectory', 'action' => 'upload'])
+            ->setMethods(['POST']);
+        $builder->connect('/callsign-lookups/provider/local/clear', ['controller' => 'CallsignDirectory', 'action' => 'clear'])
+            ->setMethods(['POST']);
+        $builder->connect('/callsign-lookups/provider/{code}', ['controller' => 'CallsignLookups', 'action' => 'provider'])
+            ->setPass(['code'])
+            ->setPatterns(['code' => 'qrz|radioid|mcmc|marts|rapi'])
+            ->setMethods(['GET']);
 
         /*
          * Callsign directory admin (M4-followup). CSV import / search / clear.

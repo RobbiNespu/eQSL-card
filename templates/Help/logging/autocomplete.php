@@ -22,7 +22,7 @@
 <p>The admin can enable any combination of providers (in priority order):</p>
 <dl class="row dl-stack">
   <dt class="col-sm-3">Local directory</dt>
-  <dd class="col-sm-9">A callsign CSV the admin uploads under <a href="/admin/callsign-directory">/admin/callsign-directory</a>. Always checked first — no network call, instant lookup. Best for common contacts in your local club or net.</dd>
+  <dd class="col-sm-9">A callsign CSV the admin uploads under <a href="/admin/callsign-lookups/provider/local">/admin/callsign-lookups/provider/local</a>. Always checked first — no network call, instant lookup. Best for common contacts in your local club or net.</dd>
 
   <dt class="col-sm-3">MCMC</dt>
   <dd class="col-sm-9">Malaysian Communications and Multimedia Commission licencee database. Covers all current <span class="callsign">9W</span> and <span class="callsign">9M</span> callsigns. Network lookup.</dd>

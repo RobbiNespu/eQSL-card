@@ -16,7 +16,7 @@ use App\Service\CallsignLookup\CallsignProviderInterface;
  * even when the data isn't on the page the user typed.
  *
  * Same admin-uploaded CSV strategy applies: download official regional
- * lists, convert to CSV, upload via /admin/callsign-directory, and let
+ * lists, convert to CSV, upload via /admin/callsign-lookups/provider/local, and let
  * LocalDirectoryProvider serve them.
  */
 final class RapiProvider implements CallsignProviderInterface

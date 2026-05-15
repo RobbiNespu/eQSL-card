@@ -9,9 +9,9 @@ use App\Service\CallsignLookup\DirectoryCsvImporter;
 /**
  * Admin UI for the callsign directory.
  *
- * GET  /admin/callsign-directory       paginated grid of imported rows
- * POST /admin/callsign-directory       upload a CSV; show import summary
- * POST /admin/callsign-directory/clear nuke the whole directory (audit-logged)
+ * GET  /admin/callsign-lookups/provider/local       paginated grid of imported rows
+ * POST /admin/callsign-lookups/provider/local       upload a CSV; show import summary
+ * POST /admin/callsign-lookups/provider/local/clear nuke the whole directory (audit-logged)
  */
 class CallsignDirectoryController extends AppController
 {
@@ -54,7 +54,7 @@ class CallsignDirectoryController extends AppController
     }
 
     /**
-     * POST /admin/callsign-directory — upload a CSV and import it.
+     * POST /admin/callsign-lookups/provider/local — upload a CSV and import it.
      *
      * Accepts a `csv` file + optional `source_label` ("MCMC 2026-Q1"). The
      * importer fails-soft on per-row issues and returns a summary; on
@@ -67,7 +67,7 @@ class CallsignDirectoryController extends AppController
         $file = $this->request->getUploadedFile('csv');
         if (!$file || $file->getError() !== UPLOAD_ERR_OK) {
             $this->Flash->error('Please pick a CSV file to upload.');
-            return $this->redirect('/admin/callsign-directory');
+            return $this->redirect('/admin/callsign-lookups/provider/local');
         }
 
         $tmp = tempnam(sys_get_temp_dir(), 'eqsl_csv_');
@@ -79,7 +79,7 @@ class CallsignDirectoryController extends AppController
         } catch (\Throwable $e) {
             @unlink($tmp);
             $this->Flash->error('Import failed: ' . $e->getMessage());
-            return $this->redirect('/admin/callsign-directory');
+            return $this->redirect('/admin/callsign-lookups/provider/local');
         }
         @unlink($tmp);
 
@@ -106,11 +106,11 @@ class CallsignDirectoryController extends AppController
             $msg .= ' First error: ' . $summary['errors'][0];
         }
         $this->Flash->success($msg);
-        return $this->redirect('/admin/callsign-directory');
+        return $this->redirect('/admin/callsign-lookups/provider/local');
     }
 
     /**
-     * POST /admin/callsign-directory/clear — wipe the whole directory.
+     * POST /admin/callsign-lookups/provider/local/clear — wipe the whole directory.
      * The `callsign_lookups` cache is left alone — clearing it is a
      * separate operation on /admin/cleanup.
      */
@@ -131,6 +131,6 @@ class CallsignDirectoryController extends AppController
         }
 
         $this->Flash->success("Cleared {$count} directory rows.");
-        return $this->redirect('/admin/callsign-directory');
+        return $this->redirect('/admin/callsign-lookups/provider/local');
     }
 }

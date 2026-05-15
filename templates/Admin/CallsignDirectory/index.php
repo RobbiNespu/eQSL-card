@@ -7,7 +7,7 @@
   <div class="col-md-7">
     <div class="card p-3">
       <h2 class="h5">Upload CSV</h2>
-      <?= $this->Form->create(null, ['url' => '/admin/callsign-directory/upload', 'type' => 'file']) ?>
+      <?= $this->Form->create(null, ['url' => '/admin/callsign-lookups/provider/local/upload', 'type' => 'file']) ?>
       <div class="mb-2">
         <label class="form-label small">CSV file</label>
         <input type="file" name="csv" class="form-control" accept=".csv,text/csv" required>
@@ -35,7 +35,7 @@
       <p class="display-6"><?= h($total) ?></p>
       <p class="text-muted small">Callsigns indexed</p>
       <?php if ($total > 0): ?>
-        <?= $this->Form->create(null, ['url' => '/admin/callsign-directory/clear']) ?>
+        <?= $this->Form->create(null, ['url' => '/admin/callsign-lookups/provider/local/clear']) ?>
         <button class="btn btn-outline-danger"
                 onclick="return confirm('Delete all <?= h($total) ?> directory rows? This cannot be undone.')">
           Clear directory

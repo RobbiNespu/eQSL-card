@@ -13,7 +13,7 @@ use App\Service\CallsignLookup\CallsignProviderInterface;
  * limit exceeded — shared hosting under load) often enough that live
  * scraping isn't viable. The same pre-import / admin-CSV-upload strategy
  * as MCMC fits here: download the official member list, upload via
- * /admin/callsign-directory, and let LocalDirectoryProvider serve it.
+ * /admin/callsign-lookups/provider/local, and let LocalDirectoryProvider serve it.
  */
 final class MartsProvider implements CallsignProviderInterface
 {

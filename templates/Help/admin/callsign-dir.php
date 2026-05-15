@@ -29,7 +29,7 @@
 <p>Any extra columns are ignored. UTF-8 encoding is expected. The importer skips rows where the callsign column is empty.</p>
 
 <h2>Uploading</h2>
-<p>Go to <a href="/admin/callsign-directory">/admin/callsign-directory</a>. The upload form has two fields:</p>
+<p>Go to <a href="/admin/callsign-lookups/provider/local">/admin/callsign-lookups/provider/local</a>. The upload form has two fields:</p>
 <ul>
   <li><strong>CSV file</strong> — pick the file. No size limit other than the PHP <code>upload_max_filesize</code>.</li>
   <li><strong>Source label</strong> (optional) — a human-readable tag stored with each imported row, e.g. <em>MCMC 2026-Q1</em> or <em>Club roster May 2026</em>. Useful for knowing where a record came from when you view the directory table.</li>

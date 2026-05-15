@@ -11,7 +11,7 @@ use Cake\Http\Exception\ForbiddenException;
 /**
  * Admin surface for the `callsign_lookups` cache (the rows that the
  * auto-complete chain writes when an external provider returns useful
- * data for a callsign). Distinct from /admin/callsign-directory, which
+ * data for a callsign). Distinct from /admin/callsign-lookups/provider/local, which
  * manages the admin-curated CSV the LocalDirectoryProvider reads.
  *
  * This controller is read/edit/delete-only — adding new rows here would
@@ -202,6 +202,50 @@ class CallsignLookupsController extends AppController
         $this->Flash->success('Callsign auto-complete settings saved.');
 
         return $this->redirect('/admin/callsign-lookups');
+    }
+
+    /**
+     * Per-provider settings / status page.
+     *
+     * Local-directory routing is mounted on CallsignDirectoryController in
+     * routes.php (so the existing CSV upload UI is reused) — this method
+     * only handles the remote-provider codes (qrz, radioid, mcmc, marts,
+     * rapi). They don't have configurable settings today (each is either
+     * a stub waiting for a scraper or a fixed-endpoint API with no auth),
+     * so the page mostly explains current state and counts how many cache
+     * rows that provider has produced. Future API-key fields land here.
+     */
+    public function provider(string $code): void
+    {
+        $known = [
+            'qrz'     => 'QRZ.com',
+            'radioid' => 'RadioID.net',
+            'mcmc'    => 'MCMC Malaysia',
+            'marts'   => 'MARTS Malaysia',
+            'rapi'    => 'Indonesia RAPI',
+        ];
+        if (!isset($known[$code])) {
+            throw new \Cake\Http\Exception\NotFoundException();
+        }
+
+        $rowCount = $this->fetchTable('CallsignLookups')
+            ->find()
+            ->where(['source' => $code])
+            ->count();
+
+        $settings = new AppSettings();
+        $enabledCsv = (string)$settings->get('callsign_lookup_providers', '');
+        $enabledList = array_filter(array_map('trim', explode(',', $enabledCsv)));
+        $isEnabled = in_array($code, $enabledList, true);
+
+        $this->set([
+            'title'      => $known[$code] . ' — provider settings',
+            'code'       => $code,
+            'label'      => $known[$code],
+            'rowCount'   => $rowCount,
+            'isEnabled'  => $isEnabled,
+            'description'=> self::PROVIDER_MAP[$code] ?? '',
+        ]);
     }
 
     /**
