@@ -86,96 +86,104 @@ class CallsignLookupsController extends AppController
     /**
      * Unified view across both data sources.
      *
-     * Joins the admin-curated `callsign_directory` (CSV-uploaded) with the
-     * opportunistic `callsign_lookups` cache (auto-fetched by the chain) so
-     * the operator can see every callsign the install knows about in one
-     * place. Dedupes by callsign — directory wins for the row shown, but a
-     * cached counterpart is flagged via `also_cached` so the admin can spot
-     * stale cache entries that have since been superseded by a CSV upload.
+     * UNION ALL across `callsign_directory` (CSV-uploaded) and
+     * `callsign_lookups` (auto-fetched cache), projecting both into a
+     * uniform shape (literal `source_type` discriminator, aliased
+     * `source_detail` and `updated_at`). UNION ALL keeps duplicates — when
+     * a callsign exists in both tables it shows up twice with different
+     * source badges, which is exactly what the operator wants to see.
      *
-     * Done as a PHP-side merge (not SQL UNION) because the two tables have
-     * different columns and we want a tidy `source_type`/`source_detail`
-     * shape in the view; the typical install has thousands of rows at most,
-     * well within PHP memory budgets. Pagination is also in-memory for the
-     * same reason — when it stops scaling, swap to a UNION query.
+     * Done as raw SQL because the two tables have different columns and
+     * mapping that through the ORM's union() with literal expressions is
+     * uglier than the SQL itself. Counts and pagination are computed
+     * server-side; the connection-level execute() returns plain arrays
+     * which match the existing view's expectations.
      */
     public function all(): void
     {
         $q = trim((string)$this->request->getQuery('q', ''));
+        $dirTable = $this->fetchTable('CallsignDirectory');
+        $cacheTable = $this->fetchTable('CallsignLookups');
 
-        $dirQuery = $this->fetchTable('CallsignDirectory')->find()->disableHydration();
-        $cacheQuery = $this->fetchTable('CallsignLookups')->find()->disableHydration();
+        // Counts via the ORM — same filter applied to both tables.
+        $dirCountQ = $dirTable->find();
+        $cacheCountQ = $cacheTable->find();
         if ($q !== '') {
-            $upper = '%' . strtoupper($q) . '%';
-            $dirQuery->where(['callsign LIKE' => $upper]);
-            $cacheQuery->where(['callsign LIKE' => $upper]);
+            $like = '%' . strtoupper($q) . '%';
+            $dirCountQ->where(['callsign LIKE' => $like]);
+            $cacheCountQ->where(['callsign LIKE' => $like]);
         }
-        $directoryRows = $dirQuery->all()->toList();
-        $cacheRows = $cacheQuery->all()->toList();
+        $directoryCount = $dirCountQ->count();
+        $cacheCount = $cacheCountQ->count();
+        $totalRows = $directoryCount + $cacheCount;
 
-        // Directory first: it's the authoritative source the chain consults
-        // ahead of the cache, so its values should win when both stores hold
-        // the same callsign.
-        $byCall = [];
-        foreach ($directoryRows as $row) {
-            $byCall[$row['callsign']] = [
-                'callsign'      => $row['callsign'],
-                'name'          => $row['name'],
-                'qth'           => $row['qth'],
-                'country'       => $row['country'],
-                'grid_square'   => $row['grid_square'],
-                'license_class' => $row['license_class'],
-                'source_type'   => 'directory',
-                'source_detail' => $row['source_label'] ?? null,
-                'updated_at'    => $row['imported_at'] ?? null,
-                'id'            => $row['id'],
-                'cache_id'      => null,
-                'also_cached'   => false,
-            ];
-        }
-        foreach ($cacheRows as $row) {
-            $call = $row['callsign'];
-            if (isset($byCall[$call])) {
-                // Same callsign in both stores. Keep the directory row; just
-                // flag that a cache counterpart exists so the admin sees it
-                // and can clean up.
-                $byCall[$call]['also_cached'] = true;
-                $byCall[$call]['cache_id']    = $row['id'];
-                continue;
-            }
-            $byCall[$call] = [
-                'callsign'      => $row['callsign'],
-                'name'          => $row['name'],
-                'qth'           => $row['qth'],
-                'country'       => $row['country'],
-                'grid_square'   => $row['grid_square'],
-                'license_class' => $row['license_class'],
-                'source_type'   => 'cache',
-                'source_detail' => $row['source'] ?? null,
-                'updated_at'    => $row['fetched_at'] ?? null,
-                'id'            => $row['id'],
-                'cache_id'      => $row['id'],
-                'also_cached'   => false,
-            ];
-        }
-        ksort($byCall);
-        $combined = array_values($byCall);
-
-        // In-memory pagination — 50/page is generous enough that most installs
-        // fit on one page, while keeping the rendered HTML bounded.
-        $perPage    = 50;
-        $totalRows  = count($combined);
+        // Pagination
+        $perPage = 50;
         $totalPages = max(1, (int)ceil($totalRows / $perPage));
-        $page       = max(1, min($totalPages, (int)$this->request->getQuery('page', 1)));
-        $pageRows   = array_slice($combined, ($page - 1) * $perPage, $perPage);
+        $page = max(1, min($totalPages, (int)$this->request->getQuery('page', 1)));
+        $offset = ($page - 1) * $perPage;
+
+        // Build the UNION ALL. Each SELECT picks the same column order and
+        // names so the union is well-formed; the literal 'directory' /
+        // 'cache' string becomes the source_type discriminator the view
+        // uses to render the right badge and action button per row.
+        $where1 = $q !== '' ? 'WHERE UPPER(callsign) LIKE :pat1' : '';
+        $where2 = $q !== '' ? 'WHERE UPPER(callsign) LIKE :pat2' : '';
+        $sql = "
+            SELECT
+                id, callsign, name, qth, country, grid_square, license_class,
+                'directory' AS source_type,
+                source_label AS source_detail,
+                imported_at AS updated_at
+            FROM callsign_directory
+            {$where1}
+            UNION ALL
+            SELECT
+                id, callsign, name, qth, country, grid_square, license_class,
+                'cache' AS source_type,
+                source AS source_detail,
+                fetched_at AS updated_at
+            FROM callsign_lookups
+            {$where2}
+            ORDER BY callsign ASC, source_type ASC
+            LIMIT :lim OFFSET :off
+        ";
+
+        // Distinct placeholder names per occurrence — strict PDO mode
+        // rejects re-using `:pat` across the two halves of the union.
+        $params = ['lim' => $perPage, 'off' => $offset];
+        $types  = ['lim' => 'integer', 'off' => 'integer'];
+        if ($q !== '') {
+            $like = '%' . strtoupper($q) . '%';
+            $params['pat1'] = $like;
+            $params['pat2'] = $like;
+        }
+
+        $stmt = $cacheTable->getConnection()->execute($sql, $params, $types);
+        $rows = $stmt->fetchAll('assoc') ?: [];
+
+        // The connection returns datetimes as raw strings. Cast them back
+        // so the view's `->format('Y-m-d')` calls keep working without
+        // special-casing.
+        foreach ($rows as &$row) {
+            if (!empty($row['updated_at'])) {
+                try {
+                    $row['updated_at'] = new \DateTimeImmutable((string)$row['updated_at']);
+                } catch (\Throwable $e) {
+                    $row['updated_at'] = null;
+                }
+            }
+            $row['id'] = (int)$row['id'];
+        }
+        unset($row);
 
         $this->set([
             'title'          => 'All known callsigns',
             'q'              => $q,
-            'callsigns'      => $pageRows,
-            'directoryCount' => count($directoryRows),
-            'cacheCount'     => count($cacheRows),
-            'uniqueCount'    => $totalRows,
+            'callsigns'      => $rows,
+            'directoryCount' => $directoryCount,
+            'cacheCount'     => $cacheCount,
+            'totalCount'     => $totalRows,
             'page'           => $page,
             'totalPages'     => $totalPages,
         ]);

@@ -5,8 +5,9 @@
 
 <p class="text-muted">
   Combined view across the admin-curated local directory and the auto-fetched
-  external cache. Where a callsign exists in both, the directory entry is
-  shown and a "+ cached" tag flags the duplicate.
+  external cache (<code>UNION ALL</code> across both tables). A callsign that
+  exists in both stores will appear twice, with different source badges, so
+  duplicates are visible at a glance instead of being silently merged.
 </p>
 
 <div class="row g-3 mb-3">
@@ -30,8 +31,8 @@
   </div>
   <div class="col-sm-4">
     <div class="card p-2 text-center">
-      <p class="display-6 mb-0"><?= h($uniqueCount) ?></p>
-      <p class="text-muted small mb-0">Unique callsigns</p>
+      <p class="display-6 mb-0"><?= h($totalCount) ?></p>
+      <p class="text-muted small mb-0">Total rows (with duplicates)</p>
     </div>
   </div>
 </div>
@@ -47,7 +48,7 @@
   </div>
 </form>
 
-<?php if ($uniqueCount === 0): ?>
+<?php if ($totalCount === 0): ?>
   <?= $this->element('ui/empty_state', [
       'message' => $q !== ''
           ? 'No callsigns match that search across either store.'
@@ -76,11 +77,12 @@
             <td>
               <?php if ($row['source_type'] === 'directory'): ?>
                 <span class="badge bg-info" title="Admin-curated CSV entry">Directory</span>
+                <?php if (!empty($row['source_detail'])): ?>
+                  <span class="text-muted small">· <?= h($row['source_detail']) ?></span>
+                <?php endif; ?>
               <?php else: ?>
-                <span class="badge bg-secondary" title="Auto-fetched from external provider">Cache · <code><?= h($row['source_detail']) ?></code></span>
-              <?php endif; ?>
-              <?php if ($row['also_cached']): ?>
-                <span class="badge bg-warning ms-1" title="A cached entry for this callsign also exists — directory takes precedence">+ cached</span>
+                <span class="badge bg-secondary" title="Auto-fetched from external provider">Cache</span>
+                <code class="small">· <?= h($row['source_detail']) ?></code>
               <?php endif; ?>
             </td>
             <td><?= h($row['name'] ?? '—') ?></td>
@@ -99,7 +101,7 @@
                    href="/admin/callsign-lookups/provider/local?q=<?= h($row['callsign']) ?>">Manage</a>
               <?php else: ?>
                 <a class="btn btn-outline-primary btn-sm"
-                   href="/admin/callsign-lookups/<?= h($row['cache_id']) ?>/edit">Edit cache</a>
+                   href="/admin/callsign-lookups/<?= h($row['id']) ?>/edit">Edit cache</a>
               <?php endif; ?>
             </td>
           </tr>
