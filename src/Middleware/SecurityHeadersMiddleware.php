@@ -13,11 +13,27 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $response = $handler->handle($request);
-        return $response
-            ->withHeader('X-Frame-Options', 'DENY')
+
+        // Skip the framing-related headers for DebugKit's own routes.
+        // The toolbar embeds itself in the page via a same-origin iframe;
+        // X-Frame-Options: DENY and CSP frame-ancestors 'none' both block
+        // that, leaving DebugKit invisible in dev. DebugKit URLs only
+        // exist when debug=true (see Application.php's conditional load),
+        // so this exception cannot widen production attack surface.
+        $path = $request->getUri()->getPath();
+        $isDebugKit = str_starts_with($path, '/debug-kit/') || str_starts_with($path, '/debug_kit/');
+
+        $response = $response
             ->withHeader('X-Content-Type-Options', 'nosniff')
-            ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
-            ->withHeader('Content-Security-Policy', $this->csp());
+            ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+        if (!$isDebugKit) {
+            $response = $response
+                ->withHeader('X-Frame-Options', 'DENY')
+                ->withHeader('Content-Security-Policy', $this->csp());
+        }
+
+        return $response;
     }
 
     private function csp(): string
