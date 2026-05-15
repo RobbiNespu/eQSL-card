@@ -27,8 +27,18 @@
     QRZ requires a paid XML key — when that integration is finished, the API
     key field will land here.
   <?php elseif ($code === 'radioid'): ?>
-    RadioID is a public JSON API and works without authentication. No keys
-    or rate-limit knobs to configure yet.
+    RadioID's DMR endpoint is a public JSON API and works without
+    authentication. No keys or rate-limit knobs to configure yet.
+  <?php elseif ($code === 'radioid_api'): ?>
+    Calls <code>https://radioid.net/api/users?callsign=…</code>, the broader
+    users endpoint at RadioID.net. The site is occasionally fronted by
+    Cloudflare's bot challenge — our requests send browser-shaped headers
+    (User-Agent, Accept, Referer, X-Requested-With) which clear the casual
+    "no UA" heuristic, but if Cloudflare serves a real challenge page we
+    log the failure and the chain continues to the next provider. No
+    server-side challenge solver is built in (and won't be); if blocks
+    become persistent, route this provider via a residential proxy or
+    fall back on the local directory.
   <?php elseif ($code === 'mcmc'): ?>
     MCMC is scraped live from the public apparatus-assignments register; no
     credentials are needed. Future knobs (cache TTL override, prefix

@@ -462,7 +462,7 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['POST']);
         $builder->connect('/callsign-lookups/provider/{code}', ['controller' => 'CallsignLookups', 'action' => 'provider'])
             ->setPass(['code'])
-            ->setPatterns(['code' => 'qrz|radioid|mcmc|marts|rapi'])
+            ->setPatterns(['code' => 'qrz|radioid|radioid_api|mcmc|marts|rapi'])
             ->setMethods(['GET']);
 
         /*

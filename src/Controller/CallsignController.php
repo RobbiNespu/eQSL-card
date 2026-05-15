@@ -9,6 +9,7 @@ use App\Service\CallsignLookup\Providers\LocalDirectoryProvider;
 use App\Service\CallsignLookup\Providers\MartsProvider;
 use App\Service\CallsignLookup\Providers\McmcProvider;
 use App\Service\CallsignLookup\Providers\QrzProvider;
+use App\Service\CallsignLookup\Providers\RadioIdApiProvider;
 use App\Service\CallsignLookup\Providers\RadioIdProvider;
 use App\Service\CallsignLookup\Providers\RapiProvider;
 
@@ -48,8 +49,9 @@ class CallsignController extends AppController
                 'qrz'     => new QrzProvider(),
                 'mcmc'    => new McmcProvider(),
                 'marts'   => new MartsProvider(),
-                'radioid' => new RadioIdProvider(),
-                'rapi'    => new RapiProvider(),
+                'radioid'     => new RadioIdProvider(),
+                'radioid_api' => new RadioIdApiProvider(),
+                'rapi'        => new RapiProvider(),
             ],
             settings: new AppSettings(),
         );
