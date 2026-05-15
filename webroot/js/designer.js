@@ -38,6 +38,8 @@ function designer(initial) {
         gridVisible: false,
         gridSize: 50,
         snapToGrid: false,
+        previewTab: 'design',
+        previewFabric: null,
 
         init() {
             // Defer until the <canvas x-ref="canvas"> element is mounted.
@@ -355,6 +357,120 @@ function designer(initial) {
             this.fabricCanvas.requestRenderAll();
         },
 
+        // ── Preview tab ───────────────────────────────────────────────────
+
+        switchTab(tab) {
+            this.previewTab = tab;
+            if (tab === 'preview') {
+                this.$nextTick(() => this.renderPreview());
+            } else {
+                this.$nextTick(() => this.fabricCanvas?.requestRenderAll());
+            }
+        },
+
+        // Substitute a placeholder string with sample values for display.
+        // Mirrors the server-side PlaceholderResolver regex so the preview
+        // text matches what the real card renderer would produce.
+        resolveForPreview(text) {
+            const dt = new Date('2025-07-27T14:30:00Z');
+            const sample = {
+                operator_callsign: '9M2NSP',
+                callsign:          'W1AW',
+                operator_name:     'Ahmad',
+                qso_datetime_utc:  dt,
+                qso_date_hijri:    '1 SAFAR 1447H',
+                frequency_mhz:     '14.225',
+                band:              '20m',
+                mode:              'SSB',
+                rst_sent:          '59',
+                rst_received:      '57',
+                ncs_callsign:      '9M2NCS',
+                net_title:         'Malaysians On Air',
+                net_organisation:  'MARTS',
+                transport:         'RF (over the air)',
+                transport_meta:    '',
+                notes:             'Good signal, 73!',
+            };
+            return text.replace(/\{([a-z_][a-z0-9_]*)(?::([^}]+))?\}/gi, (match, key, fmt) => {
+                if (!(key in sample)) return match;
+                const val = sample[key];
+                if (val instanceof Date) {
+                    return fmt ? this.formatPhpDate(fmt, val)
+                               : val.toISOString().slice(0, 16).replace('T', ' ');
+                }
+                return String(val);
+            });
+        },
+
+        // Convert a PHP date format string to a formatted string from a JS Date.
+        // Handles the subset of PHP format chars actually used in QSL templates.
+        formatPhpDate(fmt, dt) {
+            const pad = n => String(n).padStart(2, '0');
+            return [...fmt].map(c => {
+                switch (c) {
+                    case 'Y': return dt.getUTCFullYear();
+                    case 'y': return String(dt.getUTCFullYear()).slice(-2);
+                    case 'm': return pad(dt.getUTCMonth() + 1);
+                    case 'n': return dt.getUTCMonth() + 1;
+                    case 'd': return pad(dt.getUTCDate());
+                    case 'j': return dt.getUTCDate();
+                    case 'H': return pad(dt.getUTCHours());
+                    case 'G': return dt.getUTCHours();
+                    case 'i': return pad(dt.getUTCMinutes());
+                    case 's': return pad(dt.getUTCSeconds());
+                    default:  return c;
+                }
+            }).join('');
+        },
+
+        renderPreview() {
+            if (!this.$refs.previewCanvas) return;
+            const FabricNS   = fabric.fabric || fabric;
+            const wrap       = this.$refs.previewWrap;
+            const targetW    = (wrap && wrap.clientWidth) || 900;
+            const ratio      = Math.min(targetW / this.canvasWidth, 600 / this.canvasHeight);
+            const w          = Math.floor(this.canvasWidth  * ratio);
+            const h          = Math.floor(this.canvasHeight * ratio);
+
+            if (!this.previewFabric) {
+                this.previewFabric = new FabricNS.Canvas(this.$refs.previewCanvas, {
+                    selection: false,
+                });
+            } else {
+                this.previewFabric.clear();
+            }
+            this.previewFabric.setZoom(ratio);
+            if (typeof this.previewFabric.setDimensions === 'function') {
+                this.previewFabric.setDimensions({ width: w, height: h });
+            } else {
+                this.previewFabric.setWidth(w);
+                this.previewFabric.setHeight(h);
+            }
+            // Reuse the background URL (not the Fabric image object — sharing
+            // Fabric objects between two canvases causes double-free artefacts).
+            this.applyBackground(this.previewFabric);
+
+            const Textbox = FabricNS.Textbox || FabricNS.Text;
+            this.fields.forEach((f) => {
+                const obj = new Textbox(this.resolveForPreview(f.placeholder || ''), {
+                    left:        f.x,
+                    top:         f.y,
+                    fontFamily:  this.fontFamilyFor(f.font),
+                    fontSize:    f.size || 36,
+                    fill:        f.color || '#000000',
+                    angle:       f.rotation || 0,
+                    stroke:      (f.outline_width || 0) > 0 ? (f.outline_color || '#000000') : null,
+                    strokeWidth: f.outline_width || 0,
+                    shadow:      this.buildFabricShadow(f),
+                    selectable:  false,
+                    evented:     false,
+                    editable:    false,
+                });
+                this.previewFabric.add(obj);
+            });
+            this.previewFabric.requestRenderAll();
+        },
+
         // M3-T5 — designer preview background. The URL is preview-only:
         // templates stay background-agnostic per spec §6.4, so we don't
         // serialise `backgroundUrl` into `layout_json`. The upload itself
@@ -383,8 +499,9 @@ function designer(initial) {
             this.applyBackground();
         },
 
-        applyBackground() {
-            if (!this.backgroundUrl || !this.fabricCanvas) return;
+        applyBackground(targetCanvas) {
+            const canvas = targetCanvas || this.fabricCanvas;
+            if (!this.backgroundUrl || !canvas) return;
             // Fabric v5 exposes `fabric.Image.fromURL(url, cb)`; the v6 UMD
             // build we vendored returns a Promise. Tolerating both keeps the
             // upgrade path open (same shape as initFabric's namespace probe).
@@ -398,11 +515,11 @@ function designer(initial) {
                 // do NOT compose pre-zoom and post-zoom scaling here.
                 img.scaleX = this.canvasWidth / img.width;
                 img.scaleY = this.canvasHeight / img.height;
-                if (this.fabricCanvas.setBackgroundImage) {
-                    this.fabricCanvas.setBackgroundImage(img, () => this.fabricCanvas.requestRenderAll());
-                } else if ('backgroundImage' in this.fabricCanvas) {
-                    this.fabricCanvas.backgroundImage = img;
-                    this.fabricCanvas.requestRenderAll();
+                if (canvas.setBackgroundImage) {
+                    canvas.setBackgroundImage(img, () => canvas.requestRenderAll());
+                } else if ('backgroundImage' in canvas) {
+                    canvas.backgroundImage = img;
+                    canvas.requestRenderAll();
                 }
             };
             if (promise && typeof promise.then === 'function') {

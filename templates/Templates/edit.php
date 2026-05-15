@@ -87,31 +87,50 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
              @change="uploadBackground($event.target.files[0])">
       <p class="form-text small">Used only for visual reference while designing. The actual background is chosen at render time.</p>
     </div>
-    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-      <button type="button" class="btn btn-sm"
-              :class="gridVisible ? 'btn-secondary' : 'btn-outline-secondary'"
-              @click="toggleGrid()">
-        &#9638; Grid
-      </button>
-      <template x-if="gridVisible">
-        <div class="d-flex align-items-center gap-2">
-          <div class="d-flex align-items-center gap-1">
-            <label class="form-label small mb-0">Size&nbsp;(px)</label>
-            <input type="number" class="form-control form-control-sm" style="width:68px"
-                   x-model.number="gridSize" min="10" max="300"
-                   @change="fabricCanvas?.requestRenderAll()">
+    <ul class="nav nav-tabs mb-0">
+      <li class="nav-item">
+        <button class="nav-link" :class="previewTab === 'design' ? 'active' : ''" @click="switchTab('design')">Design</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" :class="previewTab === 'preview' ? 'active' : ''" @click="switchTab('preview')">Preview</button>
+      </li>
+    </ul>
+
+    <div x-show="previewTab === 'design'" style="border: 1px solid #dee2e6; border-top: none; background: #f8f9fa;">
+      <div class="d-flex align-items-center gap-2 p-1 flex-wrap border-bottom">
+        <button type="button" class="btn btn-sm"
+                :class="gridVisible ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="toggleGrid()">
+          &#9638; Grid
+        </button>
+        <template x-if="gridVisible">
+          <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-1">
+              <label class="form-label small mb-0">Size&nbsp;(px)</label>
+              <input type="number" class="form-control form-control-sm" style="width:68px"
+                     x-model.number="gridSize" min="10" max="300"
+                     @change="fabricCanvas?.requestRenderAll()">
+            </div>
+            <div class="form-check mb-0 d-flex align-items-center gap-1">
+              <input type="checkbox" class="form-check-input mt-0" id="snapToGrid" x-model="snapToGrid">
+              <label class="form-check-label small" for="snapToGrid">Snap</label>
+            </div>
           </div>
-          <div class="form-check mb-0 d-flex align-items-center gap-1">
-            <input type="checkbox" class="form-check-input mt-0" id="snapToGrid" x-model="snapToGrid">
-            <label class="form-check-label small" for="snapToGrid">Snap</label>
-          </div>
-        </div>
-      </template>
+        </template>
+      </div>
+      <div x-ref="canvasWrap" style="width: 100%; line-height: 0; overflow: hidden;">
+        <canvas x-ref="canvas" style="max-width: 100%; display: block;"></canvas>
+      </div>
     </div>
-    <div x-ref="canvasWrap" style="width: 100%; line-height: 0; overflow: hidden; border: 1px solid #ccc; background: #f8f9fa;">
-      <canvas x-ref="canvas" style="max-width: 100%; display: block;"></canvas>
+
+    <div x-show="previewTab === 'preview'" style="border: 1px solid #dee2e6; border-top: none; background: #f8f9fa;">
+      <div x-ref="previewWrap" style="width: 100%; line-height: 0; overflow: hidden;">
+        <canvas x-ref="previewCanvas" style="max-width: 100%; display: block;"></canvas>
+      </div>
+      <p class="text-muted small m-2 mb-1">Sample data shown. Actual output depends on QSO data at render time.</p>
     </div>
-    <p class="text-muted small mt-2">Preview at fit-to-column. Final render is at <span x-text="canvasWidth"></span> &times; <span x-text="canvasHeight"></span> px.</p>
+
+    <p class="text-muted small mt-2">Canvas: <span x-text="canvasWidth"></span> &times; <span x-text="canvasHeight"></span> px (fit-to-column preview).</p>
   </div>
 
   <div class="col-lg-3">
