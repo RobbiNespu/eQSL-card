@@ -87,17 +87,13 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
              @change="uploadBackground($event.target.files[0])">
       <p class="form-text small">Used only for visual reference while designing. The actual background is chosen at render time.</p>
     </div>
-    <ul class="nav nav-tabs mb-0">
-      <li class="nav-item">
-        <button class="nav-link" :class="previewTab === 'design' ? 'active' : ''" @click="switchTab('design')">Design</button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" :class="previewTab === 'preview' ? 'active' : ''" @click="switchTab('preview')">Preview</button>
-      </li>
-    </ul>
+    <div role="tablist" class="tabs tabs-lifted">
+      <button role="tab" class="tab" :class="previewTab === 'design' ? 'tab-active' : ''" @click="switchTab('design')">Design</button>
+      <button role="tab" class="tab" :class="previewTab === 'preview' ? 'tab-active' : ''" @click="switchTab('preview')">Preview</button>
+    </div>
 
-    <div x-show="previewTab === 'design'" style="border: 1px solid #dee2e6; border-top: none; background: #f8f9fa;">
-      <div class="d-flex align-items-center gap-2 p-1 flex-wrap border-bottom">
+    <div x-show="previewTab === 'design'" class="border border-base-300 rounded-b bg-base-200">
+      <div class="flex items-center gap-2 p-1 flex-wrap border-b border-base-300">
         <button type="button" class="btn btn-sm"
                 :class="gridVisible ? 'btn-secondary' : 'btn-outline-secondary'"
                 @click="toggleGrid()">
@@ -123,7 +119,7 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
       </div>
     </div>
 
-    <div x-show="previewTab === 'preview'" style="border: 1px solid #dee2e6; border-top: none; background: #f8f9fa;">
+    <div x-show="previewTab === 'preview'" class="border border-base-300 rounded-b bg-base-200">
       <div x-ref="previewWrap" style="width: 100%; line-height: 0; overflow: hidden;">
         <canvas x-ref="previewCanvas" style="max-width: 100%; display: block;"></canvas>
       </div>
