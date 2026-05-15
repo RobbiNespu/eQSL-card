@@ -425,6 +425,29 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['POST']);
 
         /*
+         * Callsign auto-complete cache admin. Lists rows from `callsign_lookups`
+         * (what the provider chain has accumulated), lets the admin edit /
+         * delete individual cache entries, edit the provider source settings
+         * inline, and wipe the cache. Static-suffixed routes MUST come BEFORE
+         * the parametrized `/callsign-lookups/{id}/...` ones, and the digit
+         * pattern on `{id}` keeps a future static slot from being shadowed.
+         */
+        $builder->connect('/callsign-lookups', ['controller' => 'CallsignLookups', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/callsign-lookups/settings', ['controller' => 'CallsignLookups', 'action' => 'saveSettings'])
+            ->setMethods(['POST']);
+        $builder->connect('/callsign-lookups/clear', ['controller' => 'CallsignLookups', 'action' => 'clear'])
+            ->setMethods(['POST']);
+        $builder->connect('/callsign-lookups/{id}/edit', ['controller' => 'CallsignLookups', 'action' => 'edit'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
+        $builder->connect('/callsign-lookups/{id}/delete', ['controller' => 'CallsignLookups', 'action' => 'delete'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
+
+        /*
          * Callsign directory admin (M4-followup). CSV import / search / clear.
          * The directory is the LocalDirectoryProvider's backing store and slots
          * in front of external providers in the lookup chain.

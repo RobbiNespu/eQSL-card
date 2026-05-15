@@ -77,6 +77,7 @@
                 <li><a href="/admin/cards">All cards</a></li>
                 <li><a href="/admin/uploads">All uploads</a></li>
                 <li><a href="/admin/audit">Audit log</a></li>
+                <li><a href="/admin/callsign-lookups">Callsign auto-complete</a></li>
                 <li><a href="/admin/callsign-directory">Callsign directory</a></li>
                 <li><a href="/admin/cleanup">Cleanup</a></li>
                 <li><hr class="my-1 border-base-300 opacity-50"></li>
