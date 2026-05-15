@@ -275,7 +275,7 @@ class QsosController extends AppController
 
                     $this->Flash->success('QSO updated. The previous card has been removed — choose a template to render a new one.');
 
-                    return $this->redirect('/qsos/' . $entity->id . '/render-card');
+                    return $this->redirect('/qsos/' . $entity->id . '/render');
                 }
 
                 $this->Flash->success('QSO updated.');
