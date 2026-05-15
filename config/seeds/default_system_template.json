@@ -4,14 +4,14 @@
     "canvas_width": 1500,
     "canvas_height": 1000,
     "fields": [
-        {"placeholder": "{operator_callsign}", "x": 80, "y": 130, "font": "Cinzel-Regular.ttf", "size": 90, "color": "#0b1d3a", "rotation": 0},
-        {"placeholder": "to {callsign}",       "x": 80, "y": 210, "font": "Inter-Regular.ttf", "size": 48, "color": "#0b1d3a", "rotation": 0},
+        {"placeholder": "{operator_callsign}", "x": 80, "y": 130, "font": "Cinzel-Regular.ttf", "size": 90, "color": "#0b1d3a", "rotation": 0, "outline_color": "#ffffff", "outline_width": 1},
+        {"placeholder": "to {callsign}",       "x": 80, "y": 210, "font": "Inter-Regular.ttf", "size": 48, "color": "#0b1d3a", "rotation": 0, "outline_color": "#ffffff", "outline_width": 1},
         {"placeholder": "Confirming our QSO on {qso_datetime_utc:Y-m-d H:i} UTC",
-                                                "x": 80, "y": 760, "font": "Inter-Regular.ttf", "size": 32, "color": "#0b1d3a", "rotation": 0},
+                                                "x": 80, "y": 760, "font": "Inter-Regular.ttf", "size": 32, "color": "#0b1d3a", "rotation": 0, "outline_color": "#ffffff", "outline_width": 1},
         {"placeholder": "Band: {band}  Mode: {mode}  Freq: {frequency_mhz} MHz",
-                                                "x": 80, "y": 820, "font": "JetBrainsMono-Regular.ttf", "size": 28, "color": "#0b1d3a", "rotation": 0},
+                                                "x": 80, "y": 820, "font": "JetBrainsMono-Regular.ttf", "size": 28, "color": "#0b1d3a", "rotation": 0, "outline_color": "#ffffff", "outline_width": 1},
         {"placeholder": "RST sent: {rst_sent}   RST recv: {rst_received}",
-                                                "x": 80, "y": 870, "font": "JetBrainsMono-Regular.ttf", "size": 28, "color": "#0b1d3a", "rotation": 0},
-        {"placeholder": "{notes}",              "x": 80, "y": 930, "font": "Inter-Regular.ttf", "size": 24, "color": "#374151", "rotation": 0}
+                                                "x": 80, "y": 870, "font": "JetBrainsMono-Regular.ttf", "size": 28, "color": "#0b1d3a", "rotation": 0, "outline_color": "#ffffff", "outline_width": 1},
+        {"placeholder": "{notes}",              "x": 80, "y": 930, "font": "Inter-Regular.ttf", "size": 24, "color": "#374151", "rotation": 0, "outline_color": "#ffffff", "outline_width": 1}
     ]
 }
