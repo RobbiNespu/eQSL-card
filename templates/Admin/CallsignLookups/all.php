@@ -76,13 +76,15 @@
             <td><strong><?= h($row['callsign']) ?></strong></td>
             <td>
               <?php if ($row['source_type'] === 'directory'): ?>
-                <span class="badge bg-info" title="Admin-curated CSV entry">Directory</span>
-                <?php if (!empty($row['source_detail'])): ?>
-                  <span class="text-muted small">· <?= h($row['source_detail']) ?></span>
-                <?php endif; ?>
+                <span class="badge bg-info"
+                      title="Admin-curated CSV entry<?= !empty($row['source_detail']) ? ' from ' . h($row['source_detail']) : '' ?>">
+                  Directory<?= !empty($row['source_detail']) ? ' · ' . h($row['source_detail']) : '' ?>
+                </span>
               <?php else: ?>
-                <span class="badge bg-secondary" title="Auto-fetched from external provider">Cache</span>
-                <code class="small">· <?= h($row['source_detail']) ?></code>
+                <span class="badge bg-secondary"
+                      title="Auto-fetched from <?= h($row['source_detail']) ?>">
+                  Cache · <?= h($row['source_detail']) ?>
+                </span>
               <?php endif; ?>
             </td>
             <td><?= h($row['name'] ?? '—') ?></td>
