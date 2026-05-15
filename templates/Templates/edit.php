@@ -50,6 +50,9 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
     <details class="mb-1">
       <summary class="small fw-bold">Time &amp; frequency</summary>
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{qso_datetime_utc:Y-m-d H:i}')">Date/time UTC</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{qso_datetime_utc:Y-m-d}')">Date UTC</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{qso_datetime_utc:H:i}')">Time UTC</button>
+      <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{qso_date_hijri}')">Date Hijri (Islamic)</button>
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{frequency_mhz} MHz')">Frequency</button>
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{band}')">Band</button>
       <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-1 text-start" @click="addField('{mode}')">Mode</button>

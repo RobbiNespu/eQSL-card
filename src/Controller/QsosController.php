@@ -929,6 +929,9 @@ class QsosController extends AppController
             'callsign'           => (string)$qso->call_worked,
             'operator_callsign'  => (string)($userEntity->callsign ?? ''),
             'qso_datetime_utc'   => $qso->qso_datetime_utc?->format('Y-m-d H:i:s') ?? '',
+            'qso_date_hijri'     => $qso->qso_datetime_utc !== null
+                ? \App\Service\HijriDate::fromGregorian($qso->qso_datetime_utc)
+                : '',
             'frequency_mhz'      => (string)($qso->frequency_mhz ?? ''),
             'band'               => (string)($qso->band ?? ''),
             'mode'               => (string)($qso->mode ?? ''),

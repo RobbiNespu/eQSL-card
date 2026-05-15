@@ -447,6 +447,9 @@ class PublicController extends AppController
             'callsign'           => trim((string)($data['callsign'] ?? '')),
             'operator_callsign'  => trim((string)($data['operator_callsign'] ?? '')),
             'qso_datetime_utc'   => (string)($data['qso_datetime_utc'] ?? ''),
+            'qso_date_hijri'     => ($data['qso_datetime_utc'] ?? '') !== ''
+                ? \App\Service\HijriDate::fromGregorian(new \DateTimeImmutable((string)$data['qso_datetime_utc']))
+                : '',
             'frequency_mhz'      => (string)($data['frequency_mhz'] ?? ''),
             'band'               => (string)($data['band'] ?? ''),
             'mode'               => (string)($data['mode'] ?? ''),
