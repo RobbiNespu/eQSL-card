@@ -51,7 +51,7 @@
             aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
-    <div class="collapse navbar-collapse" id="mainNav">
+    <div class="navbar-collapse" id="mainNav">
     <ul class="navbar-nav ms-auto">
       <?php if ($this->getRequest()->getAttribute('identity')): ?>
         <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
