@@ -279,17 +279,46 @@ class TemplatesController extends AppController
             ])
             ->firstOrFail();
 
-        $refCount = $this->fetchTable('Cards')->find()
-            ->where(['Cards.template_id' => $id])
+        $cards = $this->fetchTable('Cards');
+
+        // Refuse if any ACTIVE (non-soft-deleted) cards reference this
+        // template — the user still has them in their library and would lose
+        // the ability to re-render. They must delete those from /cards first.
+        $activeCount = $cards->find()
+            ->where([
+                'Cards.template_id'   => $id,
+                'Cards.user_id'       => $userId,
+                'Cards.deleted_at IS' => null,
+            ])
             ->count();
-        if ($refCount > 0) {
+        if ($activeCount > 0) {
             $this->Flash->error(sprintf(
-                'Cannot delete: %d card%s still references this template. Delete those cards from /cards first.',
-                $refCount,
-                $refCount === 1 ? '' : 's'
+                'Cannot delete: %d card%s in your library still uses this template. Delete those cards from /cards first.',
+                $activeCount,
+                $activeCount === 1 ? '' : 's'
             ));
 
             return $this->redirect('/templates');
+        }
+
+        // Hard-delete any SOFT-DELETED card rows referencing this template
+        // (and their on-disk image files). These rows are invisible to the
+        // user already; reclaiming them here lets the RESTRICT FK release so
+        // the template can drop cleanly without leaving orphaned references.
+        $orphans = $cards->find()
+            ->where([
+                'Cards.template_id' => $id,
+                'Cards.user_id'     => $userId,
+            ])
+            ->all();
+        foreach ($orphans as $orphan) {
+            if (!empty($orphan->png_path)) {
+                $imagePath = WWW_ROOT . $orphan->png_path;
+                if (is_file($imagePath)) {
+                    @unlink($imagePath);
+                }
+            }
+            $cards->delete($orphan);
         }
 
         $templates->deleteOrFail($template);
