@@ -35,6 +35,9 @@ function designer(initial) {
         // because Alpine reactivity rewraps array entries; the integer index
         // is the stable bridge between the two worlds.
         fieldObjects: new Map(),
+        gridVisible: false,
+        gridSize: 50,
+        snapToGrid: false,
 
         init() {
             // Defer until the <canvas x-ref="canvas"> element is mounted.
@@ -81,8 +84,21 @@ function designer(initial) {
             // Drag/move → write x/y back into the JSON model. `object:moving`
             // gives a live stream while dragging; `object:modified` covers
             // the final commit (also triggered by handles for resize).
-            this.fabricCanvas.on('object:moving', (e) => this.syncCanvasToField(e.target));
+            this.fabricCanvas.on('object:moving', (e) => {
+                if (this.snapToGrid && this.gridSize > 0) {
+                    const s = this.gridSize;
+                    e.target.set({
+                        left: Math.round(e.target.left / s) * s,
+                        top:  Math.round(e.target.top  / s) * s,
+                    });
+                }
+                this.syncCanvasToField(e.target);
+            });
             this.fabricCanvas.on('object:modified', (e) => this.syncCanvasToField(e.target));
+
+            // Grid overlay — redrawn after every Fabric render pass so it
+            // scales correctly with the viewport zoom.
+            this.fabricCanvas.on('after:render', ({ ctx }) => this.drawGrid(ctx));
 
             // Alt+click cycles through overlapping objects at the same point,
             // bottom-to-top, so the user can reach fields buried under others.
@@ -278,6 +294,40 @@ function designer(initial) {
                 }
             });
             this.fabricCanvas?.requestRenderAll();
+        },
+
+        toggleGrid() {
+            this.gridVisible = !this.gridVisible;
+            this.fabricCanvas?.requestRenderAll();
+        },
+
+        // Draw a grid directly onto the canvas context in design-space
+        // coordinates. Called from the after:render event so it sits on top
+        // of all Fabric objects but doesn't interfere with hit-testing.
+        drawGrid(ctx) {
+            if (!this.gridVisible || !this.fabricCanvas) return;
+            const vpt  = this.fabricCanvas.viewportTransform;
+            const zoom = this.fabricCanvas.getZoom();
+            const w    = this.canvasWidth;
+            const h    = this.canvasHeight;
+            const s    = Math.max(10, this.gridSize);
+
+            ctx.save();
+            // Apply the viewport transform so coordinates match design space.
+            ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+            ctx.strokeStyle = 'rgba(99,102,241,0.25)';
+            ctx.lineWidth   = 1 / zoom;
+            ctx.beginPath();
+            for (let x = 0; x <= w; x += s) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+            }
+            for (let y = 0; y <= h; y += s) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+            }
+            ctx.stroke();
+            ctx.restore();
         },
 
         // Select a field from the layers panel by its fields-array index.

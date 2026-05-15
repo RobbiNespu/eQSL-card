@@ -84,6 +84,27 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
              @change="uploadBackground($event.target.files[0])">
       <p class="form-text small">Used only for visual reference while designing. The actual background is chosen at render time.</p>
     </div>
+    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+      <button type="button" class="btn btn-sm"
+              :class="gridVisible ? 'btn-secondary' : 'btn-outline-secondary'"
+              @click="toggleGrid()">
+        &#9638; Grid
+      </button>
+      <template x-if="gridVisible">
+        <div class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-center gap-1">
+            <label class="form-label small mb-0">Size&nbsp;(px)</label>
+            <input type="number" class="form-control form-control-sm" style="width:68px"
+                   x-model.number="gridSize" min="10" max="300"
+                   @change="fabricCanvas?.requestRenderAll()">
+          </div>
+          <div class="form-check mb-0 d-flex align-items-center gap-1">
+            <input type="checkbox" class="form-check-input mt-0" id="snapToGrid" x-model="snapToGrid">
+            <label class="form-check-label small" for="snapToGrid">Snap</label>
+          </div>
+        </div>
+      </template>
+    </div>
     <div x-ref="canvasWrap" style="width: 100%; line-height: 0; overflow: hidden; border: 1px solid #ccc; background: #f8f9fa;">
       <canvas x-ref="canvas" style="max-width: 100%; display: block;"></canvas>
     </div>
