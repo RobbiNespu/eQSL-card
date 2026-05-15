@@ -1400,27 +1400,36 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
 }
 
 /* Tinted badge surfaces were authored with light-mode pastel fills
-   (#e0f2fe / #fee2e2 / #fef3c7) and dark ink colours. On a dark page
-   the pastel pill is fine, but on dark surfaces it can read as too
-   bright; swap to the *-soft tokens (which already invert) for a more
-   muted, theme-consistent look. */
+   (#e0f2fe / #fee2e2 / #fef3c7) and dark ink colours. On dark mode we
+   keep the *-soft tinted background but bump the text to the bright
+   token so the contrast clears WCAG AA — the previous bright-on-dark
+   pair (e.g. #38bdf8 on #082f49) only landed at ~4.4:1 which makes the
+   small 0.75rem badge text wash out on real displays. */
 [data-theme="eqsl-dark"] .badge.bg-info {
   background: var(--info-soft);
-  color: var(--info);
+  color: #e0f2fe;           /* sky-100 — high contrast on the dark navy fill */
   border-color: var(--info);
 }
 [data-theme="eqsl-dark"] .badge.bg-danger {
   background: var(--danger-soft);
-  color: var(--danger);
+  color: #fee2e2;           /* red-100 */
   border-color: var(--danger);
 }
 [data-theme="eqsl-dark"] .badge.bg-warning {
   background: var(--warning-soft);
-  color: var(--warning);
+  color: #fef3c7;           /* amber-100 */
   border-color: var(--warning);
 }
 [data-theme="eqsl-dark"] .badge.bg-success {
+  background: var(--accent-soft);
+  color: #d1fae5;           /* emerald-100 */
   border-color: var(--accent);
+}
+[data-theme="eqsl-dark"] .badge.bg-secondary,
+[data-theme="eqsl-dark"] .badge.bg-light {
+  background: var(--surface-3);
+  color: var(--fg);         /* was --fg-muted; gray-on-gray is unreadable */
+  border-color: var(--border-strong);
 }
 [data-theme="eqsl-dark"] .badge.bg-dark {
   background: var(--surface-2);
