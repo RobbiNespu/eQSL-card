@@ -253,6 +253,12 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
             ->setMethods(['POST']);
+        // Hard-delete a user's own template. POST-only and static-suffixed for
+        // the same reasons as the qsos/cards delete routes.
+        $builder->connect('/templates/{id}/delete', ['controller' => 'Templates', 'action' => 'delete'])
+            ->setPass(['id'])
+            ->setPatterns(['id' => '\d+'])
+            ->setMethods(['POST']);
         $builder->connect('/templates/{id}', ['controller' => 'Templates', 'action' => 'view'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])

@@ -249,6 +249,56 @@ class TemplatesController extends AppController
     }
 
     /**
+     * Hard-delete one of the user's own templates.
+     *
+     * Scoped strictly to non-system templates owned by the current user:
+     * system templates and other users' public templates are off-limits and
+     * surface as 404 via `firstOrFail`.
+     *
+     * The `cards.template_id` FK is `RESTRICT`, so we cannot drop a template
+     * that any card row still references — even soft-deleted ones, since the
+     * FK doesn't honour `deleted_at`. We pre-check the reference count and
+     * refuse with a clear flash message so the user knows what to do (delete
+     * the dependent cards from /cards first). This keeps the deletion atomic
+     * and avoids leaving the user staring at an opaque SQL 23000 error.
+     *
+     * @param int $id Template id (route-bound).
+     * @return \Cake\Http\Response Redirect to /templates.
+     */
+    public function delete(int $id): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $templates = $this->fetchTable('Templates');
+        $template = $templates->find()
+            ->where([
+                'Templates.id'        => $id,
+                'Templates.user_id'   => $userId,
+                'Templates.is_system' => false,
+            ])
+            ->firstOrFail();
+
+        $refCount = $this->fetchTable('Cards')->find()
+            ->where(['Cards.template_id' => $id])
+            ->count();
+        if ($refCount > 0) {
+            $this->Flash->error(sprintf(
+                'Cannot delete: %d card%s still references this template. Delete those cards from /cards first.',
+                $refCount,
+                $refCount === 1 ? '' : 's'
+            ));
+
+            return $this->redirect('/templates');
+        }
+
+        $templates->deleteOrFail($template);
+        $this->Flash->success('Template deleted.');
+
+        return $this->redirect('/templates');
+    }
+
+    /**
      * Tell an AJAX caller "save succeeded, go here" via a JSON envelope.
      *
      * The designer's `save()` fetch sets `Accept: application/json` so it can

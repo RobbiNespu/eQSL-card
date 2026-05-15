@@ -14,7 +14,7 @@
   </ul>
 
   <?php
-  $renderGrid = function ($collection, $tabName, $emptyMessage, $showEdit, $showClone) { ?>
+  $renderGrid = function ($collection, $tabName, $emptyMessage, $showEdit, $showClone, $showDelete = false) { ?>
     <div role="tabpanel" x-show="tab === <?= "'" . h($tabName) . "'" ?>" x-cloak>
       <?php if ($collection->count() === 0): ?>
         <?= $this->element('ui/empty_state', ['message' => $emptyMessage]) ?>
@@ -47,6 +47,12 @@
                     <?php if ($showClone): ?>
                       <?= $this->Form->postLink('Clone', '/templates/' . $t->id . '/clone', ['class' => 'btn btn-outline-secondary btn-sm']) ?>
                     <?php endif; ?>
+                    <?php if ($showDelete): ?>
+                      <?= $this->Form->postLink('Delete', '/templates/' . $t->id . '/delete', [
+                          'class' => 'btn btn-outline-danger btn-sm',
+                          'confirm' => 'Delete this template? This cannot be undone.',
+                      ]) ?>
+                    <?php endif; ?>
                   </div>
                 </div>
               </div>
@@ -60,7 +66,7 @@
   // for the initial pass, because Alpine hasn't hydrated yet at first render
   // and we want the right tab visible on initial paint. The other two are
   // x-cloak-hidden until Alpine kicks in.
-  $renderGrid($mine, 'mine', 'No templates yet. Click "+ New template" to create one.', true, false);
+  $renderGrid($mine, 'mine', 'No templates yet. Click "+ New template" to create one.', true, false, true);
   $renderGrid($public, 'public', 'No public templates yet.', false, true);
   $renderGrid($system, 'system', 'No system templates seeded.', false, true);
   ?>
