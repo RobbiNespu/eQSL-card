@@ -252,6 +252,32 @@ class QsosController extends AppController
             // user_id is locked in _accessible; patchEntity drops any attempt
             // to reassign it. Test `testEditCannotChangeUserId` proves this.
             if ($qsos->save($entity)) {
+                // If a card was rendered from this QSO, its embedded QSO data
+                // is now stale — remove it so the user can render a fresh one.
+                $cards = $this->fetchTable('Cards');
+                $staleCard = $cards->find()
+                    ->where([
+                        'Cards.qso_id'      => $entity->id,
+                        'Cards.user_id'     => $userId,
+                        'Cards.deleted_at IS' => null,
+                    ])
+                    ->first();
+
+                if ($staleCard !== null) {
+                    // Delete the physical image file immediately so disk is
+                    // reclaimed without waiting for the M4 admin sweep.
+                    $imagePath = WWW_ROOT . $staleCard->png_path;
+                    if (is_file($imagePath)) {
+                        @unlink($imagePath);
+                    }
+                    $staleCard->deleted_at = \Cake\I18n\DateTime::now();
+                    $cards->save($staleCard);
+
+                    $this->Flash->success('QSO updated. The previous card has been removed — choose a template to render a new one.');
+
+                    return $this->redirect('/qsos/' . $entity->id . '/render-card');
+                }
+
                 $this->Flash->success('QSO updated.');
 
                 return $this->redirect('/qsos/' . $entity->id);

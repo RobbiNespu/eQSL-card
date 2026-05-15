@@ -28,6 +28,12 @@
         <dt class="col-sm-5">Notes</dt><dd class="col-sm-7"><?= nl2br(h($qso['notes'])) ?></dd>
       <?php endif; ?>
     </dl>
+    <?php if ($card->qso_id): ?>
+      <a class="btn btn-outline-secondary btn-sm" href="/qsos/<?= h($card->qso_id) ?>/edit">
+        Edit QSO details
+      </a>
+      <p class="form-text small mt-1">Editing will remove this card — you will be asked to render a new one.</p>
+    <?php endif; ?>
 
     <hr>
     <h2 class="h5">Sharing</h2>
