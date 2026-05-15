@@ -127,6 +127,11 @@ function cameraForm() {
     return {
         mode: 'default',
         captured: '',
+        // QSO type for the guest /generate form. Mirrors the logged-in
+        // qsos/add toggle so the public form can produce net check-in cards
+        // too (placeholders like {ncs_callsign}, {net_title} resolve).
+        qsoType: 'contact',
+        isNet() { return this.qsoType === 'net'; },
         async startCamera() {
             this.mode = 'camera';
             try {

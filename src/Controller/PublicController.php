@@ -457,14 +457,16 @@ class PublicController extends AppController
             'rst_received'       => (string)($data['rst_received'] ?? ''),
             'operator_name'      => (string)($data['operator_name'] ?? ''),
             'notes'              => (string)($data['notes'] ?? ''),
-            // Net placeholders kept empty for the guest flow — the public
-            // /generate form doesn't surface them. Including the keys means
-            // templates that use {ncs_callsign} etc. don't print a literal
-            // placeholder when rendered against a guest card.
-            'qso_type'           => 'contact',
-            'ncs_callsign'       => '',
-            'net_title'          => '',
-            'net_organisation'   => '',
+            // QSO type + net fields are now exposed on the guest form via a
+            // Contact / Net toggle. We only honour the submitted net values
+            // when qso_type === 'net'; otherwise force them empty so a stale
+            // value in a contact submission doesn't leak onto the rendered
+            // card. Anything other than the literal string 'net' falls back
+            // to 'contact', matching the logged-in flow.
+            'qso_type'           => (($data['qso_type'] ?? '') === 'net') ? 'net' : 'contact',
+            'ncs_callsign'       => (($data['qso_type'] ?? '') === 'net') ? trim((string)($data['ncs_callsign'] ?? '')) : '',
+            'net_title'          => (($data['qso_type'] ?? '') === 'net') ? trim((string)($data['net_title'] ?? '')) : '',
+            'net_organisation'   => (($data['qso_type'] ?? '') === 'net') ? trim((string)($data['net_organisation'] ?? '')) : '',
             // Transport defaults to RF for guest cards — the public form
             // doesn't expose a transport picker.
             'transport'          => \App\Service\Transport::label('rf'),

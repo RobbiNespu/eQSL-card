@@ -3,10 +3,33 @@
 <p>Fill in the QSO, attach a background, and download. No account needed — sign up later to keep your card library.</p>
 
 <?= $this->Form->create(null, ['url' => '/generate', 'type' => 'file']) ?>
+
+<!-- QSO type toggle. Mirrors the logged-in /qsos/new form so guests can
+     produce net check-in cards too. -->
+<div class="field" style="margin-bottom: var(--s-5);">
+  <label class="form-label">QSO type</label>
+  <div class="btn-group" role="group" aria-label="QSO type">
+    <input type="radio" class="btn-check" id="qsoType-contact" name="qso_type" value="contact"
+           x-model="qsoType">
+    <label class="btn btn-outline-primary" for="qsoType-contact">Contact QSO</label>
+
+    <input type="radio" class="btn-check" id="qsoType-net" name="qso_type" value="net"
+           x-model="qsoType">
+    <label class="btn btn-outline-primary" for="qsoType-net">Net check-in</label>
+  </div>
+  <p class="form-text">
+    <span x-show="!isNet()">A 1:1 contact between two stations.</span>
+    <span x-show="isNet()" x-cloak>The NCS issues the card to a net participant. Fill in the net details below.</span>
+  </p>
+</div>
+
 <div class="row g-3">
   <div class="col-md-6">
     <div class="field">
-      <label class="form-label" for="callsign">Their callsign <span class="req">*</span></label>
+      <label class="form-label" for="callsign">
+        <span x-text="isNet() ? 'Participant callsign' : 'Their callsign'">Their callsign</span>
+        <span class="req">*</span>
+      </label>
       <?= $this->Form->control('callsign', [
           'class' => 'form-control', 'label' => false, 'id' => 'callsign',
           'required' => true, 'autocapitalize' => 'characters', 'autocomplete' => 'off',
@@ -101,6 +124,38 @@
           'class' => 'form-control', 'label' => false, 'id' => 'notes',
           'templates' => ['inputContainer' => '{{content}}'],
       ]) ?>
+    </div>
+  </div>
+
+  <!-- Net details: visible only in net mode. Inputs stay in the DOM so the
+       form always submits the names; values default to "" for contact rows. -->
+  <div class="col-12" x-show="isNet()" x-cloak>
+    <div class="form-fieldset">
+      <span class="form-fieldset__legend">Net details</span>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="field">
+            <label class="form-label" for="ncs_callsign">NCS callsign <span class="req">*</span></label>
+            <input type="text" id="ncs_callsign" name="ncs_callsign" class="form-control"
+                   :required="isNet()"
+                   autocomplete="off" autocapitalize="characters" spellcheck="false">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="field">
+            <label class="form-label" for="net_title">Net title</label>
+            <input type="text" id="net_title" name="net_title" class="form-control"
+                   placeholder="e.g. Sunday Morning Net">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="field">
+            <label class="form-label" for="net_organisation">Organisation</label>
+            <input type="text" id="net_organisation" name="net_organisation" class="form-control"
+                   placeholder="e.g. MARTS">
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
