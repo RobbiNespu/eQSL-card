@@ -49,13 +49,48 @@
 
 <hr class="my-4">
 
+<!-- ── Data-source summary ─────────────────────────────────────────── -->
+<!--
+  The chain has two distinct stores. Show both counts side-by-side so an
+  admin who just uploaded a CSV to the local directory doesn't go looking
+  for those rows in the cache table below.
+-->
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card p-3 h-100">
+      <h2 class="h6 mb-1">Local directory <span class="badge bg-info ms-1">provider/local</span></h2>
+      <p class="display-6 mb-0"><?= h($directoryCount) ?></p>
+      <p class="text-muted small mb-2">Admin-uploaded rows. Always checked first.</p>
+      <a class="btn btn-outline-primary btn-sm" href="/admin/callsign-lookups/provider/local">
+        Manage local directory &rarr;
+      </a>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-3 h-100">
+      <h2 class="h6 mb-1">External cache <span class="badge bg-secondary ms-1">callsign_lookups</span></h2>
+      <p class="display-6 mb-0"><?= h($totalCount) ?></p>
+      <p class="text-muted small mb-0">Auto-filled when the QSO form looks up a callsign and an external provider returns data. Listed below.</p>
+    </div>
+  </div>
+</div>
+
 <!-- ── Cache list ──────────────────────────────────────────────────── -->
 <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-  <h2 class="h5 mb-0">Cached callsigns <span class="text-muted">(<?= h($totalCount) ?>)</span></h2>
-  <?= $this->Form->postLink('Clear all cached lookups', '/admin/callsign-lookups/clear', [
-      'class'   => 'btn btn-outline-danger btn-sm',
-      'confirm' => 'Delete every cached row? The chain will re-fetch on demand. QSO history is untouched.',
-  ]) ?>
+  <div>
+    <h2 class="h5 mb-0">External lookup cache</h2>
+    <p class="form-text small mb-0">
+      Rows here come from the QSO form's auto-complete contacting an external
+      provider. CSV-uploaded rows live in the
+      <a href="/admin/callsign-lookups/provider/local">local directory</a> instead.
+    </p>
+  </div>
+  <?php if ($totalCount > 0): ?>
+    <?= $this->Form->postLink('Clear all cached lookups', '/admin/callsign-lookups/clear', [
+        'class'   => 'btn btn-outline-danger btn-sm',
+        'confirm' => 'Delete every cached row? The chain will re-fetch on demand. QSO history is untouched.',
+    ]) ?>
+  <?php endif; ?>
 </div>
 
 <form method="get" class="mb-3" action="/admin/callsign-lookups">
@@ -73,7 +108,7 @@
   <?= $this->element('ui/empty_state', [
       'message' => $q !== ''
           ? 'No cached lookups match that search.'
-          : 'The cache is empty. Entries will appear here once a user looks up a callsign in the QSO form.',
+          : 'No external lookups cached yet. Rows appear here once a user types a callsign in the QSO form and an external provider returns useful data. Bulk imports go to the local directory instead.',
   ]) ?>
 <?php else: ?>
   <div class="table-responsive">

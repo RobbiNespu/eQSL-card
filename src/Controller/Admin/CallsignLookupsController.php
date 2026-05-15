@@ -84,11 +84,18 @@ class CallsignLookupsController extends AppController
         $providerCsv = (string)$settings->get('callsign_lookup_providers', '');
         $enabledProviders = array_values(array_filter(array_map('trim', explode(',', $providerCsv))));
 
+        // The local provider reads from its own `callsign_directory` table
+        // (admin-curated CSV). Surface that count next to the cache count so
+        // the operator isn't confused after a CSV upload — those rows live on
+        // /admin/callsign-lookups/provider/local, not in the cache list below.
+        $directoryCount = $this->fetchTable('CallsignDirectory')->find()->count();
+
         $this->set([
             'title'            => 'Callsign auto-complete',
             'lookups'          => $lookups,
             'q'                => $q,
             'totalCount'       => $table->find()->count(),
+            'directoryCount'   => $directoryCount,
             'callsignEnabled'  => $enabled,
             'providerMap'      => self::PROVIDER_MAP,
             'enabledProviders' => $enabledProviders,
