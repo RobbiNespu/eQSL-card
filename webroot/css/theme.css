@@ -797,6 +797,13 @@ input[type="color"].form-control-color {
   vertical-align: middle;
   background: var(--surface-2);
   color: var(--fg-muted);
+  /* Keep the pill shape: border-radius 999px only renders as a pill on
+     single-line content. When the label wraps (e.g. "Cache · radioid_api"
+     in a narrow column) the wrapped box loses its pill silhouette and
+     looks like a bare rectangle. nowrap guarantees the rounded ends; the
+     column can horizontally scroll on overflow via the table-responsive
+     wrapper if a label truly is too long. */
+  white-space: nowrap;
 }
 .badge.bg-info       { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
 .badge.bg-success    { background: var(--accent-soft); color: var(--accent-strong); border-color: #a7f3d0; }
