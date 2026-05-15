@@ -166,12 +166,28 @@ function qsoFormState(initial) {
     <div class="col-md-6">
       <div class="field">
         <label class="form-label" for="qso-datetime-utc">Date / Time UTC <span class="req">*</span></label>
+        <?php
+        // CakePHP hydrates qso_datetime_utc as a DateTime object whose
+        // default string cast uses a space separator ("YYYY-MM-DD HH:MM:SS"),
+        // but HTML5 datetime-local needs "YYYY-MM-DDTHH:MM" — without the T,
+        // the browser drops the value and the field renders blank on edit.
+        // We resolve the value here: request data wins (so a validation-error
+        // rerender keeps the user's typed input), otherwise format the bound
+        // entity, otherwise empty (new QSO).
+        $requestDt = $this->getRequest()->getData('qso_datetime_utc');
+        $datetimeVal = $requestDt !== null
+            ? (string)$requestDt
+            : ($qso->qso_datetime_utc instanceof \DateTimeInterface
+                ? $qso->qso_datetime_utc->format('Y-m-d\TH:i')
+                : '');
+        ?>
         <?= $this->Form->control('qso_datetime_utc', [
             'type'  => 'datetime-local',
             'label' => false,
             'id'    => 'qso-datetime-utc',
             'class' => 'form-control',
             'required' => true,
+            'val'   => $datetimeVal,
             'templates' => ['inputContainer' => '{{content}}'],
         ]) ?>
         <p class="form-text">UTC — not your local time. Use a UTC clock to be sure.</p>
