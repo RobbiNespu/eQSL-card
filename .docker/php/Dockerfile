@@ -8,6 +8,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) gd pdo_mysql intl mbstring zip opcache
 
+# Xdebug for the dev container. Defaults to step-debug only ("develop,debug")
+# so production-equivalent benchmarking still reflects real PHP speed. The
+# test runner overrides this per-invocation with XDEBUG_MODE=coverage when
+# `phpunit --coverage-text` (or HTML) is requested.
+RUN pecl install xdebug \
+    && docker-php-ext-enable xdebug
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY php.ini /usr/local/etc/php/conf.d/zz-app.ini
