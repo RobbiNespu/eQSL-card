@@ -2215,3 +2215,47 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
     font-size: 16px;
   }
 }
+
+/* ============================================================
+   M5 T11 — Sticky-above-keyboard primary action
+   On mobile, the quick-add submit button sticks to the bottom
+   of the scrollport so the operator never has to scroll to
+   reach it. --keyboard-inset is updated by initKeyboardAware
+   in app.js (Visual Viewport API) so the button stays above
+   the on-screen keyboard on iOS Safari too. Android Chrome
+   gets the same effect via the interactive-widget meta hint.
+
+   The sticky wrapper has a body-coloured background + top
+   border so form content scrolling past it doesn't visually
+   leak through. Sits above the fixed bottom-tab nav by
+   virtue of being inside body content (the tab nav is at
+   z-index: 1020; sticky elements default to z-index: auto
+   relative to scroll context so they don't fight).
+   ============================================================ */
+@media (max-width: 991.98px) {
+  .quick-add__actions.form-actions-mobile {
+    position: sticky;
+    /* Sit above: (a) bottom-tab nav 56px, (b) safe-area for the
+       iPhone home indicator, (c) any on-screen keyboard via the
+       --keyboard-inset variable. When the keyboard is open
+       --keyboard-inset > 0 and the bottom-tab nav is typically
+       hidden by the keyboard anyway, so we still want the inset
+       to override. */
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + var(--keyboard-inset, 0px));
+    background: var(--bs-body-bg, #fff);
+    border-top: 1px solid var(--border, #e2e8f0);
+    margin-left: calc(-1 * var(--bs-gutter-x, 12px));
+    margin-right: calc(-1 * var(--bs-gutter-x, 12px));
+    padding: var(--s-3, 12px) var(--bs-gutter-x, 16px);
+    /* Margin-top compensates for the inherited mt-4 that pushes the
+       row down; we want minimal gap from form content above. */
+    margin-top: var(--s-2, 8px) !important;
+    /* Above scrolling content (z-index: 1 in stacking context is
+       enough; bottom-tab nav is on body, separate context). */
+    z-index: 5;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  }
+  [data-theme="eqsl-dark"] .quick-add__actions.form-actions-mobile {
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.4);
+  }
+}

@@ -45,6 +45,17 @@
     'body' => 'During a single activation, save the activation reference itself as a chip (e.g. "POTA K-1234 Bukit Larut"). Every check-in becomes a one-tap notes fill — much faster than typing the full reference each time. Remove the chip when the activation ends.',
 ]) ?>
 
+<h2>Sticky save button</h2>
+<p>On mobile (&lt; 992 px) the <strong>Log contact</strong> button is sticky-positioned at the bottom of the form. As you scroll through the fields, the button stays visible — you never have to scroll back down to reach it.</p>
+
+<p>When the on-screen keyboard opens, the button stays <em>above</em> the keyboard. Two mechanisms make this work:</p>
+<ul>
+  <li><strong>Android Chrome / Edge</strong> get a viewport hint (<code>interactive-widget=resizes-content</code>) that tells the browser to shrink the layout viewport when the keyboard opens. Sticky positioning then naturally sits above it.</li>
+  <li><strong>iOS Safari</strong> ignores that hint, but a small Visual Viewport API listener writes the keyboard's height as a CSS variable; the sticky button uses that variable as a bottom offset.</li>
+</ul>
+
+<p>Worst-case (very old browsers without the Visual Viewport API): the button stays at the bottom of the scrollport and may briefly overlap the keyboard. The form is still functional — tap the field above the button to dismiss the keyboard if needed.</p>
+
 <h2>What's NOT in the form</h2>
 <p>Deliberately stripped:</p>
 <ul>

@@ -409,3 +409,37 @@ function quickAddForm(recent) {
     };
 }
 window.quickAddForm = quickAddForm;
+
+/**
+ * M5 T11 — Keep sticky form actions above the on-screen keyboard.
+ *
+ * The Android Chrome side is handled by the meta-viewport
+ * `interactive-widget=resizes-content` hint, which shrinks the layout
+ * viewport when the keyboard opens — `position: sticky; bottom: 0`
+ * then naturally rests just above the keyboard.
+ *
+ * iOS Safari ignores that hint and only shrinks the VISUAL viewport
+ * (not layout), so fixed/sticky elements end up *behind* the keyboard.
+ * This listener uses the Visual Viewport API to compute how much of
+ * the layout viewport the keyboard is covering, then writes that as a
+ * --keyboard-inset CSS variable. Sticky elements offset their `bottom`
+ * by that amount to stay above the keyboard.
+ *
+ * No-op on browsers without window.visualViewport (older mobile
+ * Safari, IE). Worst case: sticky button stays at bottom: 0 and
+ * possibly overlaps with keyboard. The form is still usable.
+ */
+function initKeyboardAware() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+        // Difference between layout viewport bottom and visual viewport
+        // bottom = the keyboard's visible height (in CSS px).
+        const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--keyboard-inset', inset + 'px');
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
+}
+document.addEventListener('DOMContentLoaded', initKeyboardAware);
