@@ -53,6 +53,25 @@ class BasePathMiddleware implements MiddlewareInterface
             return $response;
         }
 
+        // ----- Redirect Location header (3xx responses) -----
+        // CakePHP's Controller::redirect('/foo') sends a bare /foo in the
+        // Location header without prefixing App.base. Under a subfolder
+        // deploy that lands the browser at the wrong path. Rewrite it
+        // here. Skip protocol-relative //host and fully-qualified URLs.
+        $status = $response->getStatusCode();
+        if ($status >= 300 && $status < 400 && $response->hasHeader('Location')) {
+            $loc = $response->getHeaderLine('Location');
+            $needsPrefix = $loc !== ''
+                && $loc[0] === '/'
+                && !str_starts_with($loc, '//')
+                && !str_starts_with($loc, '/' . $prefix . '/')
+                && $loc !== '/' . $prefix;
+            if ($needsPrefix) {
+                $response = $response->withHeader('Location', '/' . $prefix . $loc);
+            }
+        }
+
+        // ----- HTML body rewrites (text/html responses) -----
         $ctype = strtolower($response->getHeaderLine('Content-Type'));
         if ($ctype !== '' && !str_contains($ctype, 'text/html')) {
             return $response;

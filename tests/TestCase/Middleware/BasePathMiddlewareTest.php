@@ -107,4 +107,54 @@ final class BasePathMiddlewareTest extends TestCase
     {
         $this->assertSame('', $this->dispatch('/qsl/', ''));
     }
+
+    /**
+     * Helper: dispatch with a custom-built 302 response so we can assert
+     * the Location-header rewrite branch added for the InstallController
+     * `return $this->redirect('/install/migrate')` case.
+     */
+    private function dispatchRedirect(string $webroot, string $location, int $status = 302): ResponseInterface
+    {
+        $request = (new ServerRequest(['url' => '/foo']))->withAttribute('webroot', $webroot);
+        $handler = new class($status, $location) implements RequestHandlerInterface {
+            public function __construct(private int $status, private string $location) {}
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())
+                    ->withStatus($this->status)
+                    ->withHeader('Location', $this->location);
+            }
+        };
+        return (new BasePathMiddleware())->process($request, $handler);
+    }
+
+    public function testRewritesLocationHeaderOnRedirect(): void
+    {
+        $resp = $this->dispatchRedirect('/qsl/', '/install/migrate');
+        $this->assertSame('/qsl/install/migrate', $resp->getHeaderLine('Location'));
+    }
+
+    public function testLocationHeaderRewriteIsIdempotent(): void
+    {
+        $resp = $this->dispatchRedirect('/qsl/', '/qsl/install/migrate');
+        $this->assertSame('/qsl/install/migrate', $resp->getHeaderLine('Location'));
+    }
+
+    public function testLocationHeaderRewriteSkipsAbsoluteUrls(): void
+    {
+        $resp = $this->dispatchRedirect('/qsl/', 'https://other.example.com/x');
+        $this->assertSame('https://other.example.com/x', $resp->getHeaderLine('Location'));
+    }
+
+    public function testLocationHeaderRewriteSkipsProtocolRelative(): void
+    {
+        $resp = $this->dispatchRedirect('/qsl/', '//cdn.example.com/x');
+        $this->assertSame('//cdn.example.com/x', $resp->getHeaderLine('Location'));
+    }
+
+    public function testLocationHeaderRewriteNoOpAtRootDeploy(): void
+    {
+        $resp = $this->dispatchRedirect('/', '/install/migrate');
+        $this->assertSame('/install/migrate', $resp->getHeaderLine('Location'));
+    }
 }
