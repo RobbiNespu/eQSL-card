@@ -101,6 +101,7 @@ Shared-hosting deployment (cPanel / DirectAdmin / similar) is documented in
 - ✅ **M2 Logged-in features** (`v0.2.0`) — QSO library, ADIF/CSV import, share links, render-from-QSO
 - ✅ **M3 Template designer** (`v0.3.0`) — Fabric.js drag-and-drop, public template gallery, admin moderation
 - ✅ **M4 Admin & polish** (`v1.0.0`) — audit logs, admin tools, email verification, profile, CI
+- 🚧 **M5 Mobile & portable ops** (`v1.1.0`, planned) — one-thumb QSO entry, PWA + offline-first, activation grouping for POTA/SOTA, dupe checking
 
 Per-milestone implementation plans live under [`docs/superpowers/plans/`](docs/superpowers/plans/).
 
