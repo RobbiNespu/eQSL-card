@@ -100,6 +100,29 @@ final class RadioIdRegistryImporterTest extends TestCase
         }
     }
 
+    public function testImportDedupesRepeatedCallsigns(): void
+    {
+        // VE3ZXN appears twice in the live upstream — once on radio_id
+        // 1023020 and once on 1023021. The unique index on callsign would
+        // otherwise fail the whole batch INSERT, so the importer keeps
+        // only the first occurrence and skips subsequent rows.
+        $csv = "RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME,CITY,STATE,COUNTRY\n"
+             . "1023020,VE3ZXN,Denis,,Bradford,Ontario,Canada\n"
+             . "1023021,VE3ZXN,Denis,,Bradford,Ontario,Canada\n"
+             . "1106003,KH7Y,Frederic K,,Pine Grove,California,United States\n";
+        $path = $this->writeTempCsv($csv);
+
+        $imported = (new RadioIdRegistryImporter())->import($path);
+        @unlink($path);
+
+        $this->assertSame(2, $imported, 'Should have inserted only one VE3ZXN + the KH7Y row.');
+        $row = \Cake\Datasource\ConnectionManager::get('default')
+            ->execute('SELECT radio_id FROM radioid_registry WHERE callsign = ?', ['VE3ZXN'])
+            ->fetch('assoc');
+        // First-occurrence wins → keep radio_id 1023020 (the earlier row).
+        $this->assertSame(1023020, (int)$row['radio_id']);
+    }
+
     public function testImportRejectsMissingFile(): void
     {
         $this->expectException(\RuntimeException::class);

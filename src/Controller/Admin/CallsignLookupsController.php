@@ -411,26 +411,37 @@ class CallsignLookupsController extends AppController
         $importer = new \App\Service\CallsignLookup\RadioIdRegistryImporter();
         $started = microtime(true);
         $count = 0;
+        $errored = false;
         try {
             $count = $importer->refresh($emit);
         } catch (\Throwable $e) {
             $emit('ERROR: ' . $e->getMessage());
-            return null;
-        }
-        $elapsed = number_format(microtime(true) - $started, 1);
-        $emit("Done — {$count} rows cached in {$elapsed}s.");
-
-        try {
-            (new \App\Service\AuditLogger())->log(
-                event: 'callsign.radioid_cache_synced',
-                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
-                metadata: ['rows' => $count, 'seconds' => $elapsed],
-            );
-        } catch (\Throwable $e) {
-            error_log('audit: ' . $e->getMessage());
+            $errored = true;
         }
 
-        return null;
+        if (!$errored) {
+            $elapsed = number_format(microtime(true) - $started, 1);
+            $emit("Done — {$count} rows cached in {$elapsed}s.");
+
+            try {
+                (new \App\Service\AuditLogger())->log(
+                    event: 'callsign.radioid_cache_synced',
+                    actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                    metadata: ['rows' => $count, 'seconds' => $elapsed],
+                );
+            } catch (\Throwable $e) {
+                error_log('audit: ' . $e->getMessage());
+            }
+        }
+
+        // Hard-exit so CakePHP's normal response emitter doesn't run a
+        // second time and try to re-send headers + an empty body — which
+        // would log "Cannot modify header information" warnings into the
+        // streamed body and corrupt the operator's terminal view. The
+        // streamed text/plain response has already been delivered chunk
+        // by chunk via echo+flush; there's nothing left for the
+        // framework to send.
+        exit;
     }
 
     /**

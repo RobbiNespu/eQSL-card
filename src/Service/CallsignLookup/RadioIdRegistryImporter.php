@@ -180,6 +180,16 @@ final class RadioIdRegistryImporter
             $now = DateTime::now()->format('Y-m-d H:i:s');
             $rows = [];
             $total = 0;
+            $skipped = 0;
+            // The upstream CSV occasionally repeats a callsign on
+            // separate radio_id rows (one operator with multiple DMR
+            // registrations — VE3ZXN, KE6LWH, …). Our UNIQUE constraint
+            // on `callsign` is correct for lookup semantics but the
+            // duplicates would fail the entire batch INSERT. Track seen
+            // callsigns and keep only the first occurrence; the lookup
+            // doesn't care which radio_id is paired with the row since
+            // name/QTH are the same per operator.
+            $seen = [];
             while (($row = fgetcsv($fh)) !== false) {
                 if (count($row) < 7) {
                     continue; // malformed line — skip
@@ -188,6 +198,12 @@ final class RadioIdRegistryImporter
                 if ($callsign === '') {
                     continue;
                 }
+                if (isset($seen[$callsign])) {
+                    $skipped++;
+                    continue;
+                }
+                $seen[$callsign] = true;
+
                 $rows[] = [
                     'radio_id'    => (int)$row[0] ?: null,
                     'callsign'    => $callsign,
@@ -207,7 +223,11 @@ final class RadioIdRegistryImporter
             if (!empty($rows)) {
                 $total += $this->flush($conn, $rows);
             }
-            $onProgress?->__invoke(sprintf('Import complete — %s rows.', number_format($total)));
+            $onProgress?->__invoke(sprintf(
+                'Import complete — %s rows (skipped %s duplicate callsigns).',
+                number_format($total),
+                number_format($skipped)
+            ));
             return $total;
         } finally {
             fclose($fh);
