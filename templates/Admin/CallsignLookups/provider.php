@@ -20,15 +20,51 @@
   </div>
 </div>
 
+<?php if ($code === 'radioid_database_dump'): ?>
+<div class="card mb-4">
+  <div class="card-body">
+    <h2 class="h5">Local registry mirror</h2>
+    <p class="mb-1">
+      Rows in <code>radioid_registry</code>: <strong><?= h(number_format($registryCount ?? 0)) ?></strong>
+    </p>
+    <p class="mb-3 text-muted small">
+      <?php if (!empty($registryLastImport)): ?>
+        Last refreshed <?= h($registryLastImport) ?> UTC.
+      <?php else: ?>
+        Never refreshed — click below to download the CSV.
+      <?php endif; ?>
+    </p>
+    <?= $this->Form->postLink(
+        ($registryCount ? '↻ Refresh now (re-download CSV)' : '↓ Download CSV now (first run)'),
+        '/admin/callsign-lookups/provider/radioid_database_dump/refresh',
+        [
+            'class'   => 'btn btn-primary btn-sm',
+            'confirm' => 'Download ~16 MB and rebuild the local mirror? Takes 5–15 seconds.',
+        ]
+    ) ?>
+    <p class="form-text small mt-2 mb-0">
+      Source: <a href="https://radioid.net/static/user.csv" rel="noopener"><code>radioid.net/static/user.csv</code></a>.
+      The endpoint is public and uncached. We stream the bytes straight to
+      a temp file (constant memory regardless of size), parse line-by-line
+      with <code>fgetcsv</code>, then batch-insert 1000 rows per query.
+    </p>
+  </div>
+</div>
+<?php endif; ?>
+
 <h2 class="h5">Settings</h2>
 <p class="form-text">
   This provider currently has no configurable settings.
   <?php if ($code === 'qrz'): ?>
     QRZ requires a paid XML key — when that integration is finished, the API
     key field will land here.
-  <?php elseif ($code === 'radioid'): ?>
-    RadioID's DMR endpoint is a public JSON API and works without
-    authentication. No keys or rate-limit knobs to configure yet.
+  <?php elseif ($code === 'radioid_database_dump'): ?>
+    This provider keeps a local mirror of <code>radioid.net/static/user.csv</code>
+    (~16 MB, ~250k rows) and answers lookups from the local
+    <code>radioid_registry</code> table — no per-callsign network call, no
+    Cloudflare friction, instant resolution. Re-download by clicking
+    Refresh below; the upstream registry updates daily so a weekly
+    cadence is plenty.
   <?php elseif ($code === 'radioid_api'): ?>
     Calls <code>https://radioid.net/api/users?callsign=…</code>, the broader
     users endpoint at RadioID.net. The site is occasionally fronted by

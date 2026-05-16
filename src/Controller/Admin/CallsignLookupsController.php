@@ -32,13 +32,13 @@ class CallsignLookupsController extends AppController
      * so the admin sees the same set the runtime uses.
      */
     private const PROVIDER_MAP = [
-        'local'       => 'Local directory — admin-imported CSV (recommended FIRST)',
-        'radioid'     => 'RadioID.net — worldwide DMR registry, JSON API',
-        'radioid_api' => 'RadioID API (users) — broader users endpoint; behind Cloudflare',
-        'qrz'         => 'QRZ.com — requires paid XML key, currently disabled',
-        'mcmc'        => 'MCMC Malaysia — live scrape (9M / 9W)',
-        'marts'       => 'MARTS Malaysia — use local directory; site unstable',
-        'rapi'        => 'Indonesia RAPI — use local directory; PDF-only sources',
+        'local'                 => 'Local directory — admin-imported CSV (recommended FIRST)',
+        'radioid_database_dump' => 'RadioID database dump — local mirror of radioid.net/static/user.csv',
+        'radioid_api'           => 'RadioID API (users) — broader users endpoint; behind Cloudflare',
+        'qrz'                   => 'QRZ.com — requires paid XML key, currently disabled',
+        'mcmc'                  => 'MCMC Malaysia — live scrape (9M / 9W)',
+        'marts'                 => 'MARTS Malaysia — use local directory; site unstable',
+        'rapi'                  => 'Indonesia RAPI — use local directory; PDF-only sources',
     ];
 
     public function initialize(): void
@@ -313,12 +313,12 @@ class CallsignLookupsController extends AppController
     public function provider(string $code): void
     {
         $known = [
-            'qrz'         => 'QRZ.com',
-            'radioid'     => 'RadioID.net',
-            'radioid_api' => 'RadioID API (users)',
-            'mcmc'        => 'MCMC Malaysia',
-            'marts'       => 'MARTS Malaysia',
-            'rapi'        => 'Indonesia RAPI',
+            'qrz'                   => 'QRZ.com',
+            'radioid_database_dump' => 'RadioID database dump',
+            'radioid_api'           => 'RadioID API (users)',
+            'mcmc'                  => 'MCMC Malaysia',
+            'marts'                 => 'MARTS Malaysia',
+            'rapi'                  => 'Indonesia RAPI',
         ];
         if (!isset($known[$code])) {
             throw new \Cake\Http\Exception\NotFoundException();
@@ -334,14 +334,62 @@ class CallsignLookupsController extends AppController
         $enabledList = array_filter(array_map('trim', explode(',', $enabledCsv)));
         $isEnabled = in_array($code, $enabledList, true);
 
+        // Extra context for the RadioID database-dump provider: how many
+        // rows are in the local mirror and when it was last refreshed.
+        // The view uses these to show a "Refresh now" button alongside
+        // the freshness summary.
+        $registryCount = null;
+        $registryLastImport = null;
+        if ($code === 'radioid_database_dump') {
+            $row = $this->fetchTable('CallsignLookups')->getConnection()->execute(
+                'SELECT COUNT(*) AS c, MAX(imported_at) AS last_import FROM radioid_registry'
+            )->fetch('assoc');
+            $registryCount = (int)($row['c'] ?? 0);
+            $registryLastImport = $row['last_import'] ?? null;
+        }
+
         $this->set([
-            'title'      => $known[$code] . ' — provider settings',
-            'code'       => $code,
-            'label'      => $known[$code],
-            'rowCount'   => $rowCount,
-            'isEnabled'  => $isEnabled,
-            'description'=> self::PROVIDER_MAP[$code] ?? '',
+            'title'              => $known[$code] . ' — provider settings',
+            'code'               => $code,
+            'label'              => $known[$code],
+            'rowCount'           => $rowCount,
+            'isEnabled'          => $isEnabled,
+            'description'        => self::PROVIDER_MAP[$code] ?? '',
+            'registryCount'      => $registryCount,
+            'registryLastImport' => $registryLastImport,
         ]);
+    }
+
+    /**
+     * Refresh the RadioID local mirror — streams the upstream CSV and
+     * reloads `radioid_registry`. Sync because the file is ~16 MB and
+     * imports in ~5-15 seconds; admin actions can wait that long.
+     */
+    public function refreshRadioIdDump(): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+        $importer = new \App\Service\CallsignLookup\RadioIdRegistryImporter();
+        $started = microtime(true);
+        try {
+            $count = $importer->refresh();
+        } catch (\Throwable $e) {
+            $this->Flash->error('Refresh failed: ' . $e->getMessage());
+            return $this->redirect('/admin/callsign-lookups/provider/radioid_database_dump');
+        }
+        $elapsed = number_format(microtime(true) - $started, 1);
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'callsign.radioid_dump_refreshed',
+                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                metadata: ['rows' => $count, 'seconds' => $elapsed],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        $this->Flash->success("Refreshed RadioID local mirror — {$count} rows in {$elapsed}s.");
+        return $this->redirect('/admin/callsign-lookups/provider/radioid_database_dump');
     }
 
     /**

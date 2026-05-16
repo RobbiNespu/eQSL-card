@@ -1,0 +1,127 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Test\TestCase\Service\CallsignLookup;
+
+use App\Service\CallsignLookup\RadioIdRegistryImporter;
+use Cake\Datasource\ConnectionManager;
+use Cake\TestSuite\TestCase;
+
+/**
+ * Importer tests cover only the local-file half of the pipeline
+ * (`import()`) — exercising `download()` would hit the live RadioID
+ * endpoint, which makes the suite slow and externally-flaky. The
+ * download() helper is a thin wrapper around stream_copy_to_stream
+ * with a size cap; the parsing/insertion logic that import() owns is
+ * where bugs would actually hide.
+ */
+final class RadioIdRegistryImporterTest extends TestCase
+{
+    protected array $fixtures = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Migrator already created radioid_registry by the time we
+        // arrive; just make sure it's empty between tests.
+        ConnectionManager::get('default')->execute('DELETE FROM radioid_registry');
+    }
+
+    public function testImportParsesValidCsvAndInsertsRows(): void
+    {
+        $csv = "RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME,CITY,STATE,COUNTRY\n"
+             . "1023007,VA3BOC,Hans Juergen,Smith,Cornwall,Ontario,Canada\n"
+             . "5020558,9W2NSP,Robbi,Nespu,Johor,West Malaysia,Malaysia\n"
+             . "1234567,W1AW,Hiram Percy,Maxim,Newington,Connecticut,United States\n";
+        $path = $this->writeTempCsv($csv);
+
+        $imported = (new RadioIdRegistryImporter())->import($path);
+        @unlink($path);
+
+        $this->assertSame(3, $imported);
+
+        $conn = ConnectionManager::get('default');
+        $rows = $conn->execute('SELECT callsign, first_name, last_name, city, state, country FROM radioid_registry ORDER BY callsign')->fetchAll('assoc');
+        $this->assertCount(3, $rows);
+        $this->assertSame('9W2NSP', $rows[0]['callsign']);
+        $this->assertSame('Robbi', $rows[0]['first_name']);
+        $this->assertSame('Johor', $rows[0]['city']);
+        $this->assertSame('Malaysia', $rows[0]['country']);
+        $this->assertSame('VA3BOC', $rows[1]['callsign']);
+        $this->assertSame('W1AW', $rows[2]['callsign']);
+    }
+
+    public function testImportTruncatesBeforeReplacing(): void
+    {
+        // Seed a row that shouldn't survive a second import.
+        ConnectionManager::get('default')->execute(
+            'INSERT INTO radioid_registry (callsign, imported_at) VALUES (?, ?)',
+            ['STALE', '2020-01-01 00:00:00']
+        );
+
+        $csv = "RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME,CITY,STATE,COUNTRY\n"
+             . "1,FRESH,New,Row,X,Y,Z\n";
+        $path = $this->writeTempCsv($csv);
+        (new RadioIdRegistryImporter())->import($path);
+        @unlink($path);
+
+        $count = ConnectionManager::get('default')->execute('SELECT COUNT(*) AS c FROM radioid_registry')->fetch('assoc');
+        $this->assertSame(1, (int)$count['c']);
+        $row = ConnectionManager::get('default')->execute('SELECT callsign FROM radioid_registry')->fetch('assoc');
+        $this->assertSame('FRESH', $row['callsign']);
+    }
+
+    public function testImportSkipsMalformedRows(): void
+    {
+        $csv = "RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME,CITY,STATE,COUNTRY\n"
+             . "1,VALID,Name,Last,City,State,Country\n"
+             . "2,,EmptyCallsign,Last,City,State,Country\n"      // empty callsign — skipped
+             . "3,SHORT,Only,Three\n"                              // too few columns — skipped
+             . "4,VALID2,Another,Op,City,State,Country\n";
+        $path = $this->writeTempCsv($csv);
+
+        $imported = (new RadioIdRegistryImporter())->import($path);
+        @unlink($path);
+
+        $this->assertSame(2, $imported);
+    }
+
+    public function testImportRejectsUnexpectedHeader(): void
+    {
+        $csv = "FOO,BAR,BAZ\n1,2,3\n";
+        $path = $this->writeTempCsv($csv);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/Unexpected CSV header/');
+        try {
+            (new RadioIdRegistryImporter())->import($path);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    public function testImportRejectsMissingFile(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        (new RadioIdRegistryImporter())->import('/no/such/file.csv');
+    }
+
+    public function testImportUppercasesCallsign(): void
+    {
+        $csv = "RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME,CITY,STATE,COUNTRY\n"
+             . "1,9w2nsp,Robbi,Nespu,Johor,WM,Malaysia\n";
+        $path = $this->writeTempCsv($csv);
+        (new RadioIdRegistryImporter())->import($path);
+        @unlink($path);
+
+        $row = ConnectionManager::get('default')->execute('SELECT callsign FROM radioid_registry')->fetch('assoc');
+        $this->assertSame('9W2NSP', $row['callsign']);
+    }
+
+    private function writeTempCsv(string $content): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'radioid_test_');
+        file_put_contents($path, $content);
+        return $path;
+    }
+}

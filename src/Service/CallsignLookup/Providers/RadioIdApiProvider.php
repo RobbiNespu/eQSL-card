@@ -17,7 +17,7 @@ use Cake\Http\Client;
  *    country, id, radio_id, ...}. Coverage is wider than the DMR-only
  *    sibling because it draws from the whole user registry, not just
  *    DMR-registered IDs.
- *  - Distinguished from RadioIdProvider (code `radioid`, /api/dmr/user/)
+ *  - Distinguished from RadioIdDatabaseDumpProvider (code `radioid_database_dump`, CSV mirror)
  *    by code (`radioid_api`) so both can sit in the chain at once — the
  *    DMR endpoint usually has tighter data for DMR ops, the users
  *    endpoint catches the long tail of non-DMR registrations.
@@ -65,7 +65,7 @@ final class RadioIdApiProvider implements CallsignProviderInterface
 
     public function supports(string $callsign): bool
     {
-        // Worldwide registry. Same shape as RadioIdProvider — alphanumeric
+        // Worldwide registry. Same shape as RadioIdDatabaseDumpProvider — alphanumeric
         // + suffix slashes, 3–15 chars.
         return (bool)preg_match('/^[A-Z0-9\/]{3,15}$/', $callsign);
     }

@@ -131,13 +131,13 @@
 $callsignEnabled = (bool)($settings['callsign_lookup_enabled'] ?? false);
 $enabledProviders = array_filter(array_map('trim', explode(',', (string)($settings['callsign_lookup_providers'] ?? ''))));
 $providerMap = [
-    'local'       => 'Local directory — admin-imported CSV (recommended FIRST)',
-    'radioid'     => 'RadioID.net — worldwide DMR registry, JSON API',
-    'radioid_api' => 'RadioID API (users) — broader users endpoint; behind Cloudflare',
-    'qrz'         => 'QRZ.com — requires paid XML key, currently disabled',
-    'mcmc'        => 'MCMC Malaysia — live scrape of the apparatus-assignments register (9M / 9W)',
-    'marts'       => 'MARTS Malaysia — use local directory; site unstable',
-    'rapi'        => 'Indonesia RAPI — use local directory; PDF-only sources',
+    'local'                 => 'Local directory — admin-imported CSV (recommended FIRST)',
+    'radioid_database_dump' => 'RadioID database dump — local mirror of radioid.net/static/user.csv',
+    'radioid_api'           => 'RadioID API (users) — broader users endpoint; behind Cloudflare',
+    'qrz'                   => 'QRZ.com — requires paid XML key, currently disabled',
+    'mcmc'                  => 'MCMC Malaysia — live scrape of the apparatus-assignments register (9M / 9W)',
+    'marts'                 => 'MARTS Malaysia — use local directory; site unstable',
+    'rapi'                  => 'Indonesia RAPI — use local directory; PDF-only sources',
 ];
 ?>
 <div class="form-check mb-2">

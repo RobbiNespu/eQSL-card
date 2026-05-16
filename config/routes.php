@@ -462,8 +462,12 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['POST']);
         $builder->connect('/callsign-lookups/provider/{code}', ['controller' => 'CallsignLookups', 'action' => 'provider'])
             ->setPass(['code'])
-            ->setPatterns(['code' => 'qrz|radioid|radioid_api|mcmc|marts|rapi'])
+            ->setPatterns(['code' => 'qrz|radioid_database_dump|radioid_api|mcmc|marts|rapi'])
             ->setMethods(['GET']);
+        $builder->connect('/callsign-lookups/provider/radioid_database_dump/refresh', [
+                'controller' => 'CallsignLookups', 'action' => 'refreshRadioIdDump',
+            ])
+            ->setMethods(['POST']);
 
         /*
          * Callsign directory admin (M4-followup). CSV import / search / clear.
