@@ -1,0 +1,20 @@
+/*
+ * Tailwind CLI entry point.
+ *
+ * Order matters:
+ *   1. Tailwind base / components / utilities (set up resets + utility
+ *      classes).
+ *   2. DaisyUI is injected by the plugin (registered in tailwind.config.js).
+ *   3. theme.css (our brand layer + Bootstrap-compat shim) is appended
+ *      to dist.css by the `build:css` npm script (shell `cat` wrapper)
+ *      so its overrides win the cascade.
+ *
+ * Why not `@import '../../webroot/css/theme.css'` here?
+ *   Tailwind CLI's built-in PostCSS pipeline does not run postcss-import,
+ *   so any @import statement in this file is silently dropped from the
+ *   output. Rather than add another devDependency, we keep theme.css as
+ *   a plain file the shell wrapper concatenates after Tailwind runs.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

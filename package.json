@@ -1,0 +1,16 @@
+{
+  "name": "eqsl-card-designer-tests",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build:css": "tailwindcss -i src/css/tailwind-source.css -o webroot/css/dist.css --minify && cat webroot/css/theme.css >> webroot/css/dist.css",
+    "watch:css": "tailwindcss -i src/css/tailwind-source.css -o webroot/css/dist.css --watch"
+  },
+  "devDependencies": {
+    "daisyui": "^4.12.14",
+    "tailwindcss": "^3.4.3",
+    "vitest": "^2.1.0"
+  }
+}

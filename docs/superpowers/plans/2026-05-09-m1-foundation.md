@@ -110,8 +110,10 @@ services:
       - DATABASE_URL=mysql://eqsl:eqsl@db:3306/eqsl?encoding=utf8mb4
       - EMAIL_TRANSPORT_DEFAULT_URL=smtp://mailhog:1025
     depends_on:
-      - db
-      - mailhog
+      db:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
 
   nginx:
     image: nginx:1.27-alpine
@@ -133,16 +135,27 @@ services:
     volumes:
       - dbdata:/var/lib/mysql
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   mailhog:
-    image: mailhog/mailhog:latest
+    image: mailhog/mailhog:v1.0.1
     ports:
       - "8025:8025"
 
 volumes:
   dbdata: {}
 ```
+
+Three deliberate divergences from a naive first draft, all driven by code-review feedback during T1 execution:
+- `mailhog` pinned to `v1.0.1` (avoid `:latest` drift on a stale image).
+- `db` exposes `127.0.0.1:3306:3306` (loopback-only — don't expose dev DB to LAN).
+- `db` has a healthcheck and `php` waits on `condition: service_healthy` (`depends_on` alone doesn't wait for MySQL readiness; without this, migrations after `docker compose up` flake).
 
 - [ ] **Step 5: Write `.dockerignore`**
 
@@ -223,12 +236,16 @@ Expected log line: `Robbi Nespu <robbinespu@gmail.com>`. No co-author trailer in
 Run (the composer container brings its own PHP, then we move into our php container):
 ```bash
 docker run --rm -v "$PWD":/app -w /app composer:2 \
-  create-project --prefer-dist --no-install cakephp/app:^5.0 .skeleton-tmp
+  create-project --prefer-dist --no-install --no-scripts cakephp/app:5.2.* .skeleton-tmp
 rsync -a --exclude='.git' .skeleton-tmp/ ./
 rm -rf .skeleton-tmp
 ```
 
 Expected: `composer.json`, `bin/cake`, `src/Application.php`, `webroot/index.php`, etc. now exist at the repo root.
+
+**Why `5.2.*` not `^5.0`:** `cakephp/app:^5.0` floats to the latest 5.x, which is 5.3.x at time of writing — and 5.3 requires PHP 8.2. The spec (§3) mandates PHP 8.1 strict, so we pin to `5.2.*` (the highest 5.x line still on PHP 8.1).
+
+**Why `--no-scripts`:** the skeleton's post-install hook (`App\Console\Installer::postInstall`) tries to use `Cake\Utility\Security` to auto-generate a salt, but with `--no-install` the autoloader isn't ready yet, so the script crashes. We skip post-install here and seed the salt manually in Step 5.
 
 - [ ] **Step 2: Add the four extra Composer requirements**
 
@@ -296,7 +313,10 @@ return [
 
 - [ ] **Step 5: Adjust `config/app_local.php` for Docker dev**
 
-CakePHP's skeleton already creates a `config/app_local.php`. Replace its `Datasources.default` block with one that reads from the env vars set in `docker-compose.yml`:
+Because Step 1 used `--no-scripts`, the auto-salt step was skipped. The skeleton ships `config/app_local.example.php` (note: the skeleton spells it `example`, our installer template at `config/app_local.php.example` is a different file). Copy it to `config/app_local.php` and:
+
+1. Set the `Security.salt` to a 64-char dev value (any random string is fine — file is gitignored, prod salt is created fresh by the installer in Task 13).
+2. Replace the `Datasources.default` block with one that reads from the env vars set in `docker-compose.yml`:
 
 ```php
 'Datasources' => [
@@ -376,9 +396,11 @@ Replace the `<php>` block in `phpunit.xml.dist` with:
     <ini name="memory_limit" value="-1"/>
     <env name="FIXTURE_SCHEMA_METADATA" value="./tests/schema.php"/>
     <env name="DATABASE_TEST_URL" value="sqlite:///:memory:"/>
-    <env name="EMAIL_TRANSPORT_DEFAULT_URL" value="null:"/>
+    <env name="EMAIL_TRANSPORT_DEFAULT_URL" value="debug://localhost"/>
 </php>
 ```
+
+The `debug://` scheme maps to `Cake\Mailer\Transport\DebugTransport`, which silently swallows sent messages — the right behavior for tests. (`null:` is NOT a valid CakePHP 5 transport scheme and would throw `BadMethodCallException` the first time any test sends email.)
 
 This means tests run against an in-memory SQLite database — no MySQL container needed for unit/integration tests.
 
@@ -398,7 +420,7 @@ final class SmokeTest extends TestCase
 {
     public function testFrameworkBoots(): void
     {
-        $this->assertSame('8.1', substr(PHP_VERSION, 0, 3) === '8.1' ? '8.1' : substr(PHP_VERSION, 0, 3));
+        $this->assertSame('8.1', substr(PHP_VERSION, 0, 3), 'PHP runtime must be 8.1.x');
         $this->assertTrue(extension_loaded('gd'), 'GD must be available');
         $this->assertTrue(extension_loaded('pdo_sqlite'), 'pdo_sqlite must be available for tests');
     }
@@ -440,6 +462,8 @@ All migrations follow the spec's data model (Section 6). Order matters because o
 
 - [ ] **Step 1: Write `20260509000001_CreateUsers.php`**
 
+The `role` column is an ENUM on MariaDB but SQLite (used by the test fixture) has no native ENUM type, so we branch on the adapter:
+
 ```php
 <?php
 declare(strict_types=1);
@@ -450,11 +474,16 @@ final class CreateUsers extends AbstractMigration
 {
     public function change(): void
     {
+        $isSqlite = $this->getAdapter()->getAdapterType() === 'sqlite';
+        $roleColumn = $isSqlite
+            ? ['type' => 'string', 'options' => ['limit' => 16, 'default' => 'user']]
+            : ['type' => 'enum', 'options' => ['values' => ['admin', 'user'], 'default' => 'user']];
+
         $this->table('users')
             ->addColumn('name', 'string', ['limit' => 120])
             ->addColumn('email', 'string', ['limit' => 190])
             ->addColumn('password_hash', 'string', ['limit' => 255])
-            ->addColumn('role', 'enum', ['values' => ['admin', 'user']])
+            ->addColumn('role', $roleColumn['type'], $roleColumn['options'])
             ->addColumn('callsign', 'string', ['limit' => 20])
             ->addColumn('qth', 'string', ['limit' => 120, 'null' => true])
             ->addColumn('grid_square', 'string', ['limit' => 10, 'null' => true])
@@ -470,6 +499,8 @@ final class CreateUsers extends AbstractMigration
     }
 }
 ```
+
+The `'admin'`/`'user'` invariant is enforced at the ORM layer in Task 5's `UsersTable::validationDefault()` either way, so SQLite's lack of native ENUM is harmless.
 
 - [ ] **Step 2: Write `20260509000002_CreateGuestVisits.php`**
 
@@ -504,6 +535,15 @@ declare(strict_types=1);
 
 use Migrations\AbstractMigration;
 
+/**
+ * Background images. The unique sha256_hash constraint deduplicates the
+ * physical file on disk: when two users upload the same image, only one
+ * `uploads` row exists, owned by the first uploader. Subsequent users'
+ * `cards` rows reference the same upload — `uploads.user_id` is "who
+ * first introduced this background to the system", NOT "who has rights
+ * to use it." On hard-delete of the first uploader, `user_id` becomes
+ * NULL but the row remains so other users' cards keep rendering.
+ */
 final class CreateUploads extends AbstractMigration
 {
     public function change(): void
@@ -559,13 +599,15 @@ final class CreateTemplates extends AbstractMigration
             ->addIndex('user_id')
             ->addIndex(['is_public', 'is_approved'])
             ->addIndex('is_system')
-            ->addForeignKey('user_id', 'users', 'id', ['delete' => 'CASCADE', 'update' => 'CASCADE'])
+            ->addForeignKey('user_id', 'users', 'id', ['delete' => 'SET_NULL', 'update' => 'CASCADE'])
             ->create();
     }
 }
 ```
 
-Add `use Phinx\Db\Adapter\MysqlAdapter;` at the top of the file.
+Add `use Migrations\Db\Adapter\MysqlAdapter;` at the top of the file. (Use the `Migrations\` namespace, not `Phinx\` — `cakephp/migrations` ships its own adapter; coupling to the direct dependency rather than a transitive one keeps us safe across major version bumps.)
+
+`templates.user_id` deletes as `SET_NULL` (matching spec §6.4 "NULL = system template"). A `CASCADE` here would deadlock with `cards.template_id` `RESTRICT` whenever an admin hard-deletes a user who owns a template that has at least one card. (Use the `Migrations\` namespace, not `Phinx\` — `cakephp/migrations` ships its own adapter; coupling to the direct dependency rather than a transitive one keeps us safe across major version bumps.)
 
 - [ ] **Step 5: Write `20260509000005_CreateCards.php`**
 
@@ -789,7 +831,9 @@ class User extends Entity
         if ($plain === '') {
             return null;
         }
-        $this->set('password_hash', (new DefaultPasswordHasher())->hash($plain));
+        // Argon2id explicitly (spec §6.1). DefaultPasswordHasher's default is PASSWORD_DEFAULT
+        // which resolves to PASSWORD_BCRYPT on PHP 8.1.
+        $this->set('password_hash', (new DefaultPasswordHasher(['hashType' => PASSWORD_ARGON2ID]))->hash($plain));
         return null;
     }
 }
@@ -1638,12 +1682,20 @@ final class InstallationCheckMiddlewareTest extends TestCase
         return new class implements RequestHandlerInterface {
             public function handle(\Psr\Http\Message\ServerRequestInterface $r): \Psr\Http\Message\ResponseInterface
             {
-                return new Response(200);
+                // Laminas\Diactoros\Response's 1st arg is the body stream, not status.
+                return new Response('php://memory', 200);
             }
         };
     }
 }
 ```
+
+Wire up requires three matching test-infra edits so existing tests keep passing once the middleware is live:
+
+1. In `tests/bootstrap.php`, touch `TMP . 'installed.lock'` and write `Configure::write('Installation.lockFile', $testInstallLock)` so non-installer tests don't 302-redirect.
+2. In `src/Application.php`, change the registration to `new \App\Middleware\InstallationCheckMiddleware(Configure::read('Installation.lockFile', CONFIG . 'installed.lock'))` so prod behavior is unchanged but tests resolve the in-tmp path.
+3. In `tests/TestCase/ApplicationTest.php`, the stock `testMiddleware` assertion needs to acknowledge that `InstallationCheckMiddleware` slots in at queue index 2, shifting `RoutingMiddleware` to 3.
+4. Add `tmp/installed.lock` to `.gitignore`.
 
 - [ ] **Step 2: Confirm test fails**
 
@@ -1677,10 +1729,19 @@ final class InstallationCheckMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $path = $request->getUri()->getPath();
-        if (file_exists($this->lockFilePath)) {
+        $installed = file_exists($this->lockFilePath);
+        $isInstallPath = $path === '/install' || str_starts_with($path, '/install/');
+
+        if ($installed) {
+            // Installer is one-shot. After lock exists, every /install/* must 404
+            // so a second POST cannot reach createAdmin/migrate/etc.
+            if ($isInstallPath) {
+                return (new Response())->withStatus(404);
+            }
             return $handler->handle($request);
         }
-        if (str_starts_with($path, '/install') || $path === '/health') {
+
+        if ($isInstallPath || $path === '/health') {
             return $handler->handle($request);
         }
         return (new Response())->withStatus(302)->withHeader('Location', '/install');
@@ -1728,9 +1789,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use Cake\Controller\Controller;
-
-class InstallController extends Controller
+class InstallController extends AppController
 {
     public function index(): void
     {

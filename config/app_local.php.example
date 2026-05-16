@@ -1,0 +1,37 @@
+<?php
+return [
+    'debug' => false,
+
+    'Security' => [
+        'salt' => '__SECURITY_SALT__',
+    ],
+
+    'Datasources' => [
+        'default' => [
+            'host'     => '__DB_HOST__',
+            'port'     => '__DB_PORT__',
+            'username' => '__DB_USER__',
+            'password' => '__DB_PASS__',
+            'database' => '__DB_NAME__',
+            'url'      => null,
+        ],
+    ],
+
+    'EmailTransport' => [
+        'default' => [
+            'className' => 'Cake\Mailer\Transport\SmtpTransport',
+            'host'      => '__SMTP_HOST__',
+            'port'      => 587,
+            'username'  => '__SMTP_USER__',
+            'password'  => '__SMTP_PASS__',
+            'tls'       => true,
+        ],
+    ],
+
+    'Email' => [
+        'default' => [
+            'transport' => 'default',
+            'from'      => '__SMTP_FROM__',
+        ],
+    ],
+];

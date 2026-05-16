@@ -16,34 +16,65 @@ config/app_local.php
 config/installed.lock
 
 # Build artefacts
-dist/
+dist/*
+!dist/.gitkeep
 node_modules/
 vendor/
+!webroot/js/vendor/
+!webroot/js/vendor/*.js
 
 # CakePHP runtime (will exist once the app is scaffolded)
 tmp/cache/*
+!tmp/cache/.gitkeep
+!tmp/cache/models/
+!tmp/cache/persistent/
+!tmp/cache/views/
+tmp/cache/models/*
+tmp/cache/persistent/*
+tmp/cache/views/*
+!tmp/cache/models/.gitkeep
+!tmp/cache/persistent/.gitkeep
+!tmp/cache/views/.gitkeep
 tmp/sessions/*
+!tmp/sessions/.gitkeep
 tmp/tests/*
+!tmp/tests/.gitkeep
 tmp/logs/*
 logs/*
-!tmp/cache/.gitkeep
-!tmp/sessions/.gitkeep
 !logs/.gitkeep
+!logs/.htaccess
+tmp/debug_kit.sqlite
+tmp/installed.lock
 
 # User-generated files (live on the host, not in the repo)
 webroot/files/uploads/*
 webroot/files/cards/*
 webroot/files/templates/*
+webroot/files/avatars/*
 !webroot/files/uploads/.gitkeep
+!webroot/files/uploads/.htaccess
 !webroot/files/cards/.gitkeep
+!webroot/files/cards/.htaccess
 !webroot/files/templates/.gitkeep
+!webroot/files/templates/.htaccess
 !webroot/files/templates/_demo-bg.jpg
+!webroot/files/templates/sample-callsign-directory.csv
+!webroot/files/avatars/.gitkeep
+!webroot/files/avatars/.htaccess
 !webroot/files/fonts/
+!webroot/files/fonts/*
 
 # PHP / Composer
 composer.phar
 
 # Coverage
 coverage/
+.nyc_output/
 .phpunit.cache/
 .phpunit.result.cache
+
+# Claude Code local session state — not source.
+.claude/
+
+# Working-file PR drafts that don't belong in the repo.
+.pr-draft.md

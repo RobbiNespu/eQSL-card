@@ -1,0 +1,14 @@
+<FilesMatch "\.(php|phtml|phar|pl|cgi)$">
+    Require all denied
+</FilesMatch>
+
+# Cards are derived files keyed by UUID — the content for a given URL never
+# changes, so mark them immutable and let intermediaries cache for a year.
+# The frontend keeps using the same URL; the browser short-circuits the
+# network round trip after the first fetch. mod_headers must be enabled on
+# the host (`a2enmod headers` on most cPanel boxes; usually default-on).
+<FilesMatch "\.(webp|png|pdf|jpg|jpeg)$">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </IfModule>
+</FilesMatch>

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: ['master']
+    tags: ['v*']
+  pull_request:
+    branches: ['master']
+
+permissions:
+  contents: read
+
+jobs:
+  phpunit:
+    name: PHPUnit (PHP 8.1, SQLite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.1
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: mbstring, intl, pdo_sqlite, gd, fileinfo
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit
+        env:
+          DATABASE_TEST_URL: sqlite:///:memory:
+          EMAIL_TRANSPORT_DEFAULT_URL: debug://localhost
+
+  vitest:
+    name: Vitest (designer JS helpers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm deps
+        run: npm install --no-audit --no-fund
+
+      - name: Run vitest
+        run: npm test
