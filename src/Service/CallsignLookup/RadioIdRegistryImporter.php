@@ -180,16 +180,6 @@ final class RadioIdRegistryImporter
             $now = DateTime::now()->format('Y-m-d H:i:s');
             $rows = [];
             $total = 0;
-            $skipped = 0;
-            // The upstream CSV occasionally repeats a callsign on
-            // separate radio_id rows (one operator with multiple DMR
-            // registrations — VE3ZXN, KE6LWH, …). Our UNIQUE constraint
-            // on `callsign` is correct for lookup semantics but the
-            // duplicates would fail the entire batch INSERT. Track seen
-            // callsigns and keep only the first occurrence; the lookup
-            // doesn't care which radio_id is paired with the row since
-            // name/QTH are the same per operator.
-            $seen = [];
             while (($row = fgetcsv($fh)) !== false) {
                 if (count($row) < 7) {
                     continue; // malformed line — skip
@@ -198,12 +188,6 @@ final class RadioIdRegistryImporter
                 if ($callsign === '') {
                     continue;
                 }
-                if (isset($seen[$callsign])) {
-                    $skipped++;
-                    continue;
-                }
-                $seen[$callsign] = true;
-
                 $rows[] = [
                     'radio_id'    => (int)$row[0] ?: null,
                     'callsign'    => $callsign,
@@ -217,18 +201,23 @@ final class RadioIdRegistryImporter
                 if (count($rows) >= self::BATCH_SIZE) {
                     $total += $this->flush($conn, $rows);
                     $rows = [];
-                    $onProgress?->__invoke(sprintf('Imported %s rows…', number_format($total)));
+                    $onProgress?->__invoke(sprintf('Processed %s rows…', number_format($total)));
                 }
             }
             if (!empty($rows)) {
                 $total += $this->flush($conn, $rows);
             }
+            // After-the-fact row count from the table tells us the actual
+            // distinct-callsign cardinality; the upserts may have collapsed
+            // some rows (one operator with multiple DMR registrations).
+            $cached = (int)$conn->execute('SELECT COUNT(*) AS c FROM ' . self::TABLE)
+                ->fetch('assoc')['c'];
             $onProgress?->__invoke(sprintf(
-                'Import complete — %s rows (skipped %s duplicate callsigns).',
+                'Import complete — processed %s rows, cache now holds %s unique callsigns.',
                 number_format($total),
-                number_format($skipped)
+                number_format($cached)
             ));
-            return $total;
+            return $cached;
         } finally {
             fclose($fh);
         }
@@ -252,7 +241,18 @@ final class RadioIdRegistryImporter
     }
 
     /**
-     * Batch-INSERT a chunk of rows. Returns the number of rows written.
+     * Batch-UPSERT a chunk of rows. Returns the number of rows the
+     * server processed (insert + update count combined — not the unique
+     * row count, which the caller can fetch from a SELECT COUNT(*)).
+     *
+     * The upstream CSV occasionally repeats a callsign across rows when
+     * an operator has multiple DMR registrations (VE3ZXN, KE6LWH, …).
+     * Plain INSERT would fail the whole batch on the UNIQUE(callsign)
+     * constraint; we use ON DUPLICATE KEY UPDATE on MySQL and
+     * ON CONFLICT(callsign) DO UPDATE on SQLite so the last occurrence
+     * wins for any in-batch duplicate. The wholesale DELETE in import()
+     * still runs first, so we don't drift from the upstream snapshot —
+     * the UPSERT only matters for collisions inside a single import.
      */
     private function flush(\Cake\Database\Connection $conn, array $rows): int
     {
@@ -263,6 +263,26 @@ final class RadioIdRegistryImporter
         $placeholderRow = '(' . implode(',', array_fill(0, count($cols), '?')) . ')';
         $sql = 'INSERT INTO ' . self::TABLE . ' (' . implode(',', $cols) . ') VALUES '
              . implode(',', array_fill(0, count($rows), $placeholderRow));
+
+        // Dialect-specific UPSERT suffix. We update every column except
+        // `callsign` (the conflict key — by definition unchanged).
+        $updateCols = array_values(array_diff($cols, ['callsign']));
+        $driverClass = strtolower(get_class($conn->getDriver()));
+        if (str_contains($driverClass, 'mysql')) {
+            $set = array_map(
+                static fn (string $c): string => "{$c} = VALUES({$c})",
+                $updateCols
+            );
+            $sql .= ' ON DUPLICATE KEY UPDATE ' . implode(', ', $set);
+        } else {
+            // SQLite 3.24+ and Postgres syntax — same shape, excluded.<col>
+            // refers to the row that would have been inserted.
+            $set = array_map(
+                static fn (string $c): string => "{$c} = excluded.{$c}",
+                $updateCols
+            );
+            $sql .= ' ON CONFLICT(callsign) DO UPDATE SET ' . implode(', ', $set);
+        }
 
         $params = [];
         foreach ($rows as $r) {
