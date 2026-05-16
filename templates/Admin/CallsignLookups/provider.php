@@ -35,12 +35,27 @@
       <?php endif; ?>
     </p>
 
-    <button type="button" class="btn btn-primary btn-sm" @click="start()" :disabled="running">
-      <span x-show="!running">
-        <?= $registryCount ? '↻ Sync now' : '↓ Populate cache now (first run)' ?>
-      </span>
-      <span x-show="running" x-cloak>Streaming…</span>
-    </button>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <button type="button" class="btn btn-primary btn-sm" @click="start()" :disabled="running">
+        <span x-show="!running">
+          <?= $registryCount ? '↻ Sync now' : '↓ Populate cache now (first run)' ?>
+        </span>
+        <span x-show="running" x-cloak>Streaming…</span>
+      </button>
+      <?php if ($registryCount): ?>
+        <?= $this->Form->postLink(
+            '✗ Clear cache',
+            '/admin/callsign-lookups/provider/radioid_database_dump/clear',
+            [
+                'class'   => 'btn btn-outline-danger btn-sm',
+                'confirm' => sprintf(
+                    'Delete all %s cached RadioID rows? Lookups against this provider will return null until you Sync again.',
+                    number_format($registryCount)
+                ),
+            ]
+        ) ?>
+      <?php endif; ?>
+    </div>
 
     <!-- Live terminal — visible only while/after a sync has run. The
          response is text/plain; we read it as a chunked stream via

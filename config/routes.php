@@ -468,6 +468,10 @@ return function (RouteBuilder $routes): void {
                 'controller' => 'CallsignLookups', 'action' => 'refreshRadioIdDump',
             ])
             ->setMethods(['POST']);
+        $builder->connect('/callsign-lookups/provider/radioid_database_dump/clear', [
+                'controller' => 'CallsignLookups', 'action' => 'clearRadioIdDump',
+            ])
+            ->setMethods(['POST']);
 
         /*
          * Callsign directory admin (M4-followup). CSV import / search / clear.

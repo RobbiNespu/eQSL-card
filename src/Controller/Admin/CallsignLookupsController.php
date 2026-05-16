@@ -498,6 +498,35 @@ class CallsignLookupsController extends AppController
     }
 
     /**
+     * Wipe the local RadioID lookup cache. Independent of the per-call
+     * `callsign_lookups` cache the chain writes — this only targets the
+     * bulk dump table. Sync from the provider page repopulates.
+     */
+    public function clearRadioIdDump(): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+
+        $conn = $this->fetchTable('CallsignLookups')->getConnection();
+        $row = $conn->execute('SELECT COUNT(*) AS c FROM radioid_registry')->fetch('assoc');
+        $count = (int)($row['c'] ?? 0);
+        $conn->execute('DELETE FROM radioid_registry');
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'callsign.radioid_cache_cleared',
+                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                metadata: ['rows_deleted' => $count],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        $this->Flash->success("Cleared RadioID lookup cache — {$count} rows removed.");
+
+        return $this->redirect('/admin/callsign-lookups/provider/radioid_database_dump');
+    }
+
+    /**
      * Wipe the entire cache. Re-uses the service-layer clear so audit
      * counting matches whatever the cleanup page would produce.
      */
