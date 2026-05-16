@@ -39,6 +39,11 @@
                     <?php elseif ($t->is_public): ?>
                       <span class="badge bg-warning">Pending review</span>
                     <?php endif; ?>
+                    <?php if (($t->qso_type ?? 'contact') === 'net'): ?>
+                      <span class="badge bg-info" title="Designed for net check-in QSOs">Net</span>
+                    <?php else: ?>
+                      <span class="badge bg-secondary" title="Designed for contact QSOs">Contact</span>
+                    <?php endif; ?>
                     <?php if (!empty($t->background_upload_id)): ?>
                       <span class="badge bg-secondary" title="A background image is bound to this template">Has background</span>
                     <?php else: ?>

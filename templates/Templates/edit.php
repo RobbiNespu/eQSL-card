@@ -44,6 +44,7 @@ if (!empty($bgUploadId)) {
     'layoutJson' => $template->layout_json ?? '{"fields":[]}',
     'backgroundUploadId' => $bgUploadId,
     'backgroundUrl' => $bgUrl,
+    'qsoType' => $template->qso_type ?? 'contact',
 ])) ?>)" x-init="$nextTick(() => { if (backgroundUrl) applyBackground(); })" class="row">
 
   <div class="col-lg-3">
@@ -55,6 +56,19 @@ if (!empty($bgUploadId)) {
     <div class="mb-3">
       <label class="form-label">Description</label>
       <textarea class="form-control" rows="2" x-model="description"></textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">For which QSO type?</label>
+      <div class="btn-group w-100" role="group" aria-label="Template QSO type">
+        <input type="radio" class="btn-check" id="tplQsoType-contact" value="contact" x-model="qsoType">
+        <label class="btn btn-outline-primary btn-sm" for="tplQsoType-contact">Contact QSO</label>
+        <input type="radio" class="btn-check" id="tplQsoType-net" value="net" x-model="qsoType">
+        <label class="btn btn-outline-primary btn-sm" for="tplQsoType-net">Net check-in</label>
+      </div>
+      <p class="form-text small mb-0">
+        Filters the render-from-QSO picker so this template is only offered for the matching QSO type.
+        Net templates can reference <code>{ncs_callsign}</code>, <code>{net_title}</code>, <code>{net_organisation}</code>; contact templates can't.
+      </p>
     </div>
     <div class="row g-2 mb-3">
       <div class="col-6"><label class="form-label small">Width (px)</label><input type="number" class="form-control" x-model.number="canvasWidth"></div>

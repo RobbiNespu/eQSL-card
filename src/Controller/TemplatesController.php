@@ -235,6 +235,9 @@ class TemplatesController extends AppController
             // renders identically out of the gate. The new owner can
             // detach or swap it from the designer.
             'background_upload_id' => $source->background_upload_id,
+            // Carry the QSO-type categorisation too so the fork is offered
+            // in the same render context as the original.
+            'qso_type' => $source->qso_type ?? 'contact',
         ]);
         // Owner / flag overrides via guard:false — these columns are
         // intentionally not mass-assignable on the entity.
@@ -404,11 +407,20 @@ class TemplatesController extends AppController
             return $layoutErrors;
         }
 
+        // QSO type: must be 'contact' or 'net' — anything else gets coerced to
+        // 'contact' (the safer default). The render-from-QSO picker filter
+        // depends on this matching the qsos.qso_type enum exactly. Extract
+        // once with a fallback so the true branch can't trip an
+        // "Undefined array key" warning when the POST omits the field.
+        $qsoTypeRaw = (string)($data['qso_type'] ?? 'contact');
+        $qsoType = in_array($qsoTypeRaw, ['contact', 'net'], true) ? $qsoTypeRaw : 'contact';
+
         $entity->set('name', $name);
         $entity->set('description', $description);
         $entity->set('canvas_width', $canvasWidth);
         $entity->set('canvas_height', $canvasHeight);
         $entity->set('layout_json', $layoutJson);
+        $entity->set('qso_type', $qsoType);
         if ($isNew) {
             $entity->set('user_id', $userId);
         }

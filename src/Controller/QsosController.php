@@ -457,9 +457,13 @@ class QsosController extends AppController
 
         // Templates the user is allowed to pick from: system templates ship
         // with the install, the user's own templates, and any public template
-        // an admin has approved. `is_system DESC` floats the bundled templates
+        // an admin has approved. Plus a qso_type filter so a net check-in
+        // QSO only sees net templates and vice versa — prevents the
+        // wrong-shape render. `is_system DESC` floats the bundled templates
         // to the top of the picker.
+        $qsoType = (string)($qso->qso_type ?? 'contact');
         $templates = $this->fetchTable('Templates')->find()
+            ->where(['Templates.qso_type' => $qsoType])
             ->where(['OR' => [
                 ['Templates.is_system' => true],
                 ['Templates.user_id' => $userId],
@@ -492,6 +496,20 @@ class QsosController extends AppController
                 ]])
                 ->firstOrFail();
 
+            // Type match: refuse to render a net template against a contact
+            // QSO (and vice versa). The picker UI already filters by this
+            // up the form, but a crafted POST could still slip through;
+            // this is the server-side guarantee.
+            if (($template->qso_type ?? 'contact') !== ($qso->qso_type ?? 'contact')) {
+                $this->Flash->error(sprintf(
+                    'This template is for %s QSOs, but this QSO is a %s. Pick a matching template.',
+                    $template->qso_type ?? 'contact',
+                    $qso->qso_type ?? 'contact'
+                ));
+
+                return $this->redirect('/qsos/' . $id . '/render');
+            }
+
             // Background source: the template owns it now. If the template
             // has no bound background, fall through to the site default and
             // ensure (via SHA-dedup) an uploads row exists for that image so
@@ -510,15 +528,17 @@ class QsosController extends AppController
 
         // Default template selection. Honour ?template_id= when the user
         // clicked a specific Render link (e.g. from a future "render with X"
-        // affordance); otherwise pick the "Net check-in" system template
-        // for net QSOs and fall back to the first system template (the
-        // Classic) for contact QSOs. This keeps net QSOs from rendering
-        // with the contact-shaped Classic template by mistake.
+        // affordance); otherwise pick the first system template whose
+        // qso_type matches this QSO. The hard-coded name lookup we used to
+        // do is now redundant — qso_type carries the same intent and is
+        // safe across renames of the bundled templates.
         $defaultTemplateId = (int)$this->request->getQuery('template_id', 0);
         if ($defaultTemplateId === 0) {
             $defaultRow = $this->fetchTable('Templates')->find()
-                ->where(['Templates.is_system' => true])
-                ->where(['Templates.name' => $qso->qso_type === 'net' ? 'Net check-in' : 'Classic — bottom panel'])
+                ->where([
+                    'Templates.is_system' => true,
+                    'Templates.qso_type'  => $qsoType,
+                ])
                 ->first();
             $defaultTemplateId = $defaultRow ? (int)$defaultRow->id : 0;
         }
@@ -611,6 +631,25 @@ class QsosController extends AppController
         [$upload, , ] = $this->resolveTemplateBackground($template, $userId);
         $uploadId = (int)$upload->id;
 
+        // Drop any selected QSO whose qso_type doesn't match the chosen
+        // template — silently skipping is safer than half-rendering a wrong-
+        // shape card. The skipped count flows into the chunk worker's
+        // running total alongside already-rendered ones.
+        $templateQsoType = (string)($template->qso_type ?? 'contact');
+        $mismatchedIds = $this->fetchTable('Qsos')->find()
+            ->select(['id'])
+            ->where([
+                'Qsos.id IN' => $qsoIds,
+                'Qsos.user_id' => $userId,
+                'Qsos.qso_type !=' => $templateQsoType,
+            ])
+            ->all()
+            ->extract('id')
+            ->toArray();
+        $mismatchedIds = array_map('intval', array_unique($mismatchedIds));
+        $mismatchedCount = count($mismatchedIds);
+        $qsoIds = array_values(array_diff($qsoIds, $mismatchedIds));
+
         // Skip QSOs that already have a non-deleted card — mirrors the
         // single-render guard. Without this, hitting "Bulk render" twice
         // silently produces duplicate cards for the same QSOs. We report
@@ -627,7 +666,7 @@ class QsosController extends AppController
             ->extract('qso_id')
             ->toArray();
         $alreadyRendered = array_map('intval', array_unique($alreadyRendered));
-        $skipped = count($alreadyRendered);
+        $skipped = count($alreadyRendered) + $mismatchedCount;
         $qsoIds = array_values(array_diff($qsoIds, $alreadyRendered));
 
         if (empty($qsoIds)) {
