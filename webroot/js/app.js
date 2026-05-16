@@ -535,7 +535,12 @@ window.activationGpsHelper = activationGpsHelper;
  */
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        // Base path injected by the layout: '' for root deploy, '/qsl' for
+        // subfolder. The SW URL + scope both need the prefix so the SW
+        // doesn't try to claim the entire origin (which would conflict
+        // with other apps on the same host on subfolder deploys).
+        const base = (typeof window.EQSL_BASE === 'string') ? window.EQSL_BASE : '';
+        navigator.serviceWorker.register(base + '/sw.js', { scope: base + '/' })
             .catch((err) => {
                 // No console.error — failed registration is usually a
                 // dev-environment HTTP issue and isn't actionable for the

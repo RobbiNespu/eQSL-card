@@ -41,6 +41,11 @@
     'body' => 'Install only works over HTTPS in production, or on localhost during development. If you\'re on an HTTP-only deployment the install option won\'t appear — switch to HTTPS (any free Let\'s Encrypt cert works).',
 ]) ?>
 
+<?= $this->element('ui/callout', [
+    'variant' => 'note',
+    'body' => 'Subfolder deploys (e.g. example.com/qsl) are supported. The manifest URLs and service-worker scope auto-adjust to the deploy base path — every "Install" / "Add to Home Screen" pointer goes to /qsl/qsos/quick, the SW only intercepts requests under /qsl/, and other apps on the same host stay untouched.',
+]) ?>
+
 <h2>What gets cached</h2>
 <p>A service worker caches three categories of resources differently:</p>
 

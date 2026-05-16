@@ -36,6 +36,30 @@ const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
 /**
+ * Base path derived from the SW registration scope. Empty for root
+ * deploys (scope "/"); "/qsl" for subfolder deploys. We strip this
+ * prefix off URL pathnames before matching against the strategy
+ * patterns below — so /^\/admin\b/ matches both /admin/foo (root)
+ * and /qsl/admin/foo (subfolder).
+ */
+const BASE_PATH = (() => {
+    try {
+        const scope = new URL(self.registration.scope);
+        return scope.pathname.replace(/\/$/, '');
+    } catch (e) {
+        return '';
+    }
+})();
+
+/** Strip the base path off a URL pathname, returning a scope-relative path. */
+function scopedPath(pathname) {
+    if (BASE_PATH && pathname.startsWith(BASE_PATH + '/')) {
+        return pathname.slice(BASE_PATH.length);
+    }
+    return pathname;
+}
+
+/**
  * Static assets we want available offline immediately on first install.
  * The fetched URLs land in STATIC_CACHE. Listing nothing here keeps
  * install fast; the cache-first handler picks up subsequent loads.
@@ -94,7 +118,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  const path = url.pathname;
+  // Scope-relative path: '/qsl/admin/foo' → '/admin/foo' on a subfolder
+  // deploy. Patterns can be written as if the app was at the root.
+  const path = scopedPath(url.pathname);
 
   if (NETWORK_ONLY_PATTERNS.some((re) => re.test(path))) {
     // Don't even touch the cache — let the request fall through.

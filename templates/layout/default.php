@@ -37,6 +37,14 @@
   Without this, the page paints in light mode for one frame then
   flips to dark — a classic FOUC.
 -->
+<?php /* M5 T18/T19 — expose the deploy's base path to client-side JS
+       (theme resolver uses it for nothing yet, but the SW registration
+       and any future Alpine component that builds URLs needs it).
+       Empty string on root deploys ('/' → ''); '/qsl' on subfolder.
+       The middleware-injected webroot attribute is the source of truth. */ ?>
+<script>
+  window.EQSL_BASE = <?= json_encode(rtrim((string)$this->getRequest()->getAttribute('webroot', '/'), '/'), JSON_UNESCAPED_SLASHES) ?>;
+</script>
 <script>
   (function () {
     var pref = localStorage.getItem('eqsl-theme') || 'system';
