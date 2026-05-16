@@ -29,6 +29,22 @@ const DB_NAME = 'eqsl-card-offline';
 const DB_VERSION = 1;
 const STORE = 'qsos';
 
+/**
+ * Monotonic-increment guard for queued_at. Date.now() returns
+ * millisecond resolution; two rapid-fire enqueue() calls can produce
+ * the same timestamp (especially on fast CI hosts), and IndexedDB
+ * cursors walk tied keys in secondary-index (UUID, random) order —
+ * so the drain would receive rows out of insertion order.
+ * _nextQueuedAt() ensures every assigned timestamp is strictly
+ * greater than the previous one, even if the wall clock hasn't ticked.
+ */
+let _lastQueuedAt = 0;
+function _nextQueuedAt() {
+    const now = Date.now();
+    _lastQueuedAt = (now > _lastQueuedAt) ? now : (_lastQueuedAt + 1);
+    return _lastQueuedAt;
+}
+
 function hasIndexedDb() {
     return typeof indexedDB !== 'undefined';
 }
@@ -106,7 +122,7 @@ async function enqueue(data) {
     const row = {
         uuid,
         data: { ...data, client_uuid: uuid },
-        queued_at: Date.now(),
+        queued_at: _nextQueuedAt(),
         pending_sync: true,
         retry_count: 0,
         last_error: null,

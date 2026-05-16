@@ -67,13 +67,15 @@ describe('OfflineQueue', () => {
         });
 
         it('getAll returns rows oldest-first by queued_at', async () => {
-            const r1 = await OfflineQueue.enqueue({ call_worked: 'OLDEST' });
-            // Sleep 5ms so timestamps differ. fake-indexeddb is sync
-            // enough that consecutive Date.now() calls can collide.
-            await new Promise(r => setTimeout(r, 5));
-            const r2 = await OfflineQueue.enqueue({ call_worked: 'MIDDLE' });
-            await new Promise(r => setTimeout(r, 5));
-            const r3 = await OfflineQueue.enqueue({ call_worked: 'NEWEST' });
+            // No setTimeout — enqueue() uses _nextQueuedAt() which
+            // guarantees monotonic timestamps even when called in
+            // rapid succession. Was previously brittle on fast CI
+            // where consecutive Date.now() calls returned identical
+            // values and IndexedDB walked tied keys in random
+            // (UUID) order, causing the assertion to flake.
+            await OfflineQueue.enqueue({ call_worked: 'OLDEST' });
+            await OfflineQueue.enqueue({ call_worked: 'MIDDLE' });
+            await OfflineQueue.enqueue({ call_worked: 'NEWEST' });
 
             const rows = await OfflineQueue.getAll();
             expect(rows.map(r => r.data.call_worked)).toEqual(['OLDEST', 'MIDDLE', 'NEWEST']);

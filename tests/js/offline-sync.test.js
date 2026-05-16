@@ -90,10 +90,11 @@ describe('OfflineSync.drain', () => {
     });
 
     it('aborts the drain on network error and preserves order', async () => {
+        // No setTimeout — _nextQueuedAt in OfflineQueue.enqueue
+        // guarantees monotonic timestamps so the chronological-order
+        // assertion below is deterministic.
         await OfflineQueue.enqueue({ call_worked: 'FIRST' });
-        await new Promise(r => setTimeout(r, 5));
         await OfflineQueue.enqueue({ call_worked: 'SECOND' });
-        await new Promise(r => setTimeout(r, 5));
         await OfflineQueue.enqueue({ call_worked: 'THIRD' });
 
         // First fetch succeeds, second throws (network error), third never tried.
@@ -163,8 +164,8 @@ describe('T24 conflict tolerance — 50 queued QSOs', () => {
                 frequency_mhz: '14.20',
                 mode: 'SSB',
             });
-            // Stagger queued_at so order matters.
-            await new Promise(r => setTimeout(r, 1));
+            // No setTimeout — _nextQueuedAt guarantees monotonic
+            // ordering even when 50 enqueues fire in <1ms wall-clock.
         }
         expect(await OfflineQueue.count()).toBe(N);
 
@@ -210,7 +211,6 @@ describe('T24 conflict tolerance — 50 queued QSOs', () => {
         // 10 queued, network fails after the 5th, then recovers on retry.
         for (let i = 0; i < 10; i++) {
             await OfflineQueue.enqueue({ call_worked: `R${i}` });
-            await new Promise(r => setTimeout(r, 1));
         }
 
         const serverSeen = new Set();
