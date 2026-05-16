@@ -134,7 +134,7 @@ Three things to configure:
    ```php
    'App' => [
        'base' => '/qsl',
-       'fullBaseUrl' => 'https://tools.example.com/qsl',
+       'fullBaseUrl' => 'https://tools.example.com',
    ],
    'Session' => [
        'cookiePath' => '/qsl',
@@ -145,6 +145,11 @@ Three things to configure:
      with `/qsl/`. The bundled `BasePathMiddleware` also reads the
      request webroot and rewrites the ~78 raw `href="/..."` strings in
      templates on the way out, so no template edits are needed.
+   - **`App.fullBaseUrl` is the scheme + host ONLY — DO NOT include
+     `/qsl` here.** Cake combines `fullBaseUrl` + `base` automatically
+     to produce absolute URLs. Including the prefix in both produces
+     `https://tools.example.com/qsl/qsl/...` redirects (double prefix
+     bug — installer redirects fail, login bounces wrong, etc.).
    - `App.fullBaseUrl` is used by emails and any code that builds
      absolute URLs outside a request context.
    - `Session.cookiePath` scopes the session cookie to `/qsl` so it
