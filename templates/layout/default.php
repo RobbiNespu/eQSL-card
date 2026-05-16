@@ -100,6 +100,7 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
         <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" href="/qsos">Logbook</a></li>
         <li class="nav-item"><a class="nav-link" href="/cards">Cards</a></li>
+        <li class="nav-item"><a class="nav-link" href="/activations">Activations</a></li>
         <li class="nav-item"><a class="nav-link" href="/card-backgrounds">Backgrounds</a></li>
         <li class="nav-item"><a class="nav-link" href="/templates">Templates</a></li>
         <li class="nav-item"><a class="nav-link" href="/help">Help</a></li>
@@ -183,6 +184,7 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
       <div class="mobile-sheet__handle" aria-hidden="true"></div>
 
       <div class="mobile-sheet__heading">Library</div>
+      <a class="mobile-sheet__item" href="/activations" @click="moreOpen = false">Activations</a>
       <a class="mobile-sheet__item" href="/card-backgrounds" @click="moreOpen = false">Backgrounds</a>
       <a class="mobile-sheet__item" href="/templates" @click="moreOpen = false">Templates</a>
       <a class="mobile-sheet__item" href="/help" @click="moreOpen = false">Help</a>

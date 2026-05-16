@@ -47,6 +47,24 @@ $recentJson = json_encode(array_map(static function ($r): array {
     name/QTH)? Use the <a href="/qsos/new">full form</a> instead.
   </p>
 
+  <?php /* T14 — Active activation banner. Visible when the operator has
+         an open activation; T16 will use this to auto-tag QSOs saved
+         from this form. Tappable to drill into the activation page. */ ?>
+  <?php if (!empty($activeActivation)): ?>
+    <a href="/activations" class="quick-add__active-banner" aria-label="Currently logging for <?= h($activeActivation->name) ?> — tap to manage activation">
+      <span class="quick-add__active-banner-label">Logging for</span>
+      <strong class="quick-add__active-banner-name"><?= h($activeActivation->name) ?></strong>
+      <?php if ($activeActivation->grid_square): ?>
+        <span class="quick-add__active-banner-grid"><?= h($activeActivation->grid_square) ?></span>
+      <?php endif; ?>
+    </a>
+  <?php else: ?>
+    <p class="form-text small mb-3">
+      Logging without an activation. <a href="/activations">Start one</a> if you're
+      running a POTA / SOTA / net session — every QSO will auto-tag with it.
+    </p>
+  <?php endif; ?>
+
   <?php /* T8 — Last-5 panel ABOVE the form. Tappable rows clone freq/
          mode/notes into the form below. */ ?>
   <?php if ($recent->count() > 0): ?>

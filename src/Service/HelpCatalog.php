@@ -70,8 +70,9 @@ final class HelpCatalog
         'mobile' => [
             'label' => 'Mobile & portable ops',
             'pages' => [
-                'navigation' => 'Bottom-tab navigation',
-                'quick-add'  => 'Quick-add for portable ops',
+                'navigation'  => 'Bottom-tab navigation',
+                'quick-add'   => 'Quick-add for portable ops',
+                'activations' => 'Activations (POTA, SOTA, field day)',
             ],
         ],
         'reference' => [

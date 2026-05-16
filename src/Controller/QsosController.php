@@ -301,9 +301,17 @@ class QsosController extends AppController
             ->limit(5)
             ->all();
 
+        // M5 T14 — active activation banner. Cheap lookup (indexed query
+        // on user_id, ended_at). Renders a small banner at the top of
+        // the quick-add page so the operator sees what they're logging
+        // into. T16 will use this same value to auto-tag new QSOs at
+        // save time.
+        $active = $this->fetchTable('Activations')->findActiveForUser($userId);
+
         $this->set([
             'qso' => $entity,
             'recent' => $recent,
+            'activeActivation' => $active,
             'title' => 'Quick add — log a contact',
         ]);
         $this->render('quick');
