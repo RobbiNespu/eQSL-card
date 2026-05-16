@@ -47,6 +47,23 @@ if (!empty($bgUploadId)) {
     'qsoType' => $template->qso_type ?? 'contact',
 ])) ?>)" x-init="$nextTick(() => { if (backgroundUrl) applyBackground(); })" class="row">
 
+  <!-- M5 T6 / audit I2 — the Fabric canvas designer is a desktop authoring
+       surface. Below 992 px (phones, narrow tablets in portrait) the
+       layers panel, canvas, and properties pane all collapse to
+       full-width stacks and the workflow becomes effectively unusable.
+       Rather than rewriting the designer for touch, show an explicit
+       banner steering the operator to a desktop / wider viewport.
+       Out of scope per design spec §13.7. -->
+  <div class="designer-desktop-only-banner col-12 mb-3" role="status">
+    <strong>Best on desktop.</strong>
+    The template designer relies on precise drag, multi-select, and
+    a wide canvas — it works on screens 992&nbsp;px or wider. On a
+    phone you can still browse <a href="/templates">your templates</a>
+    and pick one when rendering a card, but editing is reserved for
+    a bigger viewport. Rotate to landscape or open this page on a
+    laptop.
+  </div>
+
   <div class="col-lg-3">
     <h2>Template details</h2>
     <div class="mb-3">

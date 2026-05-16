@@ -15,17 +15,17 @@
   <div class="col-md-4">
     <h2 class="h5">QSO details</h2>
     <dl class="row dl-stack">
-      <dt class="col-sm-5">Callsign</dt><dd class="col-sm-7"><?= h($qso['callsign'] ?? '—') ?></dd>
-      <dt class="col-sm-5">Date / Time UTC</dt><dd class="col-sm-7"><?= h($qso['qso_datetime_utc'] ?? '') ?></dd>
-      <dt class="col-sm-5">Frequency</dt><dd class="col-sm-7"><?= h($qso['frequency_mhz'] ?? '') ?> MHz</dd>
-      <dt class="col-sm-5">Band</dt><dd class="col-sm-7"><?= h($qso['band'] ?? '') ?></dd>
-      <dt class="col-sm-5">Mode</dt><dd class="col-sm-7"><?= h($qso['mode'] ?? '') ?></dd>
-      <dt class="col-sm-5">RST sent / received</dt><dd class="col-sm-7"><?= h($qso['rst_sent'] ?? '') ?> / <?= h($qso['rst_received'] ?? '') ?></dd>
+      <dt class="col-md-5">Callsign</dt><dd class="col-md-7"><?= h($qso['callsign'] ?? '—') ?></dd>
+      <dt class="col-md-5">Date / Time UTC</dt><dd class="col-md-7"><?= h($qso['qso_datetime_utc'] ?? '') ?></dd>
+      <dt class="col-md-5">Frequency</dt><dd class="col-md-7"><?= h($qso['frequency_mhz'] ?? '') ?> MHz</dd>
+      <dt class="col-md-5">Band</dt><dd class="col-md-7"><?= h($qso['band'] ?? '') ?></dd>
+      <dt class="col-md-5">Mode</dt><dd class="col-md-7"><?= h($qso['mode'] ?? '') ?></dd>
+      <dt class="col-md-5">RST sent / received</dt><dd class="col-md-7"><?= h($qso['rst_sent'] ?? '') ?> / <?= h($qso['rst_received'] ?? '') ?></dd>
       <?php if (!empty($qso['operator_name'])): ?>
-        <dt class="col-sm-5">Operator name</dt><dd class="col-sm-7"><?= h($qso['operator_name']) ?></dd>
+        <dt class="col-md-5">Operator name</dt><dd class="col-md-7"><?= h($qso['operator_name']) ?></dd>
       <?php endif; ?>
       <?php if (!empty($qso['notes'])): ?>
-        <dt class="col-sm-5">Notes</dt><dd class="col-sm-7"><?= nl2br(h($qso['notes'])) ?></dd>
+        <dt class="col-md-5">Notes</dt><dd class="col-md-7"><?= nl2br(h($qso['notes'])) ?></dd>
       <?php endif; ?>
     </dl>
     <?php if ($card->qso_id): ?>

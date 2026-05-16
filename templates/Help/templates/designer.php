@@ -74,3 +74,6 @@
   <li><kbd>Ctrl+A</kbd> — select all elements.</li>
   <li><kbd>Esc</kbd> — deselect.</li>
 </ul>
+
+<h2>Desktop-only</h2>
+<p>The designer is built for precise drag, multi-select, and a wide canvas; it works on viewports 992 px or wider. On a phone or narrow tablet the page shows an amber banner steering you to a bigger screen. You can still <em>use</em> templates on a phone (pick one when rendering a card from <a href="/help/cards/render">/cards</a> or the bulk-render modal); only the authoring workflow is reserved for desktop. Rotate a tablet to landscape, or open the page on a laptop, to enter edit mode.</p>

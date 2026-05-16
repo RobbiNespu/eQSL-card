@@ -27,13 +27,14 @@
             </p>
             <?php $usedByThis = $usedBy[(int)$bg->id] ?? []; ?>
             <?php if (!empty($usedByThis)): ?>
-              <p class="small mb-2">
-                <span class="text-muted">Used by:</span>
-                <?php foreach ($usedByThis as $i => $tpl): ?>
-                  <?php if ($i > 0): ?>, <?php endif; ?>
-                  <a href="/templates/<?= h($tpl->id) ?>/edit"><?= h($tpl->name) ?></a>
-                <?php endforeach; ?>
-              </p>
+              <div class="small mb-2">
+                <span class="text-muted d-block mb-1">Used by:</span>
+                <ul class="template-chip-list">
+                  <?php foreach ($usedByThis as $tpl): ?>
+                    <li><a class="template-chip" href="/templates/<?= h($tpl->id) ?>/edit"><?= h($tpl->name) ?></a></li>
+                  <?php endforeach; ?>
+                </ul>
+              </div>
             <?php else: ?>
               <p class="small text-muted mb-2"><em>Not bound to any template.</em></p>
             <?php endif; ?>

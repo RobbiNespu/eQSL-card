@@ -1945,3 +1945,66 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
     display: none;
   }
 }
+
+/* ============================================================
+   M5 T6 — Polish: designer banner + tap-targets + dl breakpoint
+   ============================================================ */
+
+/* I2 — Designer is desktop-only. Show banner < 992 px, hide on lg+. */
+.designer-desktop-only-banner {
+  display: none;
+}
+@media (max-width: 991.98px) {
+  .designer-desktop-only-banner {
+    display: block;
+    padding: var(--s-3, 12px) var(--s-4, 16px);
+    background: var(--warning-soft, #fef3c7);
+    border: 1px solid var(--warning, #f59e0b);
+    border-radius: var(--r-md, 8px);
+    color: #78350f;
+    font-size: var(--t-sm, 0.95em);
+    line-height: 1.45;
+  }
+  [data-theme="eqsl-dark"] .designer-desktop-only-banner {
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--warning, #fbbf24);
+  }
+}
+
+/* CardBackgrounds tap-targets — turn the inline anchor list into a chip
+   pill list so each template name is its own 44 px-ish tap area. */
+.template-chip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.template-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  min-height: 32px;
+  background: var(--bs-tertiary-bg, #f1f5f9);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  font-size: 0.85em;
+  text-decoration: none;
+  color: var(--bs-body-color);
+  line-height: 1.2;
+}
+.template-chip:hover,
+.template-chip:focus-visible {
+  background: var(--bs-secondary-bg, #e2e8f0);
+  text-decoration: none;
+  outline: none;
+}
+@media (max-width: 991.98px) {
+  /* On phones, bump up to 44 px tap target. */
+  .template-chip {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 0.95em;
+  }
+}
