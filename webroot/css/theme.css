@@ -1822,3 +1822,29 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
     to   { transform: translateY(0); }
   }
 }
+
+/* ============================================================
+   M5 T4 — Mobile-tuned form action row
+   On < 992 px viewports, the primary form action becomes
+   full-width and the secondary action collapses to a text
+   button below it. Reachable with one thumb without scrolling.
+   ============================================================ */
+@media (max-width: 991.98px) {
+  .form-actions-mobile {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-2, 8px);
+  }
+  .form-actions-mobile .btn-primary {
+    width: 100%;
+    font-size: 1rem;
+    min-height: 48px;
+  }
+  .form-actions-mobile .btn-secondary {
+    background: transparent;
+    border: 0;
+    color: var(--bs-body-color);
+    text-decoration: underline;
+    min-height: 44px;
+  }
+}

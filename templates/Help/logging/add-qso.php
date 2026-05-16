@@ -53,3 +53,15 @@
 
 <h2>What happens after save</h2>
 <p>The QSO lands in your <a href="/qsos">logbook</a>. From there you can render it as an eQSL card individually or in bulk — see <a href="/help/cards/render">Generate an eQSL card</a>.</p>
+
+<h2>On mobile</h2>
+<p>The form is tuned for one-handed use on phones (M5, 2026-05-16):</p>
+<ul>
+  <li>The whole layout collapses to a <strong>single column</strong> below 992 px so you scroll top-to-bottom without horizontal swiping.</li>
+  <li><strong>RST sent</strong> and <strong>RST received</strong> stay paired side-by-side even on the narrowest screens — the values are short enough to fit, and you'll usually type them together.</li>
+  <li>The <strong>Frequency (MHz)</strong> input opens the decimal keypad (not the full alphanumeric keyboard) via <code>inputmode="decimal"</code>. The RST inputs open the numeric keypad. Both save dozens of taps over a typical session.</li>
+  <li>The primary <strong>Add QSO</strong> / <strong>Save changes</strong> button is full-width at the bottom of the form so it's reachable with your thumb without aiming. Cancel collapses to a text link below it.</li>
+  <li>For activations and portable ops where you need to log a stream of contacts faster, a dedicated <strong>Quick add</strong> route ships in a later phase of M5 — see the <a href="/help/mobile/navigation">mobile navigation guide</a> for context. Today the Quick add tab in the bottom nav routes here.</li>
+</ul>
+
+<p>If you find anything still cramped or unreachable at 375 px, that's a bug worth reporting — the M5 audit aimed to catch every blocker, but real devices surface things desktop emulators miss.</p>
