@@ -51,6 +51,12 @@
           <td>
             <strong><?= h($u->author_name ?: 'unknown source') ?></strong>
             <span class="text-muted small d-block"><?= h(\App\Service\ImageLicense::label($u->license)) ?></span>
+            <?php if (!empty($defaultBgUploadId) && (int)$u->id === $defaultBgUploadId): ?>
+              <span class="badge bg-success mt-1"
+                    title="This image is the current site-default background. Configure on /admin/settings.">
+                Default background
+              </span>
+            <?php endif; ?>
           </td>
           <td class="small text-muted">
             <?= h($u->width_px) ?>×<?= h($u->height_px) ?><br>

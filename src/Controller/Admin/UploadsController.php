@@ -55,10 +55,16 @@ class UploadsController extends AppController
 
         $rows = $this->paginate($query, ['limit' => 30]);
 
+        // Surface which row (if any) is currently acting as the site-default
+        // background so the listing can badge it. Read direct from settings —
+        // no FK needed.
+        $defaultBgUploadId = (int)(new \App\Service\AppSettings())->get('default_background_upload_id', 0);
+
         $this->set([
-            'uploads' => $rows,
-            'filters' => compact('includeDeleted', 'kind'),
-            'title' => 'Admin · All uploads',
+            'uploads'           => $rows,
+            'filters'           => compact('includeDeleted', 'kind'),
+            'defaultBgUploadId' => $defaultBgUploadId,
+            'title'             => 'Admin · All uploads',
         ]);
     }
 }

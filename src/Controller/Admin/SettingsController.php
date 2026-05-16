@@ -162,17 +162,66 @@ class SettingsController extends AppController
         $license = ($licenseRaw !== '' && array_key_exists($licenseRaw, \App\Service\ImageLicense::LICENSES))
             ? $licenseRaw
             : 'unknown';
+        // Also persist the bytes as a regular `uploads` row so the admin
+        // can see/manage the default background on /admin/uploads alongside
+        // every other library image. SHA-dedupe: if the same image was
+        // previously uploaded (by anyone, or by a prior render via the chain)
+        // we reuse the existing row and refresh its attribution; otherwise
+        // we insert a fresh row that points at a copy in files/uploads/.
+        $sha = hash_file('sha256', $finalPath);
+        $uploadsTable = $this->fetchTable('Uploads');
+        $existingRow = $uploadsTable->find()->where(['sha256_hash' => $sha])->first();
+        if ($existingRow !== null) {
+            // Resurrect a soft-deleted match and refresh attribution to
+            // match the just-uploaded admin context.
+            if ($existingRow->deleted_at !== null) {
+                $existingRow->set('deleted_at', null, ['guard' => false]);
+            }
+            $existingRow->set('author_name', $authorName !== '' ? $authorName : null, ['guard' => false]);
+            $existingRow->set('license', $license, ['guard' => false]);
+            $uploadsTable->saveOrFail($existingRow);
+            $defaultBgUploadId = (int)$existingRow->id;
+        } else {
+            $uploadsDir = WWW_ROOT . 'files/uploads/';
+            if (!is_dir($uploadsDir)) {
+                mkdir($uploadsDir, 0o775, true);
+            }
+            $storedPath = 'files/uploads/' . $sha . '.jpg';
+            // Copy (not move) — keep the canonical file at _default-bg.jpg
+            // for the existing renderer-side fallback chain that loads bytes
+            // from there.
+            if (!is_file(WWW_ROOT . $storedPath)) {
+                copy($finalPath, WWW_ROOT . $storedPath);
+            }
+            $dims = @getimagesize($finalPath) ?: [0, 0];
+            $newRow = $uploadsTable->newEntity([
+                'user_id'           => $this->Authentication->getIdentity()->getIdentifier(),
+                'original_filename' => $upload->getClientFilename() ?: 'default-background.jpg',
+                'storage_path'      => $storedPath,
+                'mime_type'         => 'image/jpeg',
+                'width_px'          => (int)$dims[0],
+                'height_px'         => (int)$dims[1],
+                'file_size_bytes'   => (int)filesize($finalPath),
+                'sha256_hash'       => $sha,
+                'author_name'       => $authorName !== '' ? $authorName : null,
+                'license'           => $license,
+            ]);
+            $uploadsTable->saveOrFail($newRow);
+            $defaultBgUploadId = (int)$newRow->id;
+        }
+
         $appSettings = new \App\Service\AppSettings();
         $appSettings->setMany([
-            'default_background_author' => $authorName,
-            'default_background_license' => $license,
+            'default_background_author'     => $authorName,
+            'default_background_license'    => $license,
+            'default_background_upload_id'  => $defaultBgUploadId,
         ]);
 
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'settings.default_background_changed',
                 actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
-                metadata: ['author' => $authorName ?: null, 'license' => $license],
+                metadata: ['author' => $authorName ?: null, 'license' => $license, 'upload_id' => $defaultBgUploadId],
             );
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
@@ -202,6 +251,12 @@ class SettingsController extends AppController
                 error_log('audit: ' . $e->getMessage());
             }
         }
+
+        // Clear the pointer to the uploads row that was acting as the default.
+        // The row itself is intentionally NOT deleted — cards rendered with
+        // this background may still reference it, and the admin can clean it
+        // up from /admin/uploads if they want it gone for good.
+        (new \App\Service\AppSettings())->set('default_background_upload_id', '');
 
         $this->Flash->success('Default background reset to the bundled image.');
         return $this->redirect('/admin/settings');
