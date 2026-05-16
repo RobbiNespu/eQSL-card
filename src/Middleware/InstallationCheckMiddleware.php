@@ -9,6 +9,14 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
+/**
+ * Gate the app behind the install wizard until config/installed.lock
+ * exists. Once installed, /install/* returns 404 (wizard is dead).
+ *
+ * Webroot-aware: reads the request's `webroot` attribute so subfolder
+ * deploys (e.g. /qsl) correctly recognise `/qsl/install` as an install
+ * path AND emit the right Location URL on redirect.
+ */
 final class InstallationCheckMiddleware implements MiddlewareInterface
 {
     public function __construct(private string $lockFilePath)
@@ -17,9 +25,22 @@ final class InstallationCheckMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $path = $request->getUri()->getPath();
+        // Strip the deploy base path so the comparison works on both
+        // root deploys (webroot='/') and subfolder deploys (webroot='/qsl/').
+        // The webroot attribute is set by Cake's ServerRequestFactory
+        // before any middleware runs, so it's safe to read here even
+        // though RoutingMiddleware hasn't fired yet.
+        $base = rtrim((string)$request->getAttribute('webroot', '/'), '/');
+        $rawPath = $request->getUri()->getPath();
+        $scopedPath = ($base !== '' && str_starts_with($rawPath, $base))
+            ? substr($rawPath, strlen($base))
+            : $rawPath;
+        if ($scopedPath === '') {
+            $scopedPath = '/';
+        }
+
         $installed = file_exists($this->lockFilePath);
-        $isInstallPath = $path === '/install' || str_starts_with($path, '/install/');
+        $isInstallPath = $scopedPath === '/install' || str_starts_with($scopedPath, '/install/');
 
         if ($installed) {
             if ($isInstallPath) {
@@ -29,9 +50,11 @@ final class InstallationCheckMiddleware implements MiddlewareInterface
         }
 
         // Not installed
-        if ($isInstallPath || $path === '/health') {
+        if ($isInstallPath || $scopedPath === '/health') {
             return $handler->handle($request);
         }
-        return (new Response())->withStatus(302)->withHeader('Location', '/install');
+        // Redirect target uses the deploy base so subfolder users land
+        // at /qsl/install instead of bouncing to the parent host root.
+        return (new Response())->withStatus(302)->withHeader('Location', $base . '/install');
     }
 }

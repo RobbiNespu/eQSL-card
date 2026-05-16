@@ -90,6 +90,80 @@ final class InstallationCheckMiddlewareTest extends TestCase
         $this->assertSame(404, $resp->getStatusCode());
     }
 
+    /**
+     * Subfolder-deploy regression tests. The middleware previously
+     * compared raw URI paths against bare "/install" strings without
+     * accounting for the deploy base, so on a /qsl subfolder deploy
+     * /qsl/install was NOT recognised as an install path — install
+     * page POSTs were redirected to /install (no prefix) and bounced
+     * to the parent host root.
+     */
+
+    public function testSubfolderRecognisesInstallPathFromBase(): void
+    {
+        $mw = new InstallationCheckMiddleware($this->lockFile);
+        $req = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/qsl/install/database'])
+            ->withAttribute('webroot', '/qsl/');
+        $handler = $this->makeHandler();
+
+        // Lock missing + install path → should NOT redirect, should
+        // pass through to the handler.
+        $resp = $mw->process($req, $handler);
+        $this->assertSame(200, $resp->getStatusCode());
+    }
+
+    public function testSubfolderRedirectIncludesBaseInLocation(): void
+    {
+        $mw = new InstallationCheckMiddleware($this->lockFile);
+        // Lock missing, navigating to a non-install path on subfolder.
+        $req = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/qsl/dashboard'])
+            ->withAttribute('webroot', '/qsl/');
+        $handler = $this->makeHandler();
+
+        $resp = $mw->process($req, $handler);
+        $this->assertSame(302, $resp->getStatusCode());
+        // Without the fix, this would be "/install" — bouncing to the
+        // parent host root.
+        $this->assertSame('/qsl/install', $resp->getHeaderLine('Location'));
+    }
+
+    public function testSubfolderInstallPaths404AfterLock(): void
+    {
+        touch($this->lockFile);
+        $mw = new InstallationCheckMiddleware($this->lockFile);
+        $req = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/qsl/install/admin'])
+            ->withAttribute('webroot', '/qsl/');
+        $handler = $this->makeHandler();
+
+        $resp = $mw->process($req, $handler);
+        $this->assertSame(404, $resp->getStatusCode());
+    }
+
+    public function testSubfolderHealthCheckPassesThrough(): void
+    {
+        $mw = new InstallationCheckMiddleware($this->lockFile);
+        $req = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/qsl/health'])
+            ->withAttribute('webroot', '/qsl/');
+        $handler = $this->makeHandler();
+
+        // Lock missing + health endpoint → pass through (used for
+        // deployment monitoring before install completes).
+        $resp = $mw->process($req, $handler);
+        $this->assertSame(200, $resp->getStatusCode());
+    }
+
+    public function testRootDeployBehaviourUnchanged(): void
+    {
+        // Sanity: webroot='/' (or absent) keeps the original behaviour.
+        $mw = new InstallationCheckMiddleware($this->lockFile);
+        $req = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/dashboard'])
+            ->withAttribute('webroot', '/');
+        $handler = $this->makeHandler();
+        $resp = $mw->process($req, $handler);
+        $this->assertSame(302, $resp->getStatusCode());
+        $this->assertSame('/install', $resp->getHeaderLine('Location'));
+    }
+
     private function makeHandler(): RequestHandlerInterface
     {
         return new class implements RequestHandlerInterface {
