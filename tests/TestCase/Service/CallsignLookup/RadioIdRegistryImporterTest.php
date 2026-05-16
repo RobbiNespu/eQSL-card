@@ -126,6 +126,51 @@ final class RadioIdRegistryImporterTest extends TestCase
         $this->assertSame('Surname', $row['last_name']);
     }
 
+    public function testRefreshStreamsLineByLineFromLocalFileStream(): void
+    {
+        // Exercise the streaming path without hitting the network.
+        // refresh() opens an HTTP stream and hands it to a private
+        // importFromStream; we use reflection to call that private
+        // method directly with a local file:// stream — same code
+        // path, no upstream dependency.
+        $csv = "RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME,CITY,STATE,COUNTRY\n"
+             . "1,VA3BOC,Hans,Smith,Cornwall,Ontario,Canada\n"
+             . "2,9W2NSP,Robbi,Nespu,Johor,West Malaysia,Malaysia\n"
+             . "3,VA3BOC,Hans Renamed,Smith,Cornwall,Ontario,Canada\n"; // last-wins dupe
+        $path = $this->writeTempCsv($csv);
+
+        $progressLines = [];
+        $emit = function (string $msg) use (&$progressLines): void {
+            $progressLines[] = $msg;
+        };
+
+        $importer = new RadioIdRegistryImporter();
+        $ref = new \ReflectionMethod($importer, 'importFromStream');
+        $ref->setAccessible(true);
+
+        $stream = fopen($path, 'r');
+        try {
+            $cacheSize = $ref->invoke($importer, $stream, $emit);
+        } finally {
+            fclose($stream);
+            @unlink($path);
+        }
+
+        // Two unique callsigns (VA3BOC was upserted, last row wins).
+        $this->assertSame(2, $cacheSize);
+        $row = \Cake\Datasource\ConnectionManager::get('default')
+            ->execute('SELECT first_name FROM radioid_registry WHERE callsign = ?', ['VA3BOC'])
+            ->fetch('assoc');
+        $this->assertSame('Hans Renamed', $row['first_name']);
+
+        // Progress emitter should fire at least the "Stream complete"
+        // summary on a small file; for files larger than BATCH_SIZE it
+        // would also fire mid-stream.
+        $tail = end($progressLines);
+        $this->assertStringContainsString('Stream complete', (string)$tail);
+        $this->assertStringContainsString('cache now holds 2 unique callsigns', (string)$tail);
+    }
+
     public function testImportRejectsMissingFile(): void
     {
         $this->expectException(\RuntimeException::class);

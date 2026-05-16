@@ -224,20 +224,185 @@ final class RadioIdRegistryImporter
     }
 
     /**
-     * One-shot: download + import in a single call. Cleans up the temp
-     * file regardless of success. Returns the imported row count.
+     * Fully streaming refresh — opens the upstream HTTP stream and
+     * parses CSV lines as bytes arrive, batch-UPSERTing every
+     * BATCH_SIZE rows. No intermediate temp file, no two-phase
+     * download-then-import wait. Progress lines combine bytes-streamed
+     * AND rows-processed so the operator sees both metrics climb
+     * together instead of "downloading…" silence followed by
+     * "importing…" silence.
      *
-     * @param (callable(string):void)|null $onProgress Status emitter
-     *   threaded through both the download and import phases.
+     * @param (callable(string):void)|null $onProgress Status emitter,
+     *   fired on every BATCH_SIZE rows committed.
      */
     public function refresh(?callable $onProgress = null): int
     {
-        $path = $this->download(self::SOURCE_URL, $onProgress);
-        try {
-            return $this->import($path, $onProgress);
-        } finally {
-            @unlink($path);
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => "User-Agent: eQSL-card RadioId Importer\r\n",
+                'timeout' => 60,
+                'follow_location' => 1,
+                'max_redirects' => 3,
+            ],
+        ]);
+
+        $onProgress?->__invoke('Connecting to upstream…');
+        $src = @fopen(self::SOURCE_URL, 'r', false, $context);
+        if ($src === false) {
+            throw new \RuntimeException('Could not open ' . self::SOURCE_URL);
         }
+
+        try {
+            return $this->importFromStream($src, $onProgress);
+        } finally {
+            fclose($src);
+        }
+    }
+
+    /**
+     * Parse a CSV stream chunk-by-chunk: pull 64 KB at a time, split
+     * out complete lines from the trailing buffer, parse each line
+     * with str_getcsv, batch the resulting rows, flush on
+     * BATCH_SIZE boundaries.
+     *
+     * Side-effect: TRUNCATEs `radioid_registry` before the first
+     * insert so a successful stream replaces the previous snapshot.
+     * Returns the post-import distinct-callsign count.
+     *
+     * @param resource $stream Any readable stream (HTTP wrapper, file).
+     * @param (callable(string):void)|null $onProgress
+     */
+    private function importFromStream($stream, ?callable $onProgress = null): int
+    {
+        $conn = ConnectionManager::get('default');
+        $now = DateTime::now()->format('Y-m-d H:i:s');
+        $headerSeen = false;
+        $buffer = '';
+        $bytesRead = 0;
+        $rows = [];
+        $totalProcessed = 0;
+
+        while (!feof($stream)) {
+            $chunk = fread($stream, 65536);
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            $bytesRead += strlen($chunk);
+            if ($bytesRead > self::MAX_BYTES) {
+                throw new \RuntimeException(sprintf(
+                    'Stream exceeded %d-byte cap; aborting import.',
+                    self::MAX_BYTES
+                ));
+            }
+            $buffer .= $chunk;
+
+            // Pull every complete line out of the buffer. The remaining
+            // partial line stays in $buffer for the next iteration.
+            while (($newlinePos = strpos($buffer, "\n")) !== false) {
+                $line = rtrim(substr($buffer, 0, $newlinePos), "\r");
+                $buffer = substr($buffer, $newlinePos + 1);
+                if ($line === '') {
+                    continue;
+                }
+
+                $cells = str_getcsv($line);
+                if (!$headerSeen) {
+                    $this->assertHeader($cells);
+                    $headerSeen = true;
+                    // Replace the previous snapshot only once we've
+                    // confirmed the upstream is shaped correctly —
+                    // protects the cache from being wiped on a 200 OK
+                    // response that happens to contain the wrong CSV.
+                    $conn->execute('DELETE FROM ' . self::TABLE);
+                    continue;
+                }
+
+                $rowData = $this->buildRow($cells, $now);
+                if ($rowData === null) {
+                    continue;
+                }
+                $rows[] = $rowData;
+                if (count($rows) >= self::BATCH_SIZE) {
+                    $totalProcessed += $this->flush($conn, $rows);
+                    $rows = [];
+                    $onProgress?->__invoke(sprintf(
+                        'Streamed %.1f MB, processed %s rows…',
+                        $bytesRead / 1048576,
+                        number_format($totalProcessed)
+                    ));
+                }
+            }
+        }
+
+        // Tail line that didn't end in \n (rare — the upstream emits
+        // one trailing newline, but we still handle the truncated case).
+        if ($headerSeen && trim($buffer) !== '') {
+            $cells = str_getcsv(rtrim($buffer, "\r\n"));
+            $rowData = $this->buildRow($cells, $now);
+            if ($rowData !== null) {
+                $rows[] = $rowData;
+            }
+        }
+        if (!empty($rows)) {
+            $totalProcessed += $this->flush($conn, $rows);
+        }
+
+        if (!$headerSeen) {
+            throw new \RuntimeException('Empty stream — never saw a CSV header row.');
+        }
+
+        $cached = (int)$conn->execute('SELECT COUNT(*) AS c FROM ' . self::TABLE)
+            ->fetch('assoc')['c'];
+        $onProgress?->__invoke(sprintf(
+            'Stream complete — %.1f MB streamed, processed %s rows, cache now holds %s unique callsigns.',
+            $bytesRead / 1048576,
+            number_format($totalProcessed),
+            number_format($cached)
+        ));
+        return $cached;
+    }
+
+    /**
+     * Validate the CSV header row shape; throws on a mismatch so we
+     * refuse to import a file that's been swapped under us.
+     */
+    private function assertHeader(array $cells): void
+    {
+        $normalised = array_map(static fn ($h) => strtoupper(trim((string)$h)), $cells);
+        $expected = ['RADIO_ID', 'CALLSIGN', 'FIRST_NAME', 'LAST_NAME', 'CITY', 'STATE', 'COUNTRY'];
+        if ($normalised !== $expected) {
+            throw new \RuntimeException(
+                'Unexpected CSV header: ' . implode(',', $cells)
+                . ' (expected ' . implode(',', $expected) . ')'
+            );
+        }
+    }
+
+    /**
+     * Project a parsed CSV row into the row shape `flush()` expects.
+     * Returns null when the row is malformed (too few cells, empty
+     * callsign) so the caller can skip it cleanly.
+     */
+    private function buildRow(array $cells, string $now): ?array
+    {
+        if (count($cells) < 7) {
+            return null;
+        }
+        $callsign = strtoupper(trim((string)$cells[1]));
+        if ($callsign === '') {
+            return null;
+        }
+        return [
+            'radio_id'    => (int)$cells[0] ?: null,
+            'callsign'    => $callsign,
+            'first_name'  => $this->str($cells[2], 80),
+            'last_name'   => $this->str($cells[3], 80),
+            'city'        => $this->str($cells[4], 80),
+            'state'       => $this->str($cells[5], 80),
+            'country'     => $this->str($cells[6], 80),
+            'imported_at' => $now,
+        ];
     }
 
     /**
