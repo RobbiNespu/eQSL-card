@@ -231,6 +231,10 @@ class TemplatesController extends AppController
             'canvas_width' => $source->canvas_width,
             'canvas_height' => $source->canvas_height,
             'layout_json' => $source->layout_json,
+            // Carry the bound background over to the clone so the fork
+            // renders identically out of the gate. The new owner can
+            // detach or swap it from the designer.
+            'background_upload_id' => $source->background_upload_id,
         ]);
         // Owner / flag overrides via guard:false — these columns are
         // intentionally not mass-assignable on the entity.
@@ -407,6 +411,27 @@ class TemplatesController extends AppController
         $entity->set('layout_json', $layoutJson);
         if ($isNew) {
             $entity->set('user_id', $userId);
+        }
+
+        // Background-on-template. Empty string = explicit "no background"
+        // (render flows fall back to site default). Otherwise verify the
+        // upload belongs to this user — block attempts to bind someone
+        // else's image by guessing an id.
+        if (array_key_exists('background_upload_id', $data)) {
+            $bgIdRaw = trim((string)$data['background_upload_id']);
+            if ($bgIdRaw === '') {
+                $entity->set('background_upload_id', null);
+            } else {
+                $bgId = (int)$bgIdRaw;
+                $owned = $this->fetchTable('Uploads')->find()
+                    ->where(['id' => $bgId, 'user_id' => $userId, 'Uploads.deleted_at IS' => null])
+                    ->count();
+                if ($owned > 0) {
+                    $entity->set('background_upload_id', $bgId);
+                }
+                // Silently ignore an upload_id the user doesn't own; the
+                // existing bound bg (if any) is left alone.
+            }
         }
 
         $templates = $this->fetchTable('Templates');

@@ -39,6 +39,11 @@
                     <?php elseif ($t->is_public): ?>
                       <span class="badge bg-warning">Pending review</span>
                     <?php endif; ?>
+                    <?php if (!empty($t->background_upload_id)): ?>
+                      <span class="badge bg-secondary" title="A background image is bound to this template">Has background</span>
+                    <?php else: ?>
+                      <span class="badge bg-light" title="No background bound — uses the site-default at render time">Uses site default</span>
+                    <?php endif; ?>
                   </p>
                   <div class="d-flex gap-1">
                     <?php if ($showEdit): ?>

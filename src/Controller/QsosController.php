@@ -480,111 +480,12 @@ class QsosController extends AppController
             $templateId = (int)($data['template_id'] ?? 0);
             $template = $this->fetchTable('Templates')->get($templateId);
 
-            $uploadId = (int)($data['upload_id'] ?? 0);
-            if ($uploadId === 0) {
-                // Fresh upload path — same hardening as PublicController::generate
-                // (T20): refuse pixel bombs BEFORE GD has a chance to decode.
-                $tmpUpload = $this->resolveBackgroundUpload();
+            // Background source: the template owns it now. If the template
+            // has no bound background, fall through to the site default and
+            // ensure (via SHA-dedup) an uploads row exists for that image so
+            // the card row's FK to `uploads` is always satisfied.
+            [$upload, $authorName, $license] = $this->resolveTemplateBackground($template, $userId);
 
-                $bgInfo = @getimagesize($tmpUpload);
-                if ($bgInfo === false) {
-                    @unlink($tmpUpload);
-                    throw new \Cake\Http\Exception\BadRequestException('Background is not a valid image.');
-                }
-                if ($bgInfo[0] * $bgInfo[1] > 50_000_000) {
-                    @unlink($tmpUpload);
-                    throw new \Cake\Http\Exception\BadRequestException('Image dimensions exceed allowed limit.');
-                }
-
-                // Background uploader uses 1600x1200 q78 — slightly bigger
-                // than the 1500x1000 card canvas so we never upscale on render,
-                // ~40% smaller files than the prior 2000x1500 q82 baseline.
-                $optimizer = new \App\Service\ImageOptimizer(maxWidth: 1600, maxHeight: 1200, quality: 78);
-                $tmpDest = tempnam(sys_get_temp_dir(), 'eqsl_opt_');
-                $info = $optimizer->optimize($tmpUpload, $tmpDest);
-                @unlink($tmpUpload);
-
-                // Content-addressed dedup: the same picture uploaded twice
-                // collapses to one row + one file on disk.
-                $sha = $info['sha256_hash'];
-                $uploadsDir = WWW_ROOT . 'files/uploads/';
-                if (!is_dir($uploadsDir)) {
-                    mkdir($uploadsDir, 0o775, true);
-                }
-                $finalPath = $uploadsDir . $sha . '.jpg';
-                if (is_file($finalPath)) {
-                    @unlink($tmpDest);
-                } else {
-                    rename($tmpDest, $finalPath);
-                }
-
-                $uploads = $this->fetchTable('Uploads');
-                $upload = $uploads->find()->where(['sha256_hash' => $sha])->first();
-
-                // Attribution: if user attached a real file, trust the form;
-                // otherwise (default-bg fallback) pull from app_settings.
-                $userSuppliedBg = $this->request->getUploadedFile('background_upload')?->getError() === UPLOAD_ERR_OK;
-                if ($userSuppliedBg) {
-                    $authorName = trim((string)($data['background_author'] ?? ''));
-                    $authorName = $authorName !== '' ? $authorName : null;
-                    $licenseRaw = trim((string)($data['background_license'] ?? ''));
-                    $license = ($licenseRaw !== '' && array_key_exists($licenseRaw, \App\Service\ImageLicense::LICENSES))
-                        ? $licenseRaw
-                        : 'unknown';
-                } else {
-                    $appSettings = new \App\Service\AppSettings();
-                    $authorName = trim((string)$appSettings->get('default_background_author', ''));
-                    $authorName = $authorName !== '' ? $authorName : null;
-                    $license = (string)$appSettings->get('default_background_license', 'unknown');
-                }
-
-                if (!$upload) {
-                    $upload = $uploads->saveOrFail($uploads->newEntity([
-                        'user_id' => $userId,
-                        'original_filename' => 'qso-render.jpg',
-                        'storage_path' => 'files/uploads/' . $sha . '.jpg',
-                        'mime_type' => 'image/jpeg',
-                        'width_px' => $info['width_px'],
-                        'height_px' => $info['height_px'],
-                        'file_size_bytes' => $info['file_size_bytes'],
-                        'sha256_hash' => $sha,
-                        'author_name' => $authorName,
-                        'license' => $license,
-                    ]));
-                } elseif ($upload->deleted_at !== null) {
-                    // Resurrect a soft-deleted dedup hit. The on-disk file was
-                    // just rewritten above (rename of $tmpDest into the sha-
-                    // addressed slot), so the row is coherent again. Without
-                    // this, a fresh insert would hit the UNIQUE(sha256_hash)
-                    // constraint and the downstream renderQsoCard call would
-                    // 404 on its `deleted_at IS null` lookup.
-                    $upload->set('deleted_at', null, ['guard' => false]);
-                    $upload->set('author_name', $authorName, ['guard' => false]);
-                    $upload->set('license', $license, ['guard' => false]);
-                    $uploads->saveOrFail($upload);
-                }
-            } else {
-                // Re-use one of the user's previous uploads. The `user_id`
-                // predicate is the authorization check — picking another
-                // user's upload id 404s before any disk access.
-                $upload = $this->fetchTable('Uploads')->find()
-                    ->where(['id' => $uploadId, 'user_id' => $userId, 'Uploads.deleted_at IS' => null])
-                    ->firstOrFail();
-                // Use the row's stored attribution for library re-use.
-                $authorName = $upload->author_name;
-                $license = $upload->license;
-            }
-
-            // Hand off to the shared renderer helper (also used by the bulk
-            // render endpoint M2-T11). Keeps the persistence + GD plumbing in
-            // one place so both surfaces produce identical card rows. Audit
-            // logging lives inside the helper so both interactive and bulk
-            // paths emit exactly one `card.generated` row per card.
-            //
-            // We pass the freshly-computed $authorName/$license so the
-            // attribution line reflects the current context (admin defaults
-            // for fallbacks, form values for new uploads, row values for
-            // re-use) — bypasses any stale data on dedup-matched upload rows.
             $cardId = $this->renderQsoCard(
                 $userId, (int)$qso->id, (int)$template->id, (int)$upload->id,
                 $authorName, $license
@@ -658,16 +559,23 @@ class QsosController extends AppController
         $data = $this->request->getData();
         $qsoIds = array_map('intval', (array)($data['qso_ids'] ?? []));
         $templateId = (int)($data['template_id'] ?? 0);
-        $uploadId = (int)($data['upload_id'] ?? 0);
 
-        if (empty($qsoIds) || $templateId === 0 || $uploadId === 0) {
+        if (empty($qsoIds) || $templateId === 0) {
             $this->setResponse($this->getResponse()->withStatus(400));
-            $this->set(['error' => 'qso_ids, template_id, and upload_id are required.']);
+            $this->set(['error' => 'qso_ids and template_id are required.']);
             $this->viewBuilder()->setClassName('Json');
             $this->viewBuilder()->setOption('serialize', ['error']);
 
             return null;
         }
+
+        // Resolve the template's bound background once, up front. All cards
+        // in the batch use the same template so they share one upload; this
+        // also gives us a stable id to stamp into the job record for the
+        // worker to read on every chunk.
+        $template = $this->fetchTable('Templates')->get($templateId);
+        [$upload, , ] = $this->resolveTemplateBackground($template, $userId);
+        $uploadId = (int)$upload->id;
 
         // Skip QSOs that already have a non-deleted card — mirrors the
         // single-render guard. Without this, hitting "Bulk render" twice
@@ -916,6 +824,96 @@ class QsosController extends AppController
      * @return string Absolute path to the temp file caller must clean up.
      * @throws \Cake\Http\Exception\BadRequestException When no usable upload was provided.
      */
+    /**
+     * Resolve the upload + attribution to use for a given template at render
+     * time. The template owns its background — if `background_upload_id` is
+     * bound and still valid, that upload wins. Otherwise we fall through to
+     * the site-default image and ensure (via SHA-dedup) an `uploads` row
+     * exists for it so the downstream card row's FK is satisfied.
+     *
+     * @return array{0:object,1:?string,2:string} [upload entity, author, license]
+     */
+    private function resolveTemplateBackground(object $template, int $userId): array
+    {
+        $uploadsTbl = $this->fetchTable('Uploads');
+
+        // Template-bound bg path. Must be active (deleted_at IS NULL) and
+        // still on disk — soft-deleted rows might have had their file pruned.
+        $boundId = (int)($template->background_upload_id ?? 0);
+        if ($boundId > 0) {
+            $bound = $uploadsTbl->find()
+                ->where(['id' => $boundId, 'Uploads.deleted_at IS' => null])
+                ->first();
+            if ($bound !== null && is_file(WWW_ROOT . $bound->storage_path)) {
+                return [$bound, $bound->author_name, (string)$bound->license];
+            }
+            // Bound bg vanished — fall through to site default rather than
+            // 500ing on the user. The render still succeeds.
+        }
+
+        // Site-default path: optimise the on-disk default image, content-
+        // hash dedup against `uploads`, resurrect a soft-deleted match if
+        // present, otherwise insert.
+        $tmpUpload = $this->resolveBackgroundUpload();
+        $bgInfo = @getimagesize($tmpUpload);
+        if ($bgInfo === false) {
+            @unlink($tmpUpload);
+            throw new \Cake\Http\Exception\BadRequestException('Default background is not a valid image.');
+        }
+        if ($bgInfo[0] * $bgInfo[1] > 50_000_000) {
+            @unlink($tmpUpload);
+            throw new \Cake\Http\Exception\BadRequestException('Default background dimensions exceed allowed limit.');
+        }
+
+        $optimizer = new \App\Service\ImageOptimizer(maxWidth: 1600, maxHeight: 1200, quality: 78);
+        $tmpDest = tempnam(sys_get_temp_dir(), 'eqsl_opt_');
+        $info = $optimizer->optimize($tmpUpload, $tmpDest);
+        @unlink($tmpUpload);
+
+        $sha = $info['sha256_hash'];
+        $uploadsDir = WWW_ROOT . 'files/uploads/';
+        if (!is_dir($uploadsDir)) {
+            mkdir($uploadsDir, 0o775, true);
+        }
+        $finalPath = $uploadsDir . $sha . '.jpg';
+        if (is_file($finalPath)) {
+            @unlink($tmpDest);
+        } else {
+            rename($tmpDest, $finalPath);
+        }
+
+        // Attribution: pull from app_settings for the default bg.
+        $settings = new \App\Service\AppSettings();
+        $authorName = trim((string)$settings->get('default_background_author', ''));
+        $authorName = $authorName !== '' ? $authorName : null;
+        $license = (string)$settings->get('default_background_license', 'unknown');
+
+        $upload = $uploadsTbl->find()->where(['sha256_hash' => $sha])->first();
+        if (!$upload) {
+            $upload = $uploadsTbl->saveOrFail($uploadsTbl->newEntity([
+                'user_id'           => $userId,
+                'original_filename' => 'site-default.jpg',
+                'storage_path'      => 'files/uploads/' . $sha . '.jpg',
+                'mime_type'         => 'image/jpeg',
+                'width_px'          => $info['width_px'],
+                'height_px'         => $info['height_px'],
+                'file_size_bytes'   => $info['file_size_bytes'],
+                'sha256_hash'       => $sha,
+                'author_name'       => $authorName,
+                'license'           => $license,
+            ]));
+        } elseif ($upload->deleted_at !== null) {
+            // Resurrect — file was just rewritten above, FK lookups need
+            // deleted_at IS NULL.
+            $upload->set('deleted_at', null, ['guard' => false]);
+            $upload->set('author_name', $authorName, ['guard' => false]);
+            $upload->set('license', $license, ['guard' => false]);
+            $uploadsTbl->saveOrFail($upload);
+        }
+
+        return [$upload, $authorName, $license];
+    }
+
     private function resolveBackgroundUpload(): string
     {
         $upload = $this->request->getUploadedFile('background_upload');

@@ -160,7 +160,6 @@ function bulkRenderForm() {
         started: false,
         finished: false,
         templateId: '',
-        uploadId: '',
         done: 0,
         total: 0,
         skipped: 0,
@@ -189,7 +188,6 @@ function bulkRenderForm() {
                 || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
             const body = new URLSearchParams();
             body.append('template_id', this.templateId);
-            body.append('upload_id', this.uploadId);
             this.selected.forEach(id => body.append('qso_ids[]', id));
             const r = await fetch('/qsos/bulk-render', {
                 method: 'POST',
