@@ -16,6 +16,7 @@
 
 <h2>Built by</h2>
 <p>Maintained by <a href="https://robbi.my" rel="noopener"><strong>Robbi Nespu</strong></a> — callsign <span class="callsign">9W2NSP</span>, Malaysia.</p>
+<p>Source code: <a href="https://github.com/RobbiNespu/eQSL-card" rel="noopener"><code>github.com/RobbiNespu/eQSL-card</code></a></p>
 <p>Pull requests, bug reports, and documentation fixes from other operators are welcome.</p>
 
 <h2>Open-source pieces it stands on</h2>
@@ -51,16 +52,15 @@
 
 <h2>Inspirations + acknowledgements</h2>
 <ul>
-  <li><strong>Hiram Percy Maxim</strong>, callsign <span class="callsign">W1AW</span> — the original ARRL station whose callsign turns up in every screenshot and example QSO. Founder of the American Radio Relay League in 1914 and a constant reminder that the amateur radio community has always been organising itself.</li>
-  <li><strong>MARTS</strong> (Malaysian Amateur Radio Transmitters' Society) and the wider <span class="callsign">9W</span> / <span class="callsign">9M</span> community for the local amateur radio scene that motivated the Malaysian callsign auto-complete provider.</li>
-  <li>The <strong>shadcn/ui</strong> design language — the visual palette and typography choices in this app are a tribute to that aesthetic, delivered via Tailwind + DaisyUI because shadcn's React requirement would have meant losing the shared-hosting deploy story.</li>
+  <li><strong>RoIPMARS</strong> (Malaysian Amateur Radio over Internet Protocol Society) and the wider asian radio over IP community for the amateur radio scene was always conducting local and international net check-in events</li>
+  <li><strong>9W2LGX</strong> — Who is the one of the main person behind ROIPMARS which asking me to develop the application but I dont have much time that time.</li>
 </ul>
 
 <h2>Licence</h2>
 <p>The application source is released under the <strong>MIT licence</strong> — use it, modify it, host it yourself, sell services on top of it; just keep the copyright notice. The bundled icons and fonts retain their own licences listed above. Background images uploaded by operators stay theirs — eQSL Card never claims copyright on user-supplied content.</p>
 
 <h2>How to contribute</h2>
-<p>Found a bug? Have an idea for a feature? Spot a typo in the documentation? Open an issue or send a pull request on the project's git repository. Contributions of all sizes are welcome — including doc fixes, new help articles, and translated templates for non-English locales.</p>
+<p>Found a bug? Have an idea for a feature? Spot a typo in the documentation? Open an issue or send a pull request on the project's git repository at <a href="https://github.com/RobbiNespu/eQSL-card" rel="noopener"><code>github.com/RobbiNespu/eQSL-card</code></a>. Contributions of all sizes are welcome — including doc fixes, new help articles, and translated templates for non-English locales.</p>
 
 <?= $this->element('ui/callout', [
     'variant' => 'tip',
