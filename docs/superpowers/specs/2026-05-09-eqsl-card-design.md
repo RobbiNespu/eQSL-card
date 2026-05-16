@@ -633,3 +633,184 @@ during implementation:
   facilities are wired up but only one locale is shipped.
 - **Avatar storage.** Default: same `uploads/` flow with separate row type;
   avatars are never used as card backgrounds.
+
+---
+
+## 13. Mobile & portable operating *(M5, v1.1)*
+
+Sections 1–12 describe a desktop-first web app. §13 extends the design
+for amateur radio operators logging from a phone while operating
+portable — POTA / SOTA / IOTA activations, field day, mobile contacts —
+where the operator has one hand on the radio and one hand on the phone,
+likely without reliable cell coverage.
+
+### 13.1 Target environment
+
+- **Primary viewport:** 375 × 667 px (iPhone SE / 8 baseline). Common
+  Malaysian Android phones cluster around 360–414 px wide.
+- **Minimum viewport:** 320 px (older devices, accessibility zoom).
+- **Tap targets:** ≥ 44 × 44 CSS px per Apple HIG / WCAG 2.5.5.
+- **Input:** virtual keyboard takes ~50 % of the viewport on focus —
+  primary actions must remain reachable above it.
+- **Network:** intermittent or absent. The app must remain usable
+  through full network loss and reconcile cleanly on reconnect.
+- **Light source:** outdoor activations mean glare. Dark-mode toggle
+  is already shipped (M4); high-contrast text in both themes is a
+  non-negotiable requirement for portable use.
+
+### 13.2 Navigation
+
+Below the `lg` Bootstrap breakpoint (< 992 px), the existing top
+navbar collapses into a **sticky bottom-tab bar** with the five core
+screens reachable in one thumb tap:
+
+| Tab        | Route                | Notes                                    |
+|------------|----------------------|------------------------------------------|
+| Dashboard  | `/dashboard`         | At-a-glance stats; entry point.         |
+| Logbook    | `/qsos`              | Full QSO list.                          |
+| Quick add  | `/qsos/quick`        | Default deep-link target for the PWA.   |
+| Cards      | `/cards`             | Generated card library.                 |
+| More       | menu drawer          | Templates, Backgrounds, Help, Admin.    |
+
+Desktop (≥ 992 px) keeps the existing top navbar — bottom tabs only
+appear when the viewport is mobile-sized.
+
+### 13.3 Activations
+
+A new first-class entity that groups consecutive QSOs logged at a
+single portable site. Without activations, batch-exporting "all QSOs
+from yesterday's Bukit Larut SOTA" requires manual SQL.
+
+Schema (M5 T12, T13):
+
+```
+activations
+  id              integer PK
+  user_id         integer FK users(id)
+  code            varchar(60)   e.g. "9M2/PR-001", "POTA-K-1234", or free text
+  name            varchar(120)  human label e.g. "Bukit Larut SOTA"
+  grid_square     varchar(8)    Maidenhead, 4 or 6 chars; nullable
+  started_at      datetime
+  ended_at        datetime nullable  null = currently active
+  notes           text nullable
+  created_at      datetime
+
+qsos
+  + activation_id  integer FK activations(id) nullable
+```
+
+Backfill on the migration is intentional: `activation_id` stays NULL
+for every historic QSO. Activations only apply forward.
+
+Behaviour:
+
+- An "active" activation (`ended_at IS NULL`) is shown as a banner
+  across the top of `/qsos/quick`. New QSOs auto-tag with its
+  `activation_id`.
+- Grid square auto-fills from browser geolocation on start (T15) and
+  flows through to every QSO logged in the activation as the
+  operator's `tx_grid`. Override allowed.
+- ADIF export endpoint `/activations/{id}/export.adi` returns a
+  POTA/SOTA-upload-ready file (T17).
+
+### 13.4 Quick-add form
+
+Route `/qsos/quick` (M5 T7). Designed for one-thumb operation:
+
+- Single column, full viewport width.
+- Pinned "Last 5 QSOs" panel above the form for context.
+- Inputs in this order, top to bottom: callsign, frequency, mode,
+  RST sent, RST received, notes.
+- Frequency uses `inputmode="decimal"`; band auto-derives via the
+  existing `App\Service\HamRadio::BAND_RANGES` table.
+- Mode picker is a chip row (CW / SSB / FT8 / FM / Other) instead of
+  a `<select>`.
+- "Quick-fill chips" for the notes field — user-configurable
+  shortcuts (default: Net, POTA, SOTA, Contest, Ragchew).
+- Save & next behaviour: POST, clear, refocus callsign. No redirect.
+- Sticky full-width primary button at viewport bottom, positioned
+  above the virtual keyboard via `env(keyboard-inset-height)` or
+  fallback `inset-area`.
+
+### 13.5 Offline-first via PWA
+
+The defining capability for portable use. Three layers:
+
+**Manifest** (`webroot/manifest.webmanifest`, T18). Standalone display,
+`start_url: /qsos/quick`, brand colours, 192/512 icons. Wired in the
+default layout `<head>`.
+
+**Service worker** (`webroot/sw.js`, T19). Three strategies:
+
+| Path pattern              | Strategy        | Rationale                          |
+|---------------------------|-----------------|------------------------------------|
+| `/css/*`, `/js/*`, `/files/*` | `cache-first` | Static assets — long-lived.    |
+| HTML / JSON (`/qsos*`, `/dashboard`, etc.) | `network-first` | Fresh data when online; cached fallback offline. |
+| `/admin/*`, `/login`, `/install*` | `network-only` | No caching — admin work happens at a desk. |
+
+**Offline queue** (`webroot/js/sync.js`, T20–T22). When
+`navigator.onLine === false`:
+
+- `/qsos/quick` POST is intercepted by the service worker.
+- The QSO is stashed in IndexedDB (`eqsl-card-offline.qsos`) with
+  `pending_sync = true` and a client-side UUID.
+- UI shows "Queued offline · will sync when reconnected" toast.
+
+On `online` event:
+
+- Drain the pending queue chronologically.
+- POST each row to `/qsos/quick.json`.
+- Server responds with the canonical row (its real integer ID).
+- Client deletes the local pending row.
+- Conflict rule: server is authoritative. If a duplicate
+  `(callsign, datetime, band)` is detected server-side, server upserts
+  (last-write-wins on the *client* timestamps) and returns the
+  canonical row — the client should not treat this as an error.
+
+**Status pill** (T23). Top-of-screen indicator: "Online · 0 queued",
+"Offline · 3 queued", "Syncing · 1 of 5". Tap opens the pending list
+with per-row retry/delete.
+
+### 13.6 Dupe checking
+
+Real-time feedback as the operator types a callsign. The signal is
+"have I worked this station before, and if so when and on what band".
+
+Endpoint (T25): `GET /api/qsos/dupe-check?callsign=X&band=Y`. Returns:
+
+```json
+{
+  "last_worked_at": "2026-05-14T08:21:00Z",
+  "same_band_today": false,
+  "same_band_this_activation": false,
+  "total_qsos": 3
+}
+```
+
+Debounced 200 ms on the client. Renders as a coloured pill under the
+callsign input (T26):
+
+| State                          | Colour  | Behaviour                          |
+|--------------------------------|---------|------------------------------------|
+| Never worked                   | grey    | "First contact"                    |
+| Worked before (any band)       | blue    | "Worked 3× · last 2026-05-14"      |
+| Same band today                | yellow  | "Worked today on 40m at 08:21"     |
+| Same band this activation      | red     | "Duplicate of QSO #421"            |
+
+Optional user preference `block_dupes_in_activation` (T27) — when ON,
+the red state disables Save and inline-shows the conflicting QSO.
+
+### 13.7 Out of scope for §13
+
+Explicit non-goals so future contributors don't slip these into M5:
+
+- **CAT control** (WebSerial bridge to a rig for auto-grabbing
+  frequency/mode). Real-world value, but a different engineering
+  domain — M6 candidate.
+- **Two-way eQSL exchange** (receiving cards from other operators
+  via LoTW / eQSL.cc). Different milestone direction entirely.
+- **DXCC / award progress dashboards**. Was an alternative pitch
+  for M5; keep as M6+ candidate.
+- **Multi-station support** (one user owning multiple callsigns).
+  Conflates with activation grouping; revisit only if operator
+  feedback demands it.
