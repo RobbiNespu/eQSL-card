@@ -2,7 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  interactive-widget=resizes-content tells Chrome/Edge on Android to
+  shrink the layout viewport (not just the visual viewport) when the
+  virtual keyboard opens, so position: sticky elements naturally sit
+  above the keyboard. iOS Safari ignores it but the Visual Viewport
+  API listener in app.js (initKeyboardAware) handles iOS by writing
+  a --keyboard-inset CSS variable that the sticky elements use as a
+  bottom offset. M5 T11 — quick-add submit-button sticky behaviour.
+-->
+<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">
 <meta name="csrf-token" content="<?= $this->getRequest()->getAttribute('csrfToken') ?>">
 <title><?= $this->fetch('title') ?: 'eQSL Card · Receiving Station' ?></title>
 

@@ -19,8 +19,42 @@
   <li><strong>Frequency (MHz)</strong> — opens the decimal keypad. Band auto-fills from this on save (see below).</li>
   <li><strong>Mode</strong> — paired right next to the frequency. Select picker, defaults to whatever you used last.</li>
   <li><strong>RST sent / received</strong> — two short inputs, paired side-by-side. Numeric keypad.</li>
-  <li><strong>Notes</strong> — single-line. Add an activation reference here (e.g. <code>POTA 9M-0021</code> or <code>SOTA 9M2/PR-001</code>) so you can find the QSO later by searching.</li>
+  <li><strong>Notes</strong> — single-line. Add an activation reference here (e.g. <code>POTA 9M-0021</code> or <code>SOTA 9M2/PR-001</code>) so you can find the QSO later by searching. The chip row below the input is a tap-to-insert shortcut — see <a href="#notes-chips">Notes shortcuts</a> below.</li>
 </ol>
+
+<h2 id="notes-chips">Notes shortcuts (chips)</h2>
+<p>Below the notes field is a row of pill-shaped buttons — the "chips". Tap one and the notes field gets pre-filled with the chip's text plus a trailing space, with the cursor right after it so you can immediately type the activation reference:</p>
+
+<ul>
+  <li><strong>Net</strong> → <code>Net&nbsp;</code> — then type the net name (e.g. <code>Net MARTS Daily</code>).</li>
+  <li><strong>POTA</strong> → <code>POTA&nbsp;</code> — then type the park reference (e.g. <code>POTA K-1234</code>).</li>
+  <li><strong>SOTA</strong> → <code>SOTA&nbsp;</code> — then the summit reference (e.g. <code>SOTA 9M2/PR-001</code>).</li>
+  <li><strong>Contest</strong> → <code>Contest&nbsp;</code> — then the contest name + exchange info.</li>
+  <li><strong>Ragchew</strong> → <code>Ragchew&nbsp;</code> — for casual catches, often followed by a brief topic note.</li>
+</ul>
+
+<p>The chip <em>replaces</em> whatever's in the notes field — so don't tap a chip in the middle of typing if you want to keep what you've written. Tap at the start of a new contact.</p>
+
+<h3>Saving your own chips</h3>
+<p>Type your custom note into the field (e.g. <code>MARES 9M Net 2m</code>), then tap <strong>+ Save as chip</strong> at the end of the chip row. It joins the default chips as the first option. Your custom chips show an × button to remove them; the defaults (Net / POTA / SOTA / Contest / Ragchew) can't be removed.</p>
+
+<p>Saved chips live in your browser's local storage — they survive page reload and browser restart, but don't sync across devices. If you log from a phone and a laptop, you'll need to save your chips on each. A backend-stored preference might come in a later release if there's demand.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'tip',
+    'body' => 'During a single activation, save the activation reference itself as a chip (e.g. "POTA K-1234 Bukit Larut"). Every check-in becomes a one-tap notes fill — much faster than typing the full reference each time. Remove the chip when the activation ends.',
+]) ?>
+
+<h2>Sticky save button</h2>
+<p>On mobile (&lt; 992 px) the <strong>Log contact</strong> button is sticky-positioned at the bottom of the form. As you scroll through the fields, the button stays visible — you never have to scroll back down to reach it.</p>
+
+<p>When the on-screen keyboard opens, the button stays <em>above</em> the keyboard. Two mechanisms make this work:</p>
+<ul>
+  <li><strong>Android Chrome / Edge</strong> get a viewport hint (<code>interactive-widget=resizes-content</code>) that tells the browser to shrink the layout viewport when the keyboard opens. Sticky positioning then naturally sits above it.</li>
+  <li><strong>iOS Safari</strong> ignores that hint, but a small Visual Viewport API listener writes the keyboard's height as a CSS variable; the sticky button uses that variable as a bottom offset.</li>
+</ul>
+
+<p>Worst-case (very old browsers without the Visual Viewport API): the button stays at the bottom of the scrollport and may briefly overlap the keyboard. The form is still functional — tap the field above the button to dismiss the keyboard if needed.</p>
 
 <h2>What's NOT in the form</h2>
 <p>Deliberately stripped:</p>

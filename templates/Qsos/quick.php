@@ -147,8 +147,37 @@ $recentJson = json_encode(array_map(static function ($r): array {
     <div class="field mt-2">
       <label class="form-label" for="quick-notes">Notes <span class="form-label small">(optional)</span></label>
       <input type="text" id="quick-notes" name="notes" class="form-control"
-             x-model="form.notes"
+             x-model="form.notes" x-ref="notes"
              placeholder="e.g. POTA 9M-0021, Bukit Larut SOTA" autocomplete="off">
+      <?php /* T10 — Notes quick-fill chips. Tap inserts the chip's prefix
+             into the notes field so the operator can finish with the
+             activation reference (e.g. tap POTA → "POTA " → type "K-1234").
+             Defaults below; users can add/remove their own via the chip
+             editor's add button (stored in localStorage so it survives
+             page reload without a backend change). */ ?>
+      <div class="quick-add__chips" role="group" aria-label="Notes quick-fill shortcuts">
+        <template x-for="(chip, idx) in chips" :key="`chip-${idx}-${chip.text}`">
+          <?php /* Two separate buttons in a wrapper. The chip body inserts;
+                 the × removes (only for user-added chips). A nested <button>
+                 inside another <button> is invalid HTML and keyboard
+                 users couldn't reach the remove — code review caught it. */ ?>
+          <span class="quick-add__chip-wrap">
+            <button type="button" class="quick-add__chip"
+                    @click="insertChip(chip)"
+                    :aria-label="`Insert ${chip.text} into notes`">
+              <span x-text="chip.text"></span>
+            </button>
+            <button type="button" class="quick-add__chip-remove"
+                    x-show="chip.userAdded"
+                    @click="removeChip(idx)"
+                    :aria-label="`Remove ${chip.text} chip`">&times;</button>
+          </span>
+        </template>
+        <button type="button" class="quick-add__chip quick-add__chip--add"
+                @click="addChipFromInput()"
+                :disabled="!form.notes.trim()"
+                title="Save the current notes content as a new chip">+ Save as chip</button>
+      </div>
     </div>
 
     <div class="quick-add__actions form-actions-mobile mt-4">

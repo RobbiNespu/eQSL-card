@@ -2134,3 +2134,152 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   background: rgba(239, 68, 68, 0.15);
   color: var(--danger, #fca5a5);
 }
+
+/* ============================================================
+   M5 T10 — Quick-add notes chips
+   Tappable pill buttons under the notes input. Defaults
+   render as plain pills; user-added chips show an × remove
+   affordance on hover/focus. "+ Save as chip" button at the
+   end of the row turns current notes content into a new chip
+   (stored in localStorage; no backend round-trip).
+   ============================================================ */
+.quick-add__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--s-2, 8px);
+}
+/* The wrapper holds (a) the insert button and (b) the optional remove
+   button as siblings — nesting <button> inside <button> is invalid
+   HTML and breaks keyboard navigation. Code review caught it post-T10. */
+.quick-add__chip-wrap {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--bs-tertiary-bg, #f1f5f9);
+  overflow: hidden;
+}
+.quick-add__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  min-height: 36px;
+  /* Background + border live on the wrapper now so the insert button
+     and remove button share one pill outline without a seam. */
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--bs-body-color);
+  /* font: inherit FIRST, then explicit overrides — the shorthand resets
+     line-height + font-size, so the explicit values must come after. */
+  font: inherit;
+  font-size: 0.85em;
+  line-height: 1.2;
+}
+.quick-add__chip:hover:not(:disabled),
+.quick-add__chip:focus-visible {
+  background: var(--bs-secondary-bg, #e2e8f0);
+  outline: none;
+}
+.quick-add__chip-wrap:hover {
+  background: var(--bs-secondary-bg, #e2e8f0);
+}
+.quick-add__chip:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.quick-add__chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* The "+ Save as chip" pill stands alone (no wrapper, no sibling remove)
+   so it still needs its own border + background. */
+.quick-add__chip--add {
+  background: transparent;
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 999px;
+  color: var(--text-muted, var(--bs-secondary-color));
+  font-size: 0.85em;
+}
+.quick-add__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  min-width: 28px;
+  border: 0;
+  border-left: 1px solid var(--border, #e2e8f0);
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted, var(--bs-secondary-color));
+  /* font: inherit FIRST, then explicit overrides — shorthand resets line-height. */
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.6;
+}
+.quick-add__chip-remove:hover,
+.quick-add__chip-remove:focus-visible {
+  opacity: 1;
+  background: var(--danger-soft, rgba(239, 68, 68, 0.15));
+  color: var(--danger, #ef4444);
+  outline: none;
+}
+@media (max-width: 991.98px) {
+  /* Bump tap target on phones. */
+  .quick-add__chip {
+    min-height: 44px;
+    padding: 8px 16px;
+    font-size: 0.95em;
+  }
+  .quick-add__chip-remove {
+    width: 22px;
+    height: 22px;
+    line-height: 20px;
+    font-size: 16px;
+  }
+}
+
+/* ============================================================
+   M5 T11 — Sticky-above-keyboard primary action
+   On mobile, the quick-add submit button sticks to the bottom
+   of the scrollport so the operator never has to scroll to
+   reach it. --keyboard-inset is updated by initKeyboardAware
+   in app.js (Visual Viewport API) so the button stays above
+   the on-screen keyboard on iOS Safari too. Android Chrome
+   gets the same effect via the interactive-widget meta hint.
+
+   The sticky wrapper has a body-coloured background + top
+   border so form content scrolling past it doesn't visually
+   leak through. Sits above the fixed bottom-tab nav by
+   virtue of being inside body content (the tab nav is at
+   z-index: 1020; sticky elements default to z-index: auto
+   relative to scroll context so they don't fight).
+   ============================================================ */
+@media (max-width: 991.98px) {
+  .quick-add__actions.form-actions-mobile {
+    position: sticky;
+    /* When the on-screen keyboard is open it covers the bottom-tab nav
+       anyway, so we use max() rather than addition — the keyboard inset
+       REPLACES the tab offset when larger, instead of stacking on top.
+       Without max(), the button would jump up by 56px + keyboard_height
+       when focused, leaving an awkward gap above the keyboard. */
+    bottom: calc(env(safe-area-inset-bottom, 0px) + max(56px, var(--keyboard-inset, 0px)));
+    background: var(--bs-body-bg, #fff);
+    border-top: 1px solid var(--border, #e2e8f0);
+    margin-left: calc(-1 * var(--bs-gutter-x, 12px));
+    margin-right: calc(-1 * var(--bs-gutter-x, 12px));
+    padding: var(--s-3, 12px) var(--bs-gutter-x, 16px);
+    /* Margin-top compensates for the inherited mt-4 that pushes the
+       row down; we want minimal gap from form content above. */
+    margin-top: var(--s-2, 8px) !important;
+    /* Above scrolling content (z-index: 1 in stacking context is
+       enough; bottom-tab nav is on body, separate context). */
+    z-index: 5;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  }
+  [data-theme="eqsl-dark"] .quick-add__actions.form-actions-mobile {
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.4);
+  }
+}

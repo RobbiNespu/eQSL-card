@@ -246,6 +246,14 @@ window.bulkRenderForm = bulkRenderForm;
  * controller renders the empty form with a flash. Tests cover this
  * path in QsosControllerQuickTest.
  */
+// T10 — Defaults for the notes quick-fill chips. User additions are
+// stored in localStorage under QUICK_ADD_CHIPS_KEY and prepended to
+// this list. Removing a default isn't supported (operators usually
+// want the standard set always available); only user-added chips
+// show the × remove affordance.
+const QUICK_ADD_DEFAULT_CHIPS = ['Net', 'POTA', 'SOTA', 'Contest', 'Ragchew'];
+const QUICK_ADD_CHIPS_KEY = 'eqsl-quick-add-chips';
+
 function quickAddForm(recent) {
     return {
         recent: Array.isArray(recent) ? recent : [],
@@ -253,6 +261,7 @@ function quickAddForm(recent) {
         flashKind: '',     // 'success' | 'error' | ''
         flashMessage: '',
         flashTimer: null,
+        chips: [],
         form: {
             callsign: '',
             frequency: '',
@@ -260,6 +269,72 @@ function quickAddForm(recent) {
             rstSent: '',
             rstRecv: '',
             notes: '',
+        },
+        init() {
+            // Load user-added chips from localStorage (if any), then
+            // concatenate the defaults. Defaults always render last so a
+            // user who saved their MARTS net first sees that on the left.
+            let userChips = [];
+            try {
+                const raw = localStorage.getItem(QUICK_ADD_CHIPS_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                        userChips = parsed
+                            .filter(s => typeof s === 'string' && s.trim() !== '')
+                            .map(s => ({ text: s.trim(), userAdded: true }));
+                    }
+                }
+            } catch (e) { /* malformed storage — ignore */ }
+            this.chips = [
+                ...userChips,
+                ...QUICK_ADD_DEFAULT_CHIPS.map(t => ({ text: t, userAdded: false })),
+            ];
+        },
+        insertChip(chip) {
+            if (!chip || !chip.text) return;
+            // Replace notes content with the chip + trailing space, so the
+            // operator can immediately type the activation reference
+            // (e.g. "POTA " → "POTA K-1234"). Replace rather than append:
+            // most chips are mutually exclusive activation types.
+            this.form.notes = chip.text + ' ';
+            this.$nextTick(() => {
+                if (this.$refs.notes) {
+                    this.$refs.notes.focus();
+                    // Move cursor to end of input for easy continuation.
+                    const len = this.$refs.notes.value.length;
+                    this.$refs.notes.setSelectionRange(len, len);
+                }
+            });
+        },
+        addChipFromInput() {
+            const text = this.form.notes.trim();
+            if (!text) return;
+            // Case-insensitive duplicate check so "POTA" and "pota" don't
+            // both end up in the list. Code review caught the strict-eq
+            // version that allowed both to be added.
+            const lc = text.toLowerCase();
+            if (this.chips.some(c => c.text.toLowerCase() === lc)) {
+                this.showFlash('error', `"${text}" is already a chip.`);
+                return;
+            }
+            this.chips.unshift({ text, userAdded: true });
+            this.saveUserChips();
+            this.showFlash('success', `Saved "${text}" as a chip.`);
+        },
+        removeChip(idx) {
+            if (idx < 0 || idx >= this.chips.length) return;
+            if (!this.chips[idx].userAdded) return;  // can't remove defaults
+            this.chips.splice(idx, 1);
+            this.saveUserChips();
+        },
+        saveUserChips() {
+            const userChips = this.chips
+                .filter(c => c.userAdded)
+                .map(c => c.text);
+            try {
+                localStorage.setItem(QUICK_ADD_CHIPS_KEY, JSON.stringify(userChips));
+            } catch (e) { /* quota / private mode — best-effort */ }
         },
         cloneFromRecent(r) {
             if (!r || typeof r !== 'object') return;
@@ -337,3 +412,37 @@ function quickAddForm(recent) {
     };
 }
 window.quickAddForm = quickAddForm;
+
+/**
+ * M5 T11 — Keep sticky form actions above the on-screen keyboard.
+ *
+ * The Android Chrome side is handled by the meta-viewport
+ * `interactive-widget=resizes-content` hint, which shrinks the layout
+ * viewport when the keyboard opens — `position: sticky; bottom: 0`
+ * then naturally rests just above the keyboard.
+ *
+ * iOS Safari ignores that hint and only shrinks the VISUAL viewport
+ * (not layout), so fixed/sticky elements end up *behind* the keyboard.
+ * This listener uses the Visual Viewport API to compute how much of
+ * the layout viewport the keyboard is covering, then writes that as a
+ * --keyboard-inset CSS variable. Sticky elements offset their `bottom`
+ * by that amount to stay above the keyboard.
+ *
+ * No-op on browsers without window.visualViewport (older mobile
+ * Safari, IE). Worst case: sticky button stays at bottom: 0 and
+ * possibly overlaps with keyboard. The form is still usable.
+ */
+function initKeyboardAware() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+        // Difference between layout viewport bottom and visual viewport
+        // bottom = the keyboard's visible height (in CSS px).
+        const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--keyboard-inset', inset + 'px');
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
+}
+document.addEventListener('DOMContentLoaded', initKeyboardAware);
