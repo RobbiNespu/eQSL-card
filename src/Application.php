@@ -102,6 +102,13 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             // See https://github.com/CakeDC/cakephp-cached-routing
             ->add(new RoutingMiddleware($this))
 
+            // Rewrite absolute paths in HTML responses to include the
+            // application's base path so the app works when deployed
+            // under a subfolder (e.g. /qsl). No-op at root deploy.
+            // Must run AFTER RoutingMiddleware — it reads the `webroot`
+            // request attribute that RoutingMiddleware populates.
+            ->add(new \App\Middleware\BasePathMiddleware())
+
             // Authentication middleware. Must run AFTER RoutingMiddleware so
             // the controller/action is resolved before deciding whether to
             // challenge, and AFTER InstallationCheckMiddleware so a fresh
