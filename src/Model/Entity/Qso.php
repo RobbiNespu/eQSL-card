@@ -9,6 +9,11 @@ class Qso extends Entity
 {
     protected array $_accessible = [
         'user_id' => false,
+        // M5 T13 — locked from mass assignment. The controller assigns
+        // activation_id server-side from the operator's current active
+        // activation (T16); accepting it from request data would let a
+        // malicious POST tag QSOs to another user's activation.
+        'activation_id' => false,
         'call_worked' => true,
         'qso_datetime_utc' => true,
         'frequency_mhz' => true,

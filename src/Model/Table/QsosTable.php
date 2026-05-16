@@ -25,6 +25,10 @@ class QsosTable extends Table
 
         $this->belongsTo('Users');
         $this->hasMany('Cards');
+        // M5 T13 — qsos.activation_id, nullable FK. Populated by
+        // QsosController::quick() when an active activation exists at
+        // save time (T16). Historic QSOs (pre-M5) have NULL by design.
+        $this->belongsTo('Activations');
     }
 
     /**
