@@ -223,3 +223,53 @@ function bulkRenderForm() {
     };
 }
 window.bulkRenderForm = bulkRenderForm;
+
+/**
+ * M5 T7-T8 — Quick-add form Alpine.js component.
+ *
+ * Backing state for /qsos/quick. Holds the form values reactively so
+ * `cloneFromRecent()` can mutate band/mode/frequency/notes when the
+ * operator taps a recent QSO row to reuse its parameters (typical net
+ * scenario: same freq + mode for a string of check-ins).
+ *
+ * Callsign and RST are NOT cloned — those are always per-contact
+ * variables. After clone we focus the callsign input so the next
+ * action is "type the new callsign".
+ *
+ * `recent` is pre-serialised by the template (PHP → JSON) and passed
+ * in as a constructor arg.
+ *
+ * T9 will extend this with submit() that POSTs via fetch + clears the
+ * form on success, replacing the synchronous re-render currently
+ * handled by QsosController::quick().
+ */
+function quickAddForm(recent) {
+    return {
+        recent: Array.isArray(recent) ? recent : [],
+        form: {
+            callsign: '',
+            frequency: '',
+            mode: '',
+            rstSent: '',
+            rstRecv: '',
+            notes: '',
+        },
+        cloneFromRecent(r) {
+            if (!r || typeof r !== 'object') return;
+            this.form.frequency = r.frequency || '';
+            this.form.mode      = r.mode      || '';
+            this.form.notes     = r.notes     || '';
+            // Clear callsign + RST so the operator types the new contact's
+            // values fresh — those should never carry forward.
+            this.form.callsign = '';
+            this.form.rstSent  = '';
+            this.form.rstRecv  = '';
+            // Hand focus back to the callsign input so the next tap is
+            // "type the new callsign".
+            this.$nextTick(() => {
+                if (this.$refs.callsign) this.$refs.callsign.focus();
+            });
+        },
+    };
+}
+window.quickAddForm = quickAddForm;

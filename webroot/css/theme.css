@@ -2054,3 +2054,51 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   font-size: 0.85em;
   color: var(--text-muted, var(--bs-secondary-color));
 }
+
+/* ============================================================
+   M5 T8 — Quick-add: tappable recent QSO rows
+   The recent panel moves from bottom (T7) to top (T8) and each
+   item becomes a <button> so the operator can clone its
+   freq/mode/notes into the form with one tap.
+   ============================================================ */
+.quick-add__recent {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--r-md, 8px);
+  background: var(--surface-2, var(--bs-tertiary-bg, #f8fafc));
+  padding: var(--s-3, 12px) var(--s-4, 16px);
+}
+.quick-add__recent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--s-2, 8px);
+}
+/* Override the T7 recent-item rule (was an <li>; now a <button>). */
+.quick-add__recent-item {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3, 12px);
+  padding: var(--s-2, 8px) var(--s-3, 12px);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm, 6px);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--bs-body-color);
+  min-height: 44px;
+}
+.quick-add__recent-item:hover,
+.quick-add__recent-item:focus-visible {
+  background: var(--bs-tertiary-bg, #e2e8f0);
+  outline: none;
+}
+.quick-add__recent-item:active {
+  background: var(--bs-secondary-bg, #cbd5e1);
+}
+[data-theme="eqsl-dark"] .quick-add__recent-item:hover,
+[data-theme="eqsl-dark"] .quick-add__recent-item:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+}

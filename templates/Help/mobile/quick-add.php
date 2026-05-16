@@ -37,7 +37,15 @@
 <h2>The save loop</h2>
 <p>Tap <strong>Log contact</strong>. The QSO saves, a flash banner confirms (<em>"Logged 9M2RDX."</em>), and the form clears for the next entry. The callsign input doesn't yet re-focus automatically — that's coming in a follow-up phase of M5 along with no-reload submission for an even tighter loop. For now you get a single-tap-into-callsign workflow.</p>
 
-<p>The page also shows a small "Last logged" panel underneath the form (the last 5 contacts, with band, mode, and time) so during an activation you can see the contacts streaming in without leaving the page.</p>
+<h2>The recents panel</h2>
+<p>Pinned at the top of the page (above the form) is a "Last logged" panel showing your most recent 5 QSOs — callsign, band, mode, time. During a busy net or activation it gives you immediate context for what just happened without having to flip to the logbook.</p>
+
+<p><strong>Tap any row</strong> to reuse its frequency, mode, and notes for the next contact. The callsign and RST stay blank (those are always per-contact). The cursor jumps back into the callsign input, so the next action is "type the new callsign". This is the killer feature for net check-ins on a single frequency — log the first check-in, then for everyone else it's tap-recent → type-callsign → save, three actions per contact.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'note',
+    'body' => 'The recents panel is reactive — after each save it refreshes with the latest row at the top. Cloning from a row in the middle still works, but the most-recent is almost always the one you want, so the top row is closest to your thumb.',
+]) ?>
 
 <h2>What ships later in M5</h2>
 <ul>

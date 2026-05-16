@@ -1,6 +1,6 @@
 <?php
 /*
- * M5 T7 — Quick-add form. Portable-first one-thumb QSO entry.
+ * M5 T7-T8 — Quick-add form. Portable-first one-thumb QSO entry.
  *
  * Stripped to the essentials: callsign, frequency, mode, RST sent/recv,
  * notes. Date/time auto-fills server-side; band derives from frequency.
@@ -8,14 +8,34 @@
  * callsign field focused so the operator can log the next contact
  * without leaving the keyboard.
  *
- * T8 adds the "Last 5 QSOs" pinned panel.
+ * T8 — Last-5 panel pinned ABOVE the form; tap a row to clone its
+ *      frequency, mode, and notes into the form (useful when a net is
+ *      rotating check-ins on one freq). Callsign is left blank — that's
+ *      always the per-contact variable.
  * T9 swaps the full-page POST for an XHR + clear+refocus loop.
  * T10 adds notes quick-fill chips.
  * T11 makes the submit button sticky-above-keyboard.
+ *
+ * Recent rows are pre-serialised to JSON in $recentJson below and handed
+ * to Alpine as a single x-data prop so the click handler can index by id
+ * without re-querying the DOM.
  */
+
+$recentJson = json_encode(array_map(static function ($r): array {
+    return [
+        'id'        => (int)$r->id,
+        'callsign'  => (string)$r->call_worked,
+        'frequency' => (string)($r->frequency_mhz ?? ''),
+        'band'      => (string)($r->band ?? ''),
+        'mode'      => (string)($r->mode ?? ''),
+        'notes'     => (string)($r->notes ?? ''),
+        'time'      => $r->qso_datetime_utc?->format('H:i') ?? '',
+    ];
+}, $recent->toList()), JSON_THROW_ON_ERROR);
 ?>
 
-<div class="quick-add">
+<div class="quick-add"
+     x-data='quickAddForm(<?= h($recentJson) ?>)'>
 
   <?= $this->element('ui/page_header', [
       'title' => $title,
@@ -27,6 +47,33 @@
     name/QTH)? Use the <a href="/qsos/new">full form</a> instead.
   </p>
 
+  <?php /* T8 — Last-5 panel ABOVE the form. Tappable rows clone freq/
+         mode/notes into the form below. */ ?>
+  <?php if ($recent->count() > 0): ?>
+    <section class="quick-add__recent mb-3" aria-label="Recently logged. Tap a row to copy frequency, mode, and notes into the form.">
+      <div class="quick-add__recent-header">
+        <h2 class="h6 text-muted mb-0">Last logged</h2>
+        <span class="form-text small">Tap to reuse freq/mode/notes</span>
+      </div>
+      <ul class="quick-add__recent-list">
+        <template x-for="r in recent" :key="r.id">
+          <li>
+            <button type="button" class="quick-add__recent-item"
+                    @click="cloneFromRecent(r)"
+                    :aria-label="`Reuse settings from QSO with ${r.callsign} at ${r.time}`">
+              <span class="quick-add__recent-call" x-text="r.callsign"></span>
+              <span class="quick-add__recent-meta">
+                <span x-text="r.band || '—'"></span> ·
+                <span x-text="r.mode || '—'"></span> ·
+                <span x-text="r.time"></span>
+              </span>
+            </button>
+          </li>
+        </template>
+      </ul>
+    </section>
+  <?php endif; ?>
+
   <?= $this->Form->create($qso, [
       'url' => '/qsos/quick',
       'class' => 'quick-add__form',
@@ -37,7 +84,9 @@
       <label class="form-label" for="quick-callsign">
         Their callsign <span class="req">*</span>
       </label>
-      <input type="text" id="quick-callsign" name="call_worked" class="form-control form-control-lg"
+      <input type="text" id="quick-callsign" name="call_worked"
+             class="form-control form-control-lg"
+             x-ref="callsign" x-model="form.callsign"
              autofocus autocomplete="off" autocapitalize="characters" spellcheck="false"
              placeholder="e.g. 9M2RDX" required>
     </div>
@@ -47,6 +96,7 @@
         <div class="field">
           <label class="form-label" for="quick-freq">Frequency (MHz)</label>
           <input type="text" id="quick-freq" name="frequency_mhz" class="form-control"
+                 x-model="form.frequency"
                  placeholder="e.g. 14.20000" inputmode="decimal" autocomplete="off">
           <p class="form-text small mb-0">Band fills in for you on save.</p>
         </div>
@@ -54,15 +104,12 @@
       <div class="col-5">
         <div class="field">
           <label class="form-label" for="quick-mode">Mode</label>
-          <?= $this->Form->control('mode', [
-              'label'   => false,
-              'id'      => 'quick-mode',
-              'type'    => 'select',
-              'class'   => 'form-select',
-              'options' => \App\Service\HamRadio::modeOptions(),
-              'empty'   => '—',
-              'templates' => ['inputContainer' => '{{content}}'],
-          ]) ?>
+          <select id="quick-mode" name="mode" class="form-select" x-model="form.mode">
+            <option value="">—</option>
+            <?php foreach (\App\Service\HamRadio::modeOptions() as $code => $label): ?>
+              <option value="<?= h($code) ?>"><?= h($label) ?></option>
+            <?php endforeach; ?>
+          </select>
         </div>
       </div>
     </div>
@@ -72,6 +119,7 @@
         <div class="field">
           <label class="form-label" for="quick-rst-sent">RST sent</label>
           <input type="text" id="quick-rst-sent" name="rst_sent" class="form-control"
+                 x-model="form.rstSent"
                  placeholder="59" inputmode="numeric" autocomplete="off">
         </div>
       </div>
@@ -79,6 +127,7 @@
         <div class="field">
           <label class="form-label" for="quick-rst-recv">RST received</label>
           <input type="text" id="quick-rst-received" name="rst_received" class="form-control"
+                 x-model="form.rstRecv"
                  placeholder="59" inputmode="numeric" autocomplete="off">
         </div>
       </div>
@@ -87,6 +136,7 @@
     <div class="field mt-2">
       <label class="form-label" for="quick-notes">Notes <span class="form-label small">(optional)</span></label>
       <input type="text" id="quick-notes" name="notes" class="form-control"
+             x-model="form.notes"
              placeholder="e.g. POTA 9M-0021, Bukit Larut SOTA" autocomplete="off">
     </div>
 
@@ -96,24 +146,5 @@
     </div>
 
   <?= $this->Form->end() ?>
-
-  <?php /* T8 placeholder — pinned "Last 5 QSOs" panel will render here. */ ?>
-  <?php if ($recent->count() > 0): ?>
-    <section class="quick-add__recent mt-4" aria-label="Recently logged">
-      <h2 class="h6 text-muted">Last logged</h2>
-      <ul class="quick-add__recent-list">
-        <?php foreach ($recent as $r): ?>
-          <li class="quick-add__recent-item">
-            <span class="quick-add__recent-call"><?= h($r->call_worked) ?></span>
-            <span class="quick-add__recent-meta">
-              <?= h($r->band ?: '—') ?> ·
-              <?= h($r->mode ?: '—') ?> ·
-              <?= h($r->qso_datetime_utc?->format('H:i')) ?>
-            </span>
-          </li>
-        <?php endforeach; ?>
-      </ul>
-    </section>
-  <?php endif; ?>
 
 </div>
