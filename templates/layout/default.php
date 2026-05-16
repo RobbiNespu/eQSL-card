@@ -13,6 +13,21 @@
 -->
 <meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">
 <meta name="csrf-token" content="<?= $this->getRequest()->getAttribute('csrfToken') ?>">
+
+<?php /* M5 T18 — PWA manifest + iOS standalone-app hints.
+       Android Chrome / Edge / Firefox read manifest.webmanifest and
+       offer "Install" / "Add to Home Screen" when the app passes the
+       installability criteria (HTTPS, manifest, service worker, icons).
+       iOS Safari ignores the manifest's icons + start_url and uses
+       these <meta> + <link> tags instead. apple-mobile-web-app-capable
+       hides the Safari chrome when launched from the home screen. */ ?>
+<link rel="manifest" href="<?= $this->Url->build('/manifest.webmanifest') ?>">
+<meta name="theme-color" content="#059669">
+<link rel="apple-touch-icon" href="<?= $this->Url->build('/img/apple-touch-icon.png') ?>">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="eQSL">
+
 <title><?= $this->fetch('title') ?: 'eQSL Card · Receiving Station' ?></title>
 
 <!--
@@ -22,6 +37,14 @@
   Without this, the page paints in light mode for one frame then
   flips to dark — a classic FOUC.
 -->
+<?php /* M5 T18/T19 — expose the deploy's base path to client-side JS
+       (theme resolver uses it for nothing yet, but the SW registration
+       and any future Alpine component that builds URLs needs it).
+       Empty string on root deploys ('/' → ''); '/qsl' on subfolder.
+       The middleware-injected webroot attribute is the source of truth. */ ?>
+<script>
+  window.EQSL_BASE = <?= json_encode(rtrim((string)$this->getRequest()->getAttribute('webroot', '/'), '/'), JSON_UNESCAPED_SLASHES) ?>;
+</script>
 <script>
   (function () {
     var pref = localStorage.getItem('eqsl-theme') || 'system';

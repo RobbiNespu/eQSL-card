@@ -51,6 +51,17 @@ return function (RouteBuilder $routes): void {
 
     $routes->scope('/', function (RouteBuilder $builder): void {
         /*
+         * M5 T18 — PWA manifest, served dynamically so the start_url /
+         * scope / icon URLs include the deploy's base path. Static file
+         * approach broke for subfolder deploys (tools.example.com/qsl/)
+         * where the icons end up referencing the parent host root.
+         * PwaController::manifest is allowUnauthenticated so browsers
+         * can fetch it pre-login to decide installability.
+         */
+        $builder->connect('/manifest.webmanifest', ['controller' => 'Pwa', 'action' => 'manifest'])
+            ->setMethods(['GET']);
+
+        /*
          * Public guest form (T19). The root URL renders the QSL generator
          * form; POST /generate produces the rendered card (T20).
          */

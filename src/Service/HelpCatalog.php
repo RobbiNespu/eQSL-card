@@ -73,6 +73,7 @@ final class HelpCatalog
                 'navigation'  => 'Bottom-tab navigation',
                 'quick-add'   => 'Quick-add for portable ops',
                 'activations' => 'Activations (POTA, SOTA, field day)',
+                'install-pwa' => 'Install as an app (PWA)',
             ],
         ],
         'reference' => [

@@ -517,3 +517,34 @@ function activationGpsHelper() {
     };
 }
 window.activationGpsHelper = activationGpsHelper;
+
+/**
+ * M5 T19 — Register the service worker so caching + (soon) offline
+ * support engage. Only runs on HTTPS (or localhost for dev); registers
+ * at the root scope so requests across the whole origin can be
+ * intercepted.
+ *
+ * Skipped entirely on browsers without serviceWorker support — older
+ * Safari, iOS < 11, IE. The app degrades gracefully: no offline, but
+ * everything else works.
+ *
+ * The worker self-updates on every page load (browsers check sw.js
+ * for changes); skipWaiting + clients.claim in sw.js mean a new
+ * worker activates immediately rather than waiting for all tabs to
+ * close. Bump CACHE_VERSION in sw.js on each release.
+ */
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        // Base path injected by the layout: '' for root deploy, '/qsl' for
+        // subfolder. The SW URL + scope both need the prefix so the SW
+        // doesn't try to claim the entire origin (which would conflict
+        // with other apps on the same host on subfolder deploys).
+        const base = (typeof window.EQSL_BASE === 'string') ? window.EQSL_BASE : '';
+        navigator.serviceWorker.register(base + '/sw.js', { scope: base + '/' })
+            .catch((err) => {
+                // No console.error — failed registration is usually a
+                // dev-environment HTTP issue and isn't actionable for the
+                // operator. Silent fallback is fine.
+            });
+    });
+}
