@@ -67,9 +67,60 @@
   <li><strong>Auth + admin pages</strong> — must always be live.</li>
 </ul>
 
-<h2>What ships next</h2>
-<p>The PWA basics (install + asset caching) land first. Offline-first logging follows in a later release:</p>
+<h2>Offline logging</h2>
+<p>When the browser reports no network (or a save attempt fails for any reason), the quick-add form falls back to an offline queue stored in your browser's IndexedDB. The recents panel shows the queued QSO with a <strong>⏳ queued</strong> pill so you can see it landed even though it hasn't reached the server yet.</p>
+
+<p>The queue survives page reload, app restart, and browser restart. Queued rows are scoped per browser — they don't sync across devices until they reach the server.</p>
+
+<h3>What gets queued</h3>
 <ul>
-  <li><strong>T20 / T21</strong> — IndexedDB-backed queue for quick-add POSTs. When you tap Log contact with no cell signal, the QSO stashes in your browser's local DB.</li>
-  <li><strong>T22 / T23</strong> — Sync engine + status pill. When you reconnect, queued QSOs upload chronologically; a status pill at the top shows pending count and lets you retry/delete per row.</li>
+  <li>Every quick-add save that fires while <code>navigator.onLine === false</code>.</li>
+  <li>Every quick-add save where the <code>fetch()</code> POST throws a network error (DNS, timeout, server unreachable). This catches the case where <code>navigator.onLine</code> is wrong about connectivity.</li>
+  <li>Each queued row gets a client-side UUID (the <code>client_uuid</code> field). This is the dedup key — if the same row gets POSTed twice during sync, the server returns the existing row instead of duplicating.</li>
+</ul>
+
+<h3>What does NOT get queued</h3>
+<ul>
+  <li>The full <code>/qsos/new</code> form (manual entry). Use quick-add for offline work.</li>
+  <li>Bulk-render, template edits, admin actions. These need a live server.</li>
+  <li>Any save that the server validates and rejects (HTTP 422) — the row stays queued with the error message attached, but won't auto-retry; delete it from the status pill and re-enter manually.</li>
+</ul>
+
+<h2>The sync engine + status pill</h2>
+<p>Whenever connectivity returns (the browser's <code>online</code> event fires), the sync engine drains the queue:</p>
+
+<ol>
+  <li>Reads queued QSOs oldest-first.</li>
+  <li>POSTs each to <code>/qsos/quick</code> with its <code>client_uuid</code>.</li>
+  <li>On success (HTTP 2xx), removes the row from IndexedDB.</li>
+  <li>On validation failure (HTTP 422), marks the row with the error message and leaves it for manual review/deletion via the status pill.</li>
+  <li>On network error / 5xx, marks the row with the error and aborts the rest of the drain — preserves chronological order for the next attempt.</li>
+</ol>
+
+<p>While there's anything queued or syncing, a coloured pill appears at the top of every page:</p>
+
+<ul>
+  <li><strong>Yellow · "N queued"</strong> — rows waiting; online but not yet drained (or sync just finished and there's still backlog).</li>
+  <li><strong>Red · "Offline · N queued"</strong> — browser reports no network. Drain triggers automatically when connectivity returns.</li>
+  <li><strong>Green · "Syncing · M pending"</strong> — drain in progress, pulsing dot animation.</li>
+  <li><strong>Red · "Sync error · N queued"</strong> — last drain attempt failed. Tap the pill, hit <strong>Retry now</strong>.</li>
+</ul>
+
+<p>Tap the pill to expand a list of pending QSOs with per-row callsign, freq/mode/time, last error if any, and a <strong>Delete</strong> button. Useful when a queued row has a validation error you don't want to fix — just drop it and re-enter from the form.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'note',
+    'body' => 'The 60-second background poll only runs while there are pending rows AND the browser reports online. It does not wake the device or use battery when the app isn\'t open. For deeply intermittent network (one bar, dropping every 10 seconds), the online/offline events fire reliably enough that the queue drains as soon as connectivity stabilises.',
+]) ?>
+
+<h2>Sync conflicts and dedup</h2>
+<p>If the same QSO somehow gets sent to the server twice (sync retried mid-flight, network flapped, you restored from a backup), the server's <code>(user_id, client_uuid)</code> unique index recognises the duplicate and returns the existing row instead of inserting a new one. The client deletes the queued row on either path, so you never end up with two identical entries.</p>
+
+<p>Awards portals (POTA, SOTA, LoTW) also dedup their own way — by callsign + datetime + band. Multiple uploads of the same ADIF don't double-credit you. So even in worst-case "I uploaded yesterday's file again by mistake", nothing bad happens.</p>
+
+<h2>What ships next</h2>
+<p>Phase D (PWA + offline) is now complete. Remaining M5 milestones:</p>
+<ul>
+  <li><strong>Phase E</strong> — Real-time dupe-check on callsign type (warn if you've worked this callsign on this band today), voice input.</li>
+  <li><strong>Phase F</strong> — Release polish, real-device audit, v1.1.0 tag.</li>
 </ul>

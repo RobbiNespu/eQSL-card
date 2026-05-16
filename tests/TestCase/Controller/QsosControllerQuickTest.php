@@ -287,6 +287,118 @@ final class QsosControllerQuickTest extends TestCase
     }
 
     /**
+     * T21 — POST with client_uuid creates the QSO with that UUID set.
+     */
+    public function testPostStoresClientUuidWhenProvided(): void
+    {
+        $userId = $this->login();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/quick', [
+            'call_worked' => 'W1AW',
+            'mode' => 'SSB',
+            'client_uuid' => 'a1b2c3d4-1111-2222-3333-aabbccddeeff',
+        ]);
+
+        $row = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => $userId, 'call_worked' => 'W1AW'])
+            ->firstOrFail();
+        $this->assertSame('a1b2c3d4-1111-2222-3333-aabbccddeeff', $row->client_uuid);
+    }
+
+    /**
+     * T21 — Same client_uuid POSTed twice returns the existing row
+     * instead of creating a duplicate. JSON path: response has
+     * replayed: true.
+     */
+    public function testJsonPostWithDuplicateUuidReplaysExistingRow(): void
+    {
+        $userId = $this->login();
+        $uuid = 'b2b2b2b2-1111-2222-3333-444444444444';
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+
+        // First POST: creates the row.
+        $this->post('/qsos/quick', [
+            'call_worked' => 'JA1ABC',
+            'mode' => 'CW',
+            'client_uuid' => $uuid,
+        ]);
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($body['ok']);
+        $this->assertFalse($body['replayed']);
+        $firstId = $body['qso']['id'];
+
+        // Second POST with same UUID: must return the same row, replayed: true.
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/quick', [
+            'call_worked' => 'DIFFERENT-CALL-IGNORED',
+            'mode' => 'FT8',
+            'client_uuid' => $uuid,
+        ]);
+        $body2 = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($body2['ok']);
+        $this->assertTrue($body2['replayed']);
+        $this->assertSame($firstId, $body2['qso']['id'], 'Same row returned, not a new insert');
+        $this->assertSame('JA1ABC', $body2['qso']['callsign'], 'Original data preserved (request body ignored on replay)');
+
+        // Only one row in DB.
+        $count = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => $userId, 'client_uuid' => $uuid])
+            ->count();
+        $this->assertSame(1, $count, 'No duplicate row');
+    }
+
+    /**
+     * T21 — Cross-user UUID isolation: user A's POST with UUID X must
+     * NOT replay user B's row with the same UUID. The dedup key is
+     * (user_id, client_uuid), not just client_uuid alone.
+     */
+    public function testClientUuidIsScopedPerUser(): void
+    {
+        $userA = $this->login('a@x.com');
+        $uuid = 'shared-uuid-across-users-0000-0001';
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/quick', [
+            'call_worked' => 'CALLBYA',
+            'mode' => 'SSB',
+            'client_uuid' => $uuid,
+        ]);
+        $this->assertResponseSuccess();
+
+        // Switch to user B.
+        $users = $this->getTableLocator()->get('Users');
+        $userB = $users->saveOrFail($users->newEntity([
+            'name' => 'B', 'email' => 'b@x.com', 'role' => 'user',
+            'callsign' => 'BB1BB', 'password_hash' => 'h',
+        ], ['accessibleFields' => ['*' => true]]));
+        $this->session(['Auth' => ['id' => (int)$userB->id, 'email' => 'b@x.com']]);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/quick', [
+            'call_worked' => 'CALLBYB',
+            'mode' => 'CW',
+            'client_uuid' => $uuid,
+        ]);
+
+        // Both users now have a row with this UUID — they don't collide.
+        $rowA = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => $userA, 'client_uuid' => $uuid])
+            ->firstOrFail();
+        $rowB = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => (int)$userB->id, 'client_uuid' => $uuid])
+            ->firstOrFail();
+        $this->assertSame('CALLBYA', $rowA->call_worked);
+        $this->assertSame('CALLBYB', $rowB->call_worked);
+        $this->assertNotSame($rowA->id, $rowB->id);
+    }
+
+    /**
      * T16 — JSON path also honours auto-tagging.
      */
     public function testJsonPostAutoTagsWithActiveActivation(): void

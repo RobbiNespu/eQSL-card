@@ -2334,3 +2334,107 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
 [data-theme="eqsl-dark"] .quick-add__active-banner-grid {
   background: rgba(0, 0, 0, 0.3);
 }
+
+/* ============================================================
+   M5 T21 — Offline-queued QSO marker in the recents panel
+   Visual distinction for QSOs that haven't reached the server
+   yet (logged offline; awaiting sync).
+   ============================================================ */
+.quick-add__recent-item--queued {
+  opacity: 0.7;
+  background: var(--warning-soft, #fef3c7);
+}
+.quick-add__recent-item--queued:hover {
+  background: var(--warning-soft, #fef3c7);
+  opacity: 1;
+}
+[data-theme="eqsl-dark"] .quick-add__recent-item--queued {
+  background: rgba(245, 158, 11, 0.12);
+}
+.quick-add__queued-pill {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 400;
+  padding: 1px 7px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--warning, #f59e0b);
+  color: #fff;
+  vertical-align: middle;
+}
+[data-theme="eqsl-dark"] .quick-add__queued-pill {
+  background: var(--warning, #fbbf24);
+  color: #1f2937;
+}
+
+/* ============================================================
+   M5 T23 — Sync status pill
+   Floats top-right of the main content area. Visible only when
+   there's something to communicate (queued rows or active sync).
+   Click to expand a pending-rows panel with retry / delete.
+   ============================================================ */
+.sync-pill-wrap {
+  position: relative;
+  margin-bottom: var(--s-3, 12px);
+}
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--bs-body-bg, #fff);
+  font-size: 0.85em;
+  cursor: pointer;
+  color: var(--bs-body-color);
+  font-weight: 500;
+}
+.sync-pill__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted, #94a3b8);
+}
+.sync-pill--queued .sync-pill__dot   { background: var(--warning, #f59e0b); }
+.sync-pill--offline .sync-pill__dot  { background: var(--danger, #ef4444); }
+.sync-pill--syncing .sync-pill__dot  {
+  background: var(--accent, #059669);
+  animation: sync-pulse 1.2s ease-in-out infinite;
+}
+.sync-pill--error .sync-pill__dot    { background: var(--danger, #ef4444); }
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.8); }
+}
+.sync-pill__panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--bs-body-bg, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--r-md, 8px);
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  min-width: 280px;
+  max-width: 92vw;
+}
+.sync-pill__rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.sync-pill__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft, #f1f5f9);
+}
+.sync-pill__row:last-child { border-bottom: 0; }

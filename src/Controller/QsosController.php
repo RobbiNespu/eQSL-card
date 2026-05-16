@@ -226,6 +226,22 @@ class QsosController extends AppController
 
         if ($this->request->is('post')) {
             $data = $this->request->getData();
+
+            // M5 T21 — offline-sync idempotency. If the client sent a
+            // client_uuid and we've already saved a QSO for (this user,
+            // that uuid), return the existing row as-if the save just
+            // succeeded. Lets the sync engine retry safely after a
+            // partial-success batch without double-inserting.
+            $clientUuid = !empty($data['client_uuid']) ? (string)$data['client_uuid'] : null;
+            if ($clientUuid !== null) {
+                $existing = $qsos->find()
+                    ->where(['user_id' => $userId, 'client_uuid' => $clientUuid])
+                    ->first();
+                if ($existing !== null) {
+                    return $this->respondAfterQuickSave($existing, true);
+                }
+            }
+
             // Auto-fill date/time UTC if the client didn't send one (mobile
             // form omits the field by default). Server is the timekeeper.
             if (empty($data['qso_datetime_utc'])) {
@@ -261,41 +277,26 @@ class QsosController extends AppController
                 $entity->set('activation_id', (int)$activeForTag->id, ['guard' => false]);
             }
             $saved = $qsos->save($entity);
-            // T9 — content negotiation. If the client asked for JSON
-            // (Alpine fetch submit), return a small payload it can use to
-            // prepend to the recents panel and clear the form, without
-            // reloading the page.
-            if ($this->request->accepts('application/json')) {
-                $this->response = $this->response->withType('application/json');
-                if ($saved) {
-                    $payload = [
-                        'ok'  => true,
-                        'qso' => [
-                            'id'        => (int)$entity->id,
-                            'callsign'  => (string)$entity->call_worked,
-                            'frequency' => (string)($entity->frequency_mhz ?? ''),
-                            'band'      => (string)($entity->band ?? ''),
-                            'mode'      => (string)($entity->mode ?? ''),
-                            'notes'     => (string)($entity->notes ?? ''),
-                            'time'      => $entity->qso_datetime_utc instanceof \DateTimeInterface
-                                ? $entity->qso_datetime_utc->format('H:i') : '',
-                        ],
-                    ];
-                } else {
-                    $this->response = $this->response->withStatus(422);
-                    $payload = [
-                        'ok'     => false,
-                        'errors' => $entity->getErrors(),
-                    ];
-                }
-                $this->response = $this->response->withStringBody(json_encode($payload, JSON_THROW_ON_ERROR));
-                return $this->response;
-            }
             if ($saved) {
+                // Success path: delegates JSON / HTML branching to the
+                // helper so the idempotent-replay path uses the same
+                // payload shape.
+                if ($this->request->accepts('application/json')) {
+                    return $this->respondAfterQuickSave($entity, false);
+                }
                 $this->Flash->success('Logged ' . $entity->call_worked . '.');
-                // Re-render the empty form (HTML fallback for no-JS clients).
                 $entity = $qsos->newEmptyEntity();
             } else {
+                if ($this->request->accepts('application/json')) {
+                    $this->response = $this->response
+                        ->withType('application/json')
+                        ->withStatus(422)
+                        ->withStringBody(json_encode([
+                            'ok'     => false,
+                            'errors' => $entity->getErrors(),
+                        ], JSON_THROW_ON_ERROR));
+                    return $this->response;
+                }
                 $this->Flash->error('Could not save QSO. Check fields and try again.');
             }
         }
@@ -326,6 +327,38 @@ class QsosController extends AppController
         $this->render('quick');
 
         return null;
+    }
+
+    /**
+     * Build the JSON / HTML response after a quick-save (real or replayed).
+     * Extracted from the inline response block in quick() so the
+     * idempotent-replay path (T21) can reuse it without duplicating the
+     * payload-shaping code.
+     */
+    private function respondAfterQuickSave(\App\Model\Entity\Qso $entity, bool $replayed): \Cake\Http\Response
+    {
+        if ($this->request->accepts('application/json')) {
+            $this->response = $this->response->withType('application/json');
+            $payload = [
+                'ok'       => true,
+                'replayed' => $replayed,
+                'qso' => [
+                    'id'        => (int)$entity->id,
+                    'callsign'  => (string)$entity->call_worked,
+                    'frequency' => (string)($entity->frequency_mhz ?? ''),
+                    'band'      => (string)($entity->band ?? ''),
+                    'mode'      => (string)($entity->mode ?? ''),
+                    'notes'     => (string)($entity->notes ?? ''),
+                    'time'      => $entity->qso_datetime_utc instanceof \DateTimeInterface
+                        ? $entity->qso_datetime_utc->format('H:i') : '',
+                    'client_uuid' => (string)($entity->client_uuid ?? ''),
+                ],
+            ];
+            return $this->response->withStringBody(json_encode($payload, JSON_THROW_ON_ERROR));
+        }
+        // HTML fallback: flash + redirect to the same form.
+        $this->Flash->success(($replayed ? 'Already logged: ' : 'Logged ') . $entity->call_worked . '.');
+        return $this->redirect('/qsos/quick');
     }
 
     public function add(): ?\Cake\Http\Response

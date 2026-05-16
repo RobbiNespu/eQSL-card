@@ -357,16 +357,30 @@ function quickAddForm(recent) {
             }
             this.submitting = true;
 
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content
-                || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
-            const body = new URLSearchParams({
+            // Build the payload + client UUID up-front so the offline
+            // path can stash the same data the online path would have sent.
+            const queue = window.OfflineQueue;
+            const data = {
                 call_worked:   this.form.callsign,
                 frequency_mhz: this.form.frequency,
                 mode:          this.form.mode,
                 rst_sent:      this.form.rstSent,
                 rst_received:  this.form.rstRecv,
                 notes:         this.form.notes,
-            });
+            };
+
+            // M5 T21 — short-circuit to the queue when the browser
+            // reports offline. navigator.onLine is best-effort
+            // (sometimes wrong both ways) but the queue+retry path
+            // catches the cases where it's wrong.
+            if (typeof navigator !== 'undefined' && navigator.onLine === false && queue) {
+                await this._queueOffline(data);
+                return;
+            }
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content
+                || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
+            const body = new URLSearchParams(data);
 
             try {
                 const resp = await fetch('/qsos/quick', {
@@ -378,27 +392,68 @@ function quickAddForm(recent) {
                     },
                     body,
                 });
-                const data = await resp.json().catch(() => null);
-                if (!resp.ok || !data || !data.ok) {
+                const respData = await resp.json().catch(() => null);
+                if (!resp.ok || !respData || !respData.ok) {
                     this.showFlash('error',
-                        data?.errors
+                        respData?.errors
                             ? 'Save failed — check fields.'
                             : `Save failed (${resp.status}).`);
                     return;
                 }
-                this.recent = [data.qso, ...this.recent].slice(0, 5);
-                this.form.callsign = '';
-                this.form.rstSent  = '';
-                this.form.rstRecv  = '';
-                this.showFlash('success', `Logged ${data.qso.callsign}.`);
+                this.recent = [respData.qso, ...this.recent].slice(0, 5);
+                this._clearPerContactFields();
+                this.showFlash('success', `Logged ${respData.qso.callsign}.`);
                 this.$nextTick(() => {
                     if (this.$refs.callsign) this.$refs.callsign.focus();
                 });
             } catch (e) {
-                this.showFlash('error', 'Network error — please retry.');
+                // Network error (fetch threw): treat as offline if we
+                // have the queue available. Otherwise show the old
+                // retry-please message.
+                if (queue) {
+                    await this._queueOffline(data);
+                } else {
+                    this.showFlash('error', 'Network error — please retry.');
+                }
             } finally {
                 this.submitting = false;
             }
+        },
+        async _queueOffline(data) {
+            try {
+                const row = await window.OfflineQueue.enqueue(data);
+                // Nudge the status pill (T23) so it shows the new
+                // queued count immediately, and trigger a sync attempt
+                // if connectivity has returned since the form mounted.
+                window.dispatchEvent(new CustomEvent('eqsl-sync-trigger'));
+                // Render the queued row in the recents panel with a
+                // marker so the operator sees it landed even though
+                // it hasn't reached the server yet.
+                const placeholder = {
+                    id: 'queued-' + row.uuid,
+                    callsign: data.call_worked,
+                    frequency: data.frequency_mhz || '',
+                    band: '',
+                    mode: data.mode || '',
+                    notes: data.notes || '',
+                    time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+                    queued: true,
+                };
+                this.recent = [placeholder, ...this.recent].slice(0, 5);
+                this._clearPerContactFields();
+                this.showFlash('success', `Queued offline: ${data.call_worked}. Will sync when online.`);
+                this.$nextTick(() => {
+                    if (this.$refs.callsign) this.$refs.callsign.focus();
+                });
+            } catch (e) {
+                this.showFlash('error', 'Could not queue offline: ' + e.message);
+            }
+        },
+        _clearPerContactFields() {
+            this.form.callsign = '';
+            this.form.rstSent  = '';
+            this.form.rstRecv  = '';
+            // freq/mode/notes preserved for net rotations (T8 behaviour).
         },
         showFlash(kind, message) {
             this.flashKind = kind;
@@ -412,6 +467,98 @@ function quickAddForm(recent) {
     };
 }
 window.quickAddForm = quickAddForm;
+
+/**
+ * M5 T23 — Sync status pill Alpine component.
+ *
+ * Renders one of four states based on the eqsl-sync-status events
+ * broadcast by offline-sync.js:
+ *
+ *   - "Online" (hidden when queue empty + online)
+ *   - "Offline · N queued"  (browser reports offline; nothing syncing)
+ *   - "Syncing · M of N"    (drain in progress)
+ *   - "Error · N queued"    (last drain attempt failed)
+ *
+ * Click to expand a list of pending QSOs with per-row retry/delete.
+ */
+function syncStatusPill() {
+    return {
+        pending: 0,
+        syncing: 0,
+        state: 'idle',
+        lastError: null,
+        online: (typeof navigator === 'undefined' ? true : navigator.onLine !== false),
+        expanded: false,
+        rows: [],
+        init() {
+            window.addEventListener('eqsl-sync-status', (e) => {
+                this.pending = e.detail.pending;
+                this.syncing = e.detail.syncing;
+                this.state = e.detail.state;
+                this.lastError = e.detail.lastError;
+            });
+            window.addEventListener('online',  () => { this.online = true;  });
+            window.addEventListener('offline', () => { this.online = false; });
+            // Initial poll — read the queue count once on mount.
+            this._refreshPending();
+        },
+        async _refreshPending() {
+            if (!window.OfflineQueue) return;
+            try {
+                this.pending = await window.OfflineQueue.count();
+            } catch (e) { /* indexeddb missing — leave at 0 */ }
+        },
+        get label() {
+            if (this.state === 'syncing') {
+                return `Syncing · ${this.syncing} pending`;
+            }
+            if (!this.online) {
+                return `Offline · ${this.pending} queued`;
+            }
+            if (this.state === 'error') {
+                return `Sync error · ${this.pending} queued`;
+            }
+            return this.pending > 0
+                ? `${this.pending} queued`
+                : '';
+        },
+        get visible() {
+            return this.pending > 0 || this.state === 'syncing' || !this.online;
+        },
+        get pillClass() {
+            if (this.state === 'syncing') return 'sync-pill sync-pill--syncing';
+            if (this.state === 'error')   return 'sync-pill sync-pill--error';
+            if (!this.online)             return 'sync-pill sync-pill--offline';
+            return 'sync-pill sync-pill--queued';
+        },
+        async retry() {
+            if (window.OfflineSync) await window.OfflineSync.drain();
+            this._refreshPending();
+        },
+        async toggleExpanded() {
+            this.expanded = !this.expanded;
+            if (this.expanded) await this._loadRows();
+        },
+        async _loadRows() {
+            if (!window.OfflineQueue) return;
+            try {
+                this.rows = await window.OfflineQueue.getAll();
+            } catch (e) { this.rows = []; }
+        },
+        async deleteRow(uuid) {
+            if (!window.OfflineQueue) return;
+            await window.OfflineQueue.remove(uuid);
+            await this._refreshPending();
+            await this._loadRows();
+        },
+        formatTime(timestamp) {
+            try {
+                return new Date(timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return ''; }
+        },
+    };
+}
+window.syncStatusPill = syncStatusPill;
 
 /**
  * M5 T11 — Keep sticky form actions above the on-screen keyboard.
