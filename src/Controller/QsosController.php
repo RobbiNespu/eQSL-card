@@ -478,7 +478,19 @@ class QsosController extends AppController
         if ($this->request->is('post')) {
             $data = $this->request->getData();
             $templateId = (int)($data['template_id'] ?? 0);
-            $template = $this->fetchTable('Templates')->get($templateId);
+            // Authorization: re-apply the same predicate the picker uses
+            // (system | owned | public-approved) so a hand-crafted POST
+            // can't load another user's private template by guessing the
+            // id. firstOrFail() throws RecordNotFoundException → 404,
+            // matching the convention for tampered-id form submissions.
+            $template = $this->fetchTable('Templates')->find()
+                ->where(['Templates.id' => $templateId])
+                ->where(['OR' => [
+                    ['Templates.is_system' => true],
+                    ['Templates.user_id' => $userId],
+                    ['AND' => ['Templates.is_public' => true, 'Templates.is_approved' => true]],
+                ]])
+                ->firstOrFail();
 
             // Background source: the template owns it now. If the template
             // has no bound background, fall through to the site default and
@@ -573,7 +585,29 @@ class QsosController extends AppController
         // in the batch use the same template so they share one upload; this
         // also gives us a stable id to stamp into the job record for the
         // worker to read on every chunk.
-        $template = $this->fetchTable('Templates')->get($templateId);
+        //
+        // Authorization: re-apply the same predicate the picker uses
+        // (system | owned | public-approved) so a hand-crafted POST can't
+        // bulk-render with another user's private template. Fail closed
+        // with a JSON 403, matching the 400 envelope above so the
+        // frontend handles both consistently.
+        $template = $this->fetchTable('Templates')->find()
+            ->where(['Templates.id' => $templateId])
+            ->where(['OR' => [
+                ['Templates.is_system' => true],
+                ['Templates.user_id' => $userId],
+                ['AND' => ['Templates.is_public' => true, 'Templates.is_approved' => true]],
+            ]])
+            ->first();
+        if ($template === null) {
+            $this->setResponse($this->getResponse()->withStatus(403));
+            $this->set(['error' => 'Template not found or not allowed.']);
+            $this->viewBuilder()->setClassName('Json');
+            $this->viewBuilder()->setOption('serialize', ['error']);
+
+            return null;
+        }
+
         [$upload, , ] = $this->resolveTemplateBackground($template, $userId);
         $uploadId = (int)$upload->id;
 
