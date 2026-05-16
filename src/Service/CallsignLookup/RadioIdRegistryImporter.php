@@ -7,22 +7,28 @@ use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 
 /**
- * Refresh the local mirror of RadioID.net's user registry.
+ * Sync the local RadioID lookup cache from the upstream user registry.
  *
- * The remote ships a single CSV at https://radioid.net/static/user.csv
- * with columns RADIO_ID, CALLSIGN, FIRST_NAME, LAST_NAME, CITY, STATE,
- * COUNTRY (~16 MB / ~250k rows at time of writing). Two streaming
- * stages, neither of which loads the whole file into PHP memory:
+ * RadioID publishes the user list as a CSV download with columns
+ * RADIO_ID, CALLSIGN, FIRST_NAME, LAST_NAME, CITY, STATE, COUNTRY.
+ * Designed to play nicely with their API use policy
+ * (https://radioid.net/api_use_policy): a single admin-triggered fetch
+ * populates the local cache so subsequent QSO form submits don't ping
+ * the upstream at all. The data isn't redistributed by this install —
+ * the cache is internal storage that supports our own lookups.
  *
- *   download(): stream_copy_to_stream from the HTTPS source straight to
- *     a temp file on disk. Constant memory regardless of file size.
+ * Two streaming stages, neither of which loads the whole file into
+ * PHP memory:
+ *
+ *   download(): stream_copy_to_stream from the upstream URL into a
+ *     temp file on disk. Constant memory regardless of payload size,
+ *     hard-capped to refuse anything implausibly large.
  *   import(path): fopen+fgetcsv line-by-line, buffer 1000 rows at a
- *     time, flush via a single multi-row INSERT. TRUNCATE first so the
- *     local table mirrors the upstream snapshot exactly — no need to
- *     reconcile deletes.
+ *     time, flush via a single multi-row INSERT. The local table is
+ *     replaced wholesale so our cache stays consistent with the
+ *     upstream snapshot — no merge logic needed.
  *
- * The all-in-one refresh() composes both into a single call the admin
- * UI can trigger from a button.
+ * The one-shot refresh() composes both for the admin UI's Sync button.
  */
 final class RadioIdRegistryImporter
 {
@@ -124,6 +130,10 @@ final class RadioIdRegistryImporter
                 );
             }
 
+            // Replace the cache wholesale — the upstream is canonical, so
+            // a full reload is simpler than row-by-row reconciliation and
+            // guarantees we never serve stale entries that the upstream
+            // has since removed.
             $conn = ConnectionManager::get('default');
             $conn->execute('DELETE FROM ' . self::TABLE);
             // SQLite (used by the test suite) has no TRUNCATE; reset the

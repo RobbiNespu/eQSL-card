@@ -8,16 +8,23 @@ use App\Service\CallsignLookup\CallsignProviderInterface;
 use Cake\Datasource\ConnectionManager;
 
 /**
- * Lookup against the local mirror of RadioID.net's user registry.
+ * Resolve callsigns against the local RadioID lookup cache.
  *
- * Replaces the previous per-callsign API provider. We now download the
- * full registry CSV (~16 MB) on a refresh schedule (admin button at
- * /admin/callsign-lookups/provider/radioid_database_dump) and serve
- * lookups from the local `radioid_registry` table. Trades a periodic
- * batch refresh for instant, zero-network, Cloudflare-free lookups.
+ * Replaces the previous per-callsign API provider that hit RadioID on
+ * every form submit. We now pull the upstream user registry only when
+ * an admin clicks "Sync" (see the per-provider page at
+ * /admin/callsign-lookups/provider/radioid_database_dump), populate the
+ * local `radioid_registry` table, and answer every lookup from there.
  *
- * Schema source: see App\Service\CallsignLookup\RadioIdRegistryImporter
- * for the download + import pipeline.
+ * Designed to respect RadioID's API use policy
+ * (https://radioid.net/api_use_policy): no per-QSO polling, no
+ * redistribution of the dataset — the cache is internal to this
+ * install only. The lookup result includes a source_url linking back to
+ * the upstream record so operators always have a path to the canonical
+ * RadioID page.
+ *
+ * Schema + sync logic: see
+ * App\Service\CallsignLookup\RadioIdRegistryImporter.
  */
 final class RadioIdDatabaseDumpProvider implements CallsignProviderInterface
 {
@@ -28,7 +35,7 @@ final class RadioIdDatabaseDumpProvider implements CallsignProviderInterface
 
     public function label(): string
     {
-        return 'RadioID database dump (local mirror)';
+        return 'RadioID registry (local lookup cache)';
     }
 
     public function supports(string $callsign): bool

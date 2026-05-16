@@ -4,28 +4,25 @@ declare(strict_types=1);
 use Migrations\AbstractMigration;
 
 /**
- * Local mirror of the RadioID.net user database.
+ * Backing table for the RadioID callsign lookup cache.
  *
- * RadioID publishes the full user registry as a single CSV at
- * https://radioid.net/static/user.csv (~16 MB, ~250k rows). Periodically
- * downloading the whole thing and serving lookups locally is much
- * friendlier than hitting their per-callsign API endpoint on every form
- * submit — no Cloudflare friction, no rate limits, instant lookups, and
- * the dataset is small enough that a refresh fits in seconds.
- *
- * The CSV columns map straight onto this table; we don't normalise the
- * geography fields because the format is consistent enough to use as-is.
+ * Populated from the RadioID user registry that ships as a downloadable
+ * CSV. The import is admin-triggered and infrequent (weekly is fine),
+ * in keeping with RadioID's API use policy
+ * (https://radioid.net/api_use_policy) — we don't redistribute the
+ * dataset, we cache it locally to keep our QSO form's per-submit
+ * lookups instant and to avoid pinging the upstream on every keystroke.
  *
  *   - `callsign` is the natural lookup key, indexed unique so the
- *     importer can TRUNCATE+INSERT without worrying about duplicates
- *     (the CSV itself has unique callsigns per row).
- *   - `radio_id` (DMR ID) preserved for callers that want to display it
- *     alongside the name/QTH.
- *   - `imported_at` per row so a partial import is recoverable — operator
- *     can see which rows belong to the latest batch.
+ *     importer can replace the cache wholesale without worrying about
+ *     duplicates (the upstream itself has one row per callsign).
+ *   - `radio_id` (DMR ID) preserved so the lookup result can link back
+ *     to the canonical upstream record for the operator's reference.
+ *   - `imported_at` per row records the sync batch each entry belongs
+ *     to — handy when debugging cache freshness.
  *
- * Storage estimate: 250k rows × ~150 bytes/row ≈ 38 MB on InnoDB with
- * the indexes. Trivial for any host that can run PHP.
+ * Storage budget at typical sizes: ~250k rows × ~150 bytes/row ≈ 38 MB
+ * on InnoDB including indexes. Negligible for any host that can run PHP.
  */
 final class CreateRadioidRegistry extends AbstractMigration
 {

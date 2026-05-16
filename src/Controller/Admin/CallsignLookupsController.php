@@ -33,7 +33,7 @@ class CallsignLookupsController extends AppController
      */
     private const PROVIDER_MAP = [
         'local'                 => 'Local directory — admin-imported CSV (recommended FIRST)',
-        'radioid_database_dump' => 'RadioID database dump — local mirror of radioid.net/static/user.csv',
+        'radioid_database_dump' => 'RadioID registry — periodic sync into a local lookup cache; respects radioid.net/api_use_policy',
         'radioid_api'           => 'RadioID API (users) — broader users endpoint; behind Cloudflare',
         'qrz'                   => 'QRZ.com — requires paid XML key, currently disabled',
         'mcmc'                  => 'MCMC Malaysia — live scrape (9M / 9W)',
@@ -334,10 +334,10 @@ class CallsignLookupsController extends AppController
         $enabledList = array_filter(array_map('trim', explode(',', $enabledCsv)));
         $isEnabled = in_array($code, $enabledList, true);
 
-        // Extra context for the RadioID database-dump provider: how many
-        // rows are in the local mirror and when it was last refreshed.
-        // The view uses these to show a "Refresh now" button alongside
-        // the freshness summary.
+        // Extra context for the RadioID provider: how many rows are
+        // currently in the local lookup cache and when it was last
+        // refreshed. The view uses these to show a "Refresh now" button
+        // alongside the freshness summary.
         $registryCount = null;
         $registryLastImport = null;
         if ($code === 'radioid_database_dump') {
@@ -361,9 +361,10 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Refresh the RadioID local mirror — streams the upstream CSV and
-     * reloads `radioid_registry`. Sync because the file is ~16 MB and
-     * imports in ~5-15 seconds; admin actions can wait that long.
+     * Sync the RadioID local lookup cache — admin-triggered, sync-flow
+     * (the import completes in seconds; no queue needed). Use sparingly:
+     * RadioID's API use policy expects polite, low-frequency fetches,
+     * not per-request polling. A weekly or on-demand cadence is plenty.
      */
     public function refreshRadioIdDump(): \Cake\Http\Response
     {
@@ -373,14 +374,14 @@ class CallsignLookupsController extends AppController
         try {
             $count = $importer->refresh();
         } catch (\Throwable $e) {
-            $this->Flash->error('Refresh failed: ' . $e->getMessage());
+            $this->Flash->error('Sync failed: ' . $e->getMessage());
             return $this->redirect('/admin/callsign-lookups/provider/radioid_database_dump');
         }
         $elapsed = number_format(microtime(true) - $started, 1);
 
         try {
             (new \App\Service\AuditLogger())->log(
-                event: 'callsign.radioid_dump_refreshed',
+                event: 'callsign.radioid_cache_synced',
                 actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
                 metadata: ['rows' => $count, 'seconds' => $elapsed],
             );
@@ -388,7 +389,7 @@ class CallsignLookupsController extends AppController
             error_log('audit: ' . $e->getMessage());
         }
 
-        $this->Flash->success("Refreshed RadioID local mirror — {$count} rows in {$elapsed}s.");
+        $this->Flash->success("RadioID lookup cache synced — {$count} rows in {$elapsed}s.");
         return $this->redirect('/admin/callsign-lookups/provider/radioid_database_dump');
     }
 

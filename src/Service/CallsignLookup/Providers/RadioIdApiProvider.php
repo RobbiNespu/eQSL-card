@@ -17,7 +17,7 @@ use Cake\Http\Client;
  *    country, id, radio_id, ...}. Coverage is wider than the DMR-only
  *    sibling because it draws from the whole user registry, not just
  *    DMR-registered IDs.
- *  - Distinguished from RadioIdDatabaseDumpProvider (code `radioid_database_dump`, CSV mirror)
+ *  - Distinguished from RadioIdDatabaseDumpProvider (code `radioid_database_dump`, local cache)
  *    by code (`radioid_api`) so both can sit in the chain at once — the
  *    DMR endpoint usually has tighter data for DMR ops, the users
  *    endpoint catches the long tail of non-DMR registrations.

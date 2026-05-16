@@ -79,6 +79,6 @@ final class RadioIdDatabaseDumpProviderTest extends TestCase
     {
         $p = new RadioIdDatabaseDumpProvider();
         $this->assertSame('radioid_database_dump', $p->code());
-        $this->assertSame('RadioID database dump (local mirror)', $p->label());
+        $this->assertSame('RadioID registry (local lookup cache)', $p->label());
     }
 }

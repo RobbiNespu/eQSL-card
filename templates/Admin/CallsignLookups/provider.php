@@ -23,30 +23,33 @@
 <?php if ($code === 'radioid_database_dump'): ?>
 <div class="card mb-4">
   <div class="card-body">
-    <h2 class="h5">Local registry mirror</h2>
+    <h2 class="h5">Local lookup cache</h2>
     <p class="mb-1">
-      Rows in <code>radioid_registry</code>: <strong><?= h(number_format($registryCount ?? 0)) ?></strong>
+      Rows currently cached: <strong><?= h(number_format($registryCount ?? 0)) ?></strong>
     </p>
     <p class="mb-3 text-muted small">
       <?php if (!empty($registryLastImport)): ?>
-        Last refreshed <?= h($registryLastImport) ?> UTC.
+        Last synced <?= h($registryLastImport) ?> UTC.
       <?php else: ?>
-        Never refreshed — click below to download the CSV.
+        Cache is empty — click below to populate it from the upstream registry.
       <?php endif; ?>
     </p>
     <?= $this->Form->postLink(
-        ($registryCount ? '↻ Refresh now (re-download CSV)' : '↓ Download CSV now (first run)'),
+        ($registryCount ? '↻ Sync now' : '↓ Populate cache now (first run)'),
         '/admin/callsign-lookups/provider/radioid_database_dump/refresh',
         [
             'class'   => 'btn btn-primary btn-sm',
-            'confirm' => 'Download ~16 MB and rebuild the local mirror? Takes 5–15 seconds.',
+            'confirm' => 'Pull the latest RadioID user registry into the local cache? Takes 5–15 seconds.',
         ]
     ) ?>
     <p class="form-text small mt-2 mb-0">
-      Source: <a href="https://radioid.net/static/user.csv" rel="noopener"><code>radioid.net/static/user.csv</code></a>.
-      The endpoint is public and uncached. We stream the bytes straight to
-      a temp file (constant memory regardless of size), parse line-by-line
-      with <code>fgetcsv</code>, then batch-insert 1000 rows per query.
+      Sync pulls the user registry that <strong>RadioID</strong> publishes
+      for download, stores it in a local table on this install, and uses
+      it to answer subsequent callsign lookups without further upstream
+      calls. The dataset is not redistributed by this app — it's
+      internal lookup storage only. Use this sync sparingly (weekly is
+      plenty) so we stay within the spirit of
+      <a href="https://radioid.net/api_use_policy" rel="noopener">RadioID's API use policy</a>.
     </p>
   </div>
 </div>
@@ -59,12 +62,13 @@
     QRZ requires a paid XML key — when that integration is finished, the API
     key field will land here.
   <?php elseif ($code === 'radioid_database_dump'): ?>
-    This provider keeps a local mirror of <code>radioid.net/static/user.csv</code>
-    (~16 MB, ~250k rows) and answers lookups from the local
-    <code>radioid_registry</code> table — no per-callsign network call, no
-    Cloudflare friction, instant resolution. Re-download by clicking
-    Refresh below; the upstream registry updates daily so a weekly
-    cadence is plenty.
+    Lookups are served from a local cache populated on demand from the
+    RadioID user registry. The cache is internal storage — we don't
+    re-publish the dataset, we just hold it to keep the QSO form's
+    auto-fill instant without pinging the upstream on every keystroke.
+    Sync on the cadence that suits your traffic; weekly is comfortable
+    and matches RadioID's expectation of polite, low-frequency fetches
+    (see their <a href="https://radioid.net/api_use_policy" rel="noopener">API use policy</a>).
   <?php elseif ($code === 'radioid_api'): ?>
     Calls <code>https://radioid.net/api/users?callsign=…</code>, the broader
     users endpoint at RadioID.net. The site is occasionally fronted by
