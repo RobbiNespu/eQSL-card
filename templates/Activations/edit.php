@@ -15,6 +15,7 @@
 ]) ?>
 
 <?= $this->Form->create($activation, ['url' => '/activations/' . $activation->id . '/edit']) ?>
+<div x-data="activationGpsHelper()">
   <div class="row g-2">
     <div class="col-md-5">
       <div class="field">
@@ -33,10 +34,25 @@
     <div class="col-md-4">
       <div class="field">
         <label class="form-label" for="act-grid">Grid <span class="form-label small">(optional)</span></label>
-        <input type="text" id="act-grid" name="grid_square" class="form-control"
-               value="<?= h($activation->grid_square ?? '') ?>"
-               maxlength="8" pattern="[A-Ra-r]{2}[0-9]{2}([A-Xa-x]{2})?">
-        <p class="form-text small mb-0">Maidenhead 4 or 6 char.</p>
+        <div class="input-group">
+          <input type="text" id="act-grid" name="grid_square" class="form-control"
+                 x-ref="gridInput"
+                 value="<?= h($activation->grid_square ?? '') ?>"
+                 maxlength="8" pattern="[A-Ra-r]{2}[0-9]{2}([A-Xa-x]{2})?">
+          <button type="button" class="btn btn-outline-secondary"
+                  @click="fillGridFromGps()"
+                  :disabled="gpsState === 'asking'"
+                  title="Use my current GPS location">
+            <span x-show="gpsState !== 'asking'" aria-hidden="true">📍</span>
+            <span x-show="gpsState === 'asking'" aria-hidden="true">⏳</span>
+            <span class="visually-hidden">Use my location</span>
+          </button>
+        </div>
+        <p class="form-text small mb-0" x-show="!gpsMessage">Maidenhead 4 or 6 char.</p>
+        <p class="form-text small mb-0"
+           x-show="gpsMessage" x-cloak
+           :class="{ 'text-success': gpsState === 'ok', 'text-danger': gpsState === 'denied' || gpsState === 'error', 'text-muted': gpsState === 'asking' }"
+           x-text="gpsMessage" role="status" aria-live="polite"></p>
       </div>
     </div>
     <div class="col-12">
@@ -63,6 +79,7 @@
     <button class="btn btn-primary">Save changes</button>
     <a class="btn btn-secondary" href="/activations">Cancel</a>
   </div>
+</div>
 <?= $this->Form->end() ?>
 
 <hr>

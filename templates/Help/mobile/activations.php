@@ -19,6 +19,23 @@
 
 <p>You can also log <em>without</em> an active activation — the quick-add form shows a small note at the top in that case ("Logging without an activation. Start one if you're running a session"). Casual QSOs from home don't need activations.</p>
 
+<h2>GPS auto-fill for the grid square</h2>
+<p>Next to the <strong>Grid</strong> input on the start form and the edit form is a <strong>📍</strong> button. Tap it to use your phone's GPS:</p>
+<ol>
+  <li>Browser prompts for location permission (first time only — your answer is remembered per-site).</li>
+  <li>On grant: the app derives your <a href="https://en.wikipedia.org/wiki/Maidenhead_Locator_System" rel="noopener">Maidenhead grid square</a> (6 characters, ~5 km accuracy) and writes it into the input.</li>
+  <li>You can override the value — for an awards activation, the <em>official</em> reference grid (the park's posted grid, or the SOTA summit grid) is what the portal expects, which may differ from where you're standing.</li>
+</ol>
+
+<p>The conversion runs purely client-side; your lat/lon never reaches the server. Only the derived grid square (which is intentionally low-precision compared to raw GPS) gets saved with the activation.</p>
+
+<p>If permission is denied, the input stays editable — just type the grid manually. If GPS is slow (indoors, basement, behind metal), the request times out after 10 seconds and shows a "try outside or near a window" hint.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'note',
+    'body' => 'Browser geolocation requires HTTPS in production (or localhost for development). On a HTTP-only deployment the button will be present but every tap returns a "permission denied" error — switch to HTTPS or fall back to manual entry.',
+]) ?>
+
 <h2>Starting an activation</h2>
 <p>Go to <a href="/activations">/activations</a>. The page shows three sections:</p>
 <ol>
@@ -91,7 +108,8 @@
 ]) ?>
 
 <h2>What ships next</h2>
-<p>Three more features round out the activations workflow (still in progress):</p>
+<p>Phase C of M5 is now complete (T12-T17). Next milestones for portable ops:</p>
 <ul>
-  <li><strong>T15 — GPS auto-fill</strong>: optional browser geolocation on activation start, derives Maidenhead grid square from your lat/lon.</li>
+  <li><strong>Phase D</strong> — PWA install + offline queue + sync engine. Log without cell signal; syncs when reconnected.</li>
+  <li><strong>Phase E</strong> — Real-time dupe-check on callsign type, voice input.</li>
 </ul>

@@ -446,3 +446,74 @@ function initKeyboardAware() {
     update();
 }
 document.addEventListener('DOMContentLoaded', initKeyboardAware);
+
+/**
+ * M5 T15 — Alpine component factory for the activations form's "Use my location"
+ * button. Hands the operator a one-tap path from browser GPS to a
+ * pre-filled Maidenhead grid square input. Manual override always
+ * available — the operator may know the official reference grid
+ * better than what GPS rounds to (a SOTA summit is its summit grid,
+ * not where you're sitting at the moment of activation).
+ *
+ * State machine:
+ *   idle    → user hasn't tapped, or has cleared
+ *   asking  → permission prompt is open / position request in flight
+ *   ok      → grid filled
+ *   denied  → user said no to permission
+ *   error   → other failure (timeout, no GPS hardware, etc.)
+ *
+ * No localStorage cache for the permission — the browser handles that
+ * via its own permission UI. We're not trying to remember "you said
+ * yes last time"; just expose the affordance.
+ */
+function activationGpsHelper() {
+    return {
+        gpsState: 'idle',
+        gpsMessage: '',
+        async fillGridFromGps() {
+            if (!navigator.geolocation) {
+                this.gpsState = 'error';
+                this.gpsMessage = 'Your browser doesn\'t support geolocation.';
+                return;
+            }
+            this.gpsState = 'asking';
+            this.gpsMessage = 'Asking for your location…';
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const grid = window.latLonToGridSquare(
+                        pos.coords.latitude,
+                        pos.coords.longitude,
+                        6
+                    );
+                    if (grid === null) {
+                        this.gpsState = 'error';
+                        this.gpsMessage = 'Could not convert your coordinates.';
+                        return;
+                    }
+                    const input = this.$refs.gridInput;
+                    if (input) {
+                        input.value = grid;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    this.gpsState = 'ok';
+                    this.gpsMessage = 'Grid filled: ' + grid + '. Override if you know a more accurate reference.';
+                },
+                (err) => {
+                    if (err.code === err.PERMISSION_DENIED) {
+                        this.gpsState = 'denied';
+                        this.gpsMessage = 'Permission denied. Type the grid manually.';
+                    } else if (err.code === err.TIMEOUT) {
+                        this.gpsState = 'error';
+                        this.gpsMessage = 'Location request timed out. Try outside or near a window.';
+                    } else {
+                        this.gpsState = 'error';
+                        this.gpsMessage = 'Could not get location: ' + (err.message || 'unknown error');
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        },
+    };
+}
+window.activationGpsHelper = activationGpsHelper;

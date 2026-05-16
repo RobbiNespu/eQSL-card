@@ -57,7 +57,8 @@
 </section>
 
 <!-- ============ Start new activation form ============ -->
-<section class="activations__new mb-4" aria-label="Start a new activation">
+<section class="activations__new mb-4" aria-label="Start a new activation"
+         x-data="activationGpsHelper()">
   <h2 class="h5">Start a new activation</h2>
   <?= $this->Form->create($newActivation, ['url' => '/activations']) ?>
     <div class="row g-2">
@@ -82,11 +83,27 @@
       <div class="col-md-3">
         <div class="field">
           <label class="form-label" for="act-grid">Grid <span class="form-label small">(optional)</span></label>
-          <input type="text" id="act-grid" name="grid_square" class="form-control"
-                 value="<?= h($newActivation->grid_square ?? '') ?>"
-                 placeholder="OJ02wx" autocomplete="off"
-                 maxlength="8" pattern="[A-Ra-r]{2}[0-9]{2}([A-Xa-x]{2})?">
-          <p class="form-text small mb-0">Maidenhead 4 or 6 char.</p>
+          <div class="input-group">
+            <input type="text" id="act-grid" name="grid_square" class="form-control"
+                   x-ref="gridInput"
+                   value="<?= h($newActivation->grid_square ?? '') ?>"
+                   placeholder="OJ02wx" autocomplete="off"
+                   maxlength="8" pattern="[A-Ra-r]{2}[0-9]{2}([A-Xa-x]{2})?">
+            <?php /* T15 — Use my location button. Browser Geolocation API → Maidenhead. */ ?>
+            <button type="button" class="btn btn-outline-secondary"
+                    @click="fillGridFromGps()"
+                    :disabled="gpsState === 'asking'"
+                    title="Use my current GPS location">
+              <span x-show="gpsState !== 'asking'" aria-hidden="true">📍</span>
+              <span x-show="gpsState === 'asking'" aria-hidden="true">⏳</span>
+              <span class="visually-hidden">Use my location</span>
+            </button>
+          </div>
+          <p class="form-text small mb-0" x-show="!gpsMessage">Maidenhead 4 or 6 char.</p>
+          <p class="form-text small mb-0"
+             x-show="gpsMessage" x-cloak
+             :class="{ 'text-success': gpsState === 'ok', 'text-danger': gpsState === 'denied' || gpsState === 'error', 'text-muted': gpsState === 'asking' }"
+             x-text="gpsMessage" role="status" aria-live="polite"></p>
         </div>
       </div>
       <div class="col-12">
