@@ -129,6 +129,25 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET', 'POST']);
         $builder->connect('/qsos/import', ['controller' => 'Qsos', 'action' => 'import'])
             ->setMethods(['GET', 'POST']);
+
+        // M5 T14 — Activations: portable-session grouping (POTA / SOTA /
+        // IOTA / field day). Owner-scoped at the controller layer.
+        // Static segments declared before parametrized /{id} so they
+        // aren't shadowed by the action route.
+        $builder->connect('/activations', ['controller' => 'Activations', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/activations', ['controller' => 'Activations', 'action' => 'start'])
+            ->setMethods(['POST']);
+        $builder->connect('/activations/{id}/end', ['controller' => 'Activations', 'action' => 'end'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        $builder->connect('/activations/{id}/edit', ['controller' => 'Activations', 'action' => 'edit'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
+        $builder->connect('/activations/{id}/delete', ['controller' => 'Activations', 'action' => 'delete'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        // M5 T17 — ADIF export per activation. Filename ends in .adi which
+        // POTA / SOTA / LoTW portals all accept as the upload target.
+        $builder->connect('/activations/{id}/export.adi', ['controller' => 'Activations', 'action' => 'export'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
         // Callsign auto-complete JSON API. Authenticated; the QSO add form
         // calls this on debounced input change to pre-fill operator name /
         // QTH / grid square. See App\Service\CallsignLookup for the

@@ -2283,3 +2283,54 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.4);
   }
 }
+
+/* ============================================================
+   M5 T14 — Active activation banner on /qsos/quick
+   Visible only when the operator has an open activation.
+   Tappable card-style banner with grid badge on the right.
+   ============================================================ */
+.quick-add__active-banner {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--success-soft, #d1fae5);
+  border: 1px solid var(--success, #10b981);
+  border-radius: var(--r-md, 8px);
+  text-decoration: none;
+  color: #064e3b;
+  font-size: 0.95em;
+  flex-wrap: wrap;
+}
+.quick-add__active-banner:hover,
+.quick-add__active-banner:focus-visible {
+  background: var(--success, #10b981);
+  color: white;
+  text-decoration: none;
+  outline: none;
+}
+.quick-add__active-banner-label {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+.quick-add__active-banner-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.quick-add__active-banner-grid {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85em;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+}
+[data-theme="eqsl-dark"] .quick-add__active-banner {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success, #34d399);
+}
+[data-theme="eqsl-dark"] .quick-add__active-banner-grid {
+  background: rgba(0, 0, 0, 0.3);
+}
