@@ -32,6 +32,7 @@ final class HelpCatalog
             'label' => 'Logging QSOs',
             'pages' => [
                 'add-qso'      => 'Log a contact',
+                'logbook'      => 'Browse your logbook',
                 'import'       => 'Import an ADIF / CSV log',
                 'net-checkins' => 'Logging net check-ins',
                 'autocomplete' => 'Callsign auto-complete',

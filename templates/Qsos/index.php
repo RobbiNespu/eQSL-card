@@ -48,10 +48,14 @@
     </select>
   </div>
   <div class="col-md-2 col-sm-6">
-    <input type="date" name="from" value="<?= h($filters['from']) ?>" class="form-control" title="From date">
+    <input type="date" name="from" value="<?= h($filters['from']) ?>" class="form-control"
+           title="From date" placeholder="YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}"
+           aria-label="From date (YYYY-MM-DD)">
   </div>
   <div class="col-md-2 col-sm-6">
-    <input type="date" name="to" value="<?= h($filters['to']) ?>" class="form-control" title="To date">
+    <input type="date" name="to" value="<?= h($filters['to']) ?>" class="form-control"
+           title="To date" placeholder="YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}"
+           aria-label="To date (YYYY-MM-DD)">
   </div>
   <div class="col-md-2 col-sm-12">
     <button class="btn btn-primary w-100">Filter</button>
@@ -72,7 +76,11 @@
             @click="openBulkModal()" x-bind:disabled="selected.length === 0">Bulk render selected</button>
   </div>
 
-  <table class="table table-striped">
+  <!-- table-responsive-stack flips the markup to a stacked-card layout on
+       < 768 px viewports without duplicating HTML. Each <td> uses
+       data-label so the column header label survives the table → card
+       transformation; CSS lives in theme.css under the M5 T5 block. -->
+  <table class="table table-striped table-responsive-stack">
     <thead>
       <tr>
         <th><input type="checkbox" @change="toggleAll($event.target.checked)"></th>
@@ -88,18 +96,21 @@
     <tbody>
       <?php foreach ($qsos as $qso): ?>
       <tr>
-        <td><input type="checkbox" :value="<?= $qso->id ?>" @change="toggleOne(<?= $qso->id ?>, $event.target.checked)"></td>
-        <td>
+        <td data-label="Select"><input type="checkbox" :value="<?= $qso->id ?>" @change="toggleOne(<?= $qso->id ?>, $event.target.checked)"></td>
+        <td data-label="Callsign">
           <strong><?= h($qso->call_worked) ?></strong>
           <?= $this->element('ui/badge_qso_type', ['qso' => $qso]) ?>
           <?= $this->element('ui/badge_transport', ['qso' => $qso]) ?>
         </td>
-        <td><?= h($qso->qso_datetime_utc?->format('Y-m-d H:i')) ?></td>
-        <td><?= h($qso->frequency_mhz) ?></td>
-        <td><?= h($qso->band) ?></td>
-        <td><?= h($qso->mode) ?></td>
-        <td><?= h($qso->rst_sent) ?> / <?= h($qso->rst_received) ?></td>
-        <td>
+        <td data-label="Date/Time UTC"><?= h($qso->qso_datetime_utc?->format('Y-m-d H:i')) ?></td>
+        <td data-label="Freq"><?= h($qso->frequency_mhz) ?></td>
+        <td data-label="Band"><?= h($qso->band) ?></td>
+        <td data-label="Mode"><?= h($qso->mode) ?></td>
+        <td data-label="RST">
+          <?php $rstSent = $qso->rst_sent; $rstRecv = $qso->rst_received; ?>
+          <?= h($rstSent ?: '—') ?> / <?= h($rstRecv ?: '—') ?>
+        </td>
+        <td data-label="Actions" class="table-responsive-stack__actions">
           <a class="btn btn-sm btn-outline-secondary" href="/qsos/<?= $qso->id ?>">View</a>
           <?php if (isset($activeCardByQso[$qso->id])): ?>
             <a class="btn btn-sm btn-outline-success" href="/cards/<?= $activeCardByQso[$qso->id] ?>" title="A card has already been rendered for this QSO. Delete it first to render a new one.">View card</a>

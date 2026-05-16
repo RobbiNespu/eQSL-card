@@ -1848,3 +1848,100 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
     min-height: 44px;
   }
 }
+
+/* ============================================================
+   M5 T5 — Table → stacked card layout on mobile
+   Activates on < 768 px viewports for any <table> tagged
+   `.table-responsive-stack`. Each <tr> becomes a card; each <td>
+   becomes a horizontal label-value row driven by data-label.
+   Replaces the previous overflow-x: auto behaviour for these
+   tables — operators with 9 columns on a 375 px phone couldn't
+   reach action buttons without horizontal scroll for every row.
+   ============================================================ */
+@media (max-width: 767.98px) {
+  .table-responsive-stack { display: block; width: 100%; }
+  .table-responsive-stack thead {
+    /* Hide table header — labels come from data-label on each cell. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+  .table-responsive-stack tbody { display: block; }
+  .table-responsive-stack tr {
+    display: block;
+    border: 1px solid var(--border-strong, #cbd5e1);
+    border-radius: var(--r-md, 8px);
+    padding: 12px 14px;
+    margin-bottom: var(--s-2, 8px);
+    background: var(--surface, var(--bs-body-bg, #ffffff));
+  }
+  .table-responsive-stack.table-striped tr:nth-of-type(odd) {
+    /* The default stripe background looks odd as full-card colour;
+       use a subtle surface variant instead. */
+    background: var(--surface-2, var(--bs-tertiary-bg, #f8fafc));
+  }
+  .table-responsive-stack td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 4px 0;
+    border: 0;
+    text-align: right;
+  }
+  .table-responsive-stack td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted, var(--bs-secondary-color));
+    font-size: var(--t-xs, 0.85em);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: left;
+    flex: 0 0 auto;
+  }
+  /* Callsign cell — top of the card, full-width, no inline label
+     (the bold callsign IS the heading). */
+  .table-responsive-stack td[data-label="Callsign"] {
+    display: block;
+    text-align: left;
+    font-size: 1.1em;
+    padding: 0 0 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+  }
+  .table-responsive-stack td[data-label="Callsign"]::before { content: ""; display: none; }
+  /* Select checkbox — minimal label, top-right of card. */
+  .table-responsive-stack td[data-label="Select"] {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    padding: 0;
+  }
+  .table-responsive-stack td[data-label="Select"]::before { content: ""; display: none; }
+  .table-responsive-stack tr { position: relative; }
+  /* Action buttons — full-width row at bottom of the card, side-by-side
+     buttons, large tap targets. */
+  .table-responsive-stack__actions {
+    display: flex !important;
+    justify-content: stretch;
+    gap: 8px;
+    padding-top: 12px !important;
+    margin-top: 8px;
+    border-top: 1px solid var(--border, #e2e8f0);
+  }
+  .table-responsive-stack__actions::before { content: ""; display: none; }
+  .table-responsive-stack__actions .btn {
+    flex: 1 1 0;
+    min-height: 40px;
+  }
+  /* Empty cells: collapse so they don't leave dangling label rows. */
+  .table-responsive-stack td:empty,
+  .table-responsive-stack td:has(> :empty:only-child) {
+    display: none;
+  }
+}
