@@ -1,0 +1,4 @@
+{
+    "_comment": "Scoped type=module override so test files under tests/js/ are parsed as ESM. Vitest 2+ rejects CJS test files (it can no longer be require()'d), but the rest of the project — including webroot/js/designer-helpers.js — must stay CommonJS because PHP <script> tags load it as a classic script. This file isolates the ESM switch to test code only.",
+    "type": "module"
+}
