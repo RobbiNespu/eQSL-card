@@ -310,8 +310,11 @@ function quickAddForm(recent) {
         addChipFromInput() {
             const text = this.form.notes.trim();
             if (!text) return;
-            // Don't add duplicates of existing chips.
-            if (this.chips.some(c => c.text === text)) {
+            // Case-insensitive duplicate check so "POTA" and "pota" don't
+            // both end up in the list. Code review caught the strict-eq
+            // version that allowed both to be added.
+            const lc = text.toLowerCase();
+            if (this.chips.some(c => c.text.toLowerCase() === lc)) {
                 this.showFlash('error', `"${text}" is already a chip.`);
                 return;
             }

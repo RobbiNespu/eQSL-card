@@ -157,14 +157,21 @@ $recentJson = json_encode(array_map(static function ($r): array {
              page reload without a backend change). */ ?>
       <div class="quick-add__chips" role="group" aria-label="Notes quick-fill shortcuts">
         <template x-for="(chip, idx) in chips" :key="`chip-${idx}-${chip.text}`">
-          <button type="button" class="quick-add__chip"
-                  @click="insertChip(chip)"
-                  :aria-label="`Insert ${chip.text} into notes`">
-            <span x-text="chip.text"></span>
-            <span x-show="chip.userAdded" class="quick-add__chip-remove"
-                  @click.stop="removeChip(idx)"
-                  aria-label="Remove this chip">&times;</span>
-          </button>
+          <?php /* Two separate buttons in a wrapper. The chip body inserts;
+                 the × removes (only for user-added chips). A nested <button>
+                 inside another <button> is invalid HTML and keyboard
+                 users couldn't reach the remove — code review caught it. */ ?>
+          <span class="quick-add__chip-wrap">
+            <button type="button" class="quick-add__chip"
+                    @click="insertChip(chip)"
+                    :aria-label="`Insert ${chip.text} into notes`">
+              <span x-text="chip.text"></span>
+            </button>
+            <button type="button" class="quick-add__chip-remove"
+                    x-show="chip.userAdded"
+                    @click="removeChip(idx)"
+                    :aria-label="`Remove ${chip.text} chip`">&times;</button>
+          </span>
         </template>
         <button type="button" class="quick-add__chip quick-add__chip--add"
                 @click="addChipFromInput()"

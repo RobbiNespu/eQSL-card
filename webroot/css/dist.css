@@ -2150,26 +2150,42 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   gap: 6px;
   margin-top: var(--s-2, 8px);
 }
+/* The wrapper holds (a) the insert button and (b) the optional remove
+   button as siblings — nesting <button> inside <button> is invalid
+   HTML and breaks keyboard navigation. Code review caught it post-T10. */
+.quick-add__chip-wrap {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--bs-tertiary-bg, #f1f5f9);
+  overflow: hidden;
+}
 .quick-add__chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
   min-height: 36px;
-  background: var(--bs-tertiary-bg, #f1f5f9);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 999px;
-  font-size: 0.85em;
+  /* Background + border live on the wrapper now so the insert button
+     and remove button share one pill outline without a seam. */
+  background: transparent;
+  border: 0;
   cursor: pointer;
   color: var(--bs-body-color);
-  line-height: 1.2;
+  /* font: inherit FIRST, then explicit overrides — the shorthand resets
+     line-height + font-size, so the explicit values must come after. */
   font: inherit;
   font-size: 0.85em;
+  line-height: 1.2;
 }
 .quick-add__chip:hover:not(:disabled),
 .quick-add__chip:focus-visible {
   background: var(--bs-secondary-bg, #e2e8f0);
   outline: none;
+}
+.quick-add__chip-wrap:hover {
+  background: var(--bs-secondary-bg, #e2e8f0);
 }
 .quick-add__chip:active:not(:disabled) {
   transform: translateY(1px);
@@ -2178,21 +2194,31 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* The "+ Save as chip" pill stands alone (no wrapper, no sibling remove)
+   so it still needs its own border + background. */
 .quick-add__chip--add {
   background: transparent;
-  border-style: dashed;
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 999px;
   color: var(--text-muted, var(--bs-secondary-color));
+  font-size: 0.85em;
 }
 .quick-add__chip-remove {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  line-height: 14px;
-  text-align: center;
-  border-radius: 50%;
-  font-size: 14px;
-  opacity: 0.5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  min-width: 28px;
+  border: 0;
+  border-left: 1px solid var(--border, #e2e8f0);
+  background: transparent;
   cursor: pointer;
+  color: var(--text-muted, var(--bs-secondary-color));
+  /* font: inherit FIRST, then explicit overrides — shorthand resets line-height. */
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.6;
 }
 .quick-add__chip-remove:hover,
 .quick-add__chip-remove:focus-visible {
@@ -2235,13 +2261,12 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
 @media (max-width: 991.98px) {
   .quick-add__actions.form-actions-mobile {
     position: sticky;
-    /* Sit above: (a) bottom-tab nav 56px, (b) safe-area for the
-       iPhone home indicator, (c) any on-screen keyboard via the
-       --keyboard-inset variable. When the keyboard is open
-       --keyboard-inset > 0 and the bottom-tab nav is typically
-       hidden by the keyboard anyway, so we still want the inset
-       to override. */
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + var(--keyboard-inset, 0px));
+    /* When the on-screen keyboard is open it covers the bottom-tab nav
+       anyway, so we use max() rather than addition — the keyboard inset
+       REPLACES the tab offset when larger, instead of stacking on top.
+       Without max(), the button would jump up by 56px + keyboard_height
+       when focused, leaving an awkward gap above the keyboard. */
+    bottom: calc(env(safe-area-inset-bottom, 0px) + max(56px, var(--keyboard-inset, 0px)));
     background: var(--bs-body-bg, #fff);
     border-top: 1px solid var(--border, #e2e8f0);
     margin-left: calc(-1 * var(--bs-gutter-x, 12px));
