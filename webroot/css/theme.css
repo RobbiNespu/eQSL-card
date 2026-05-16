@@ -2334,3 +2334,35 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
 [data-theme="eqsl-dark"] .quick-add__active-banner-grid {
   background: rgba(0, 0, 0, 0.3);
 }
+
+/* ============================================================
+   M5 T21 — Offline-queued QSO marker in the recents panel
+   Visual distinction for QSOs that haven't reached the server
+   yet (logged offline; awaiting sync).
+   ============================================================ */
+.quick-add__recent-item--queued {
+  opacity: 0.7;
+  background: var(--warning-soft, #fef3c7);
+}
+.quick-add__recent-item--queued:hover {
+  background: var(--warning-soft, #fef3c7);
+  opacity: 1;
+}
+[data-theme="eqsl-dark"] .quick-add__recent-item--queued {
+  background: rgba(245, 158, 11, 0.12);
+}
+.quick-add__queued-pill {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 400;
+  padding: 1px 7px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--warning, #f59e0b);
+  color: #fff;
+  vertical-align: middle;
+}
+[data-theme="eqsl-dark"] .quick-add__queued-pill {
+  background: var(--warning, #fbbf24);
+  color: #1f2937;
+}

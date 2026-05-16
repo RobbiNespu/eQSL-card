@@ -77,9 +77,15 @@ $recentJson = json_encode(array_map(static function ($r): array {
         <template x-for="r in recent" :key="r.id">
           <li>
             <button type="button" class="quick-add__recent-item"
+                    :class="{ 'quick-add__recent-item--queued': r.queued }"
                     @click="cloneFromRecent(r)"
-                    :aria-label="`Reuse settings from QSO with ${r.callsign} at ${r.time}`">
-              <span class="quick-add__recent-call" x-text="r.callsign"></span>
+                    :aria-label="r.queued
+                        ? `Queued offline: ${r.callsign} at ${r.time}, not yet synced`
+                        : `Reuse settings from QSO with ${r.callsign} at ${r.time}`">
+              <span class="quick-add__recent-call">
+                <span x-text="r.callsign"></span>
+                <span x-show="r.queued" class="quick-add__queued-pill" title="Queued offline; syncs when online">⏳ queued</span>
+              </span>
               <span class="quick-add__recent-meta">
                 <span x-text="r.band || '—'"></span> ·
                 <span x-text="r.mode || '—'"></span> ·

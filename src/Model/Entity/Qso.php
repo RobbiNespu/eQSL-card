@@ -35,6 +35,13 @@ class Qso extends Entity
         // 'echolink'/'zello'/etc. for internet-mediated contacts.
         'transport' => true,
         'transport_meta' => true,
+        // M5 T21 — client-generated UUID for offline-sync idempotency.
+        // Mass-assignable because the client (offline queue) supplies it
+        // intentionally so retries don't double-insert. (user_id,
+        // client_uuid) is a UNIQUE INDEX server-side, so even if the
+        // controller missed the dedup branch, the DB would reject the
+        // duplicate.
+        'client_uuid' => true,
     ];
 
     protected function _setNcsCallsign(?string $value): ?string

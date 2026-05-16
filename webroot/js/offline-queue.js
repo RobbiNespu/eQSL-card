@@ -1,0 +1,196 @@
+/**
+ * M5 T20 — Offline QSO queue, IndexedDB-backed.
+ *
+ * One DB ("eqsl-card-offline") with one object store ("qsos") keyed
+ * by client-generated UUID. Schema:
+ *
+ *   uuid          string PK (client-generated v4 UUID)
+ *   data          object  — the quick-add form payload, ready to POST
+ *   queued_at     number  — epoch ms when the user tapped Save
+ *   pending_sync  boolean — true while waiting for server to ACK
+ *   retry_count   number  — bumped on each failed sync attempt
+ *   last_error    string  — message from the last failed attempt (null on success)
+ *
+ * Why client-UUID PK rather than auto-increment: the same UUID must
+ * survive across browser sessions, get sent to the server during
+ * sync, and let the server dedup on retries. The server's
+ * qsos.client_uuid column (M5 T21) is uniquely indexed per user.
+ *
+ * Pure module. No DOM, no Alpine. The Alpine component in app.js
+ * imports it via the global `window.OfflineQueue` set at bottom.
+ *
+ * Tested under Vitest with fake-indexeddb. Browsers without
+ * IndexedDB (very old Safari, IE) get a stub that always reports
+ * the queue as empty — offline logging won't work but the rest of
+ * the app does.
+ */
+
+const DB_NAME = 'eqsl-card-offline';
+const DB_VERSION = 1;
+const STORE = 'qsos';
+
+function hasIndexedDb() {
+    return typeof indexedDB !== 'undefined';
+}
+
+/** Generate a v4 UUID using crypto.randomUUID where available, else manual. */
+function generateUuid() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    // Fallback: manual v4 (RFC 4122 §4.4) for older Safari that has
+    // crypto.getRandomValues but not randomUUID.
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;  // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;  // variant 10
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function openDb() {
+    return new Promise((resolve, reject) => {
+        if (!hasIndexedDb()) {
+            reject(new Error('IndexedDB not available'));
+            return;
+        }
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE)) {
+                const store = db.createObjectStore(STORE, { keyPath: 'uuid' });
+                // Secondary index for chronological draining during sync.
+                store.createIndex('queued_at', 'queued_at', { unique: false });
+            }
+        };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function withStore(mode, fn) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, mode);
+        const store = tx.objectStore(STORE);
+        let result;
+        try {
+            result = fn(store);
+        } catch (e) {
+            db.close();
+            reject(e);
+            return;
+        }
+        tx.oncomplete = () => {
+            db.close();
+            resolve(result);
+        };
+        tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+        };
+        tx.onabort = () => {
+            db.close();
+            reject(tx.error);
+        };
+    });
+}
+
+/**
+ * Enqueue a QSO for later sync. Returns the assigned UUID so the
+ * caller can render it immediately (with a "queued" marker) without
+ * a round-trip.
+ */
+async function enqueue(data) {
+    const uuid = generateUuid();
+    const row = {
+        uuid,
+        data: { ...data, client_uuid: uuid },
+        queued_at: Date.now(),
+        pending_sync: true,
+        retry_count: 0,
+        last_error: null,
+    };
+    await withStore('readwrite', (store) => {
+        store.add(row);
+    });
+    return row;
+}
+
+/** Get every queued row, oldest first. */
+async function getAll() {
+    return withStore('readonly', (store) => {
+        return new Promise((resolve, reject) => {
+            const rows = [];
+            const idx = store.index('queued_at');
+            const req = idx.openCursor();
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    rows.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve(rows);
+                }
+            };
+            req.onerror = () => reject(req.error);
+        });
+    }).then((maybePromise) => maybePromise);
+}
+
+async function count() {
+    return withStore('readonly', (store) => {
+        return new Promise((resolve, reject) => {
+            const req = store.count();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }).then((maybePromise) => maybePromise);
+}
+
+async function remove(uuid) {
+    return withStore('readwrite', (store) => {
+        store.delete(uuid);
+    });
+}
+
+async function markError(uuid, errorMessage) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        const store = tx.objectStore(STORE);
+        const getReq = store.get(uuid);
+        getReq.onsuccess = () => {
+            const row = getReq.result;
+            if (!row) {
+                tx.abort();
+                return;
+            }
+            row.retry_count = (row.retry_count || 0) + 1;
+            row.last_error = String(errorMessage || 'unknown');
+            store.put(row);
+        };
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+        tx.onabort = () => { db.close(); resolve(); };  // row missing is fine
+    });
+}
+
+/** Drop every queued row. Used by "Clear all" affordance + reset for tests. */
+async function clear() {
+    return withStore('readwrite', (store) => {
+        store.clear();
+    });
+}
+
+const OfflineQueue = {
+    enqueue, getAll, count, remove, markError, clear, generateUuid,
+    hasIndexedDb,
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = OfflineQueue;
+}
+if (typeof window !== 'undefined') {
+    window.OfflineQueue = OfflineQueue;
+}

@@ -266,6 +266,7 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
 </footer>
 <script src="<?= $this->Url->build('/js/focus-trap.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/maidenhead.js') ?>" defer></script>
+<script src="<?= $this->Url->build('/js/offline-queue.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/app.js') ?>" defer></script>
 <?= $this->fetch('script') ?>
 <!--

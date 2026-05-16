@@ -357,16 +357,30 @@ function quickAddForm(recent) {
             }
             this.submitting = true;
 
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content
-                || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
-            const body = new URLSearchParams({
+            // Build the payload + client UUID up-front so the offline
+            // path can stash the same data the online path would have sent.
+            const queue = window.OfflineQueue;
+            const data = {
                 call_worked:   this.form.callsign,
                 frequency_mhz: this.form.frequency,
                 mode:          this.form.mode,
                 rst_sent:      this.form.rstSent,
                 rst_received:  this.form.rstRecv,
                 notes:         this.form.notes,
-            });
+            };
+
+            // M5 T21 — short-circuit to the queue when the browser
+            // reports offline. navigator.onLine is best-effort
+            // (sometimes wrong both ways) but the queue+retry path
+            // catches the cases where it's wrong.
+            if (typeof navigator !== 'undefined' && navigator.onLine === false && queue) {
+                await this._queueOffline(data);
+                return;
+            }
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content
+                || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
+            const body = new URLSearchParams(data);
 
             try {
                 const resp = await fetch('/qsos/quick', {
@@ -378,27 +392,64 @@ function quickAddForm(recent) {
                     },
                     body,
                 });
-                const data = await resp.json().catch(() => null);
-                if (!resp.ok || !data || !data.ok) {
+                const respData = await resp.json().catch(() => null);
+                if (!resp.ok || !respData || !respData.ok) {
                     this.showFlash('error',
-                        data?.errors
+                        respData?.errors
                             ? 'Save failed — check fields.'
                             : `Save failed (${resp.status}).`);
                     return;
                 }
-                this.recent = [data.qso, ...this.recent].slice(0, 5);
-                this.form.callsign = '';
-                this.form.rstSent  = '';
-                this.form.rstRecv  = '';
-                this.showFlash('success', `Logged ${data.qso.callsign}.`);
+                this.recent = [respData.qso, ...this.recent].slice(0, 5);
+                this._clearPerContactFields();
+                this.showFlash('success', `Logged ${respData.qso.callsign}.`);
                 this.$nextTick(() => {
                     if (this.$refs.callsign) this.$refs.callsign.focus();
                 });
             } catch (e) {
-                this.showFlash('error', 'Network error — please retry.');
+                // Network error (fetch threw): treat as offline if we
+                // have the queue available. Otherwise show the old
+                // retry-please message.
+                if (queue) {
+                    await this._queueOffline(data);
+                } else {
+                    this.showFlash('error', 'Network error — please retry.');
+                }
             } finally {
                 this.submitting = false;
             }
+        },
+        async _queueOffline(data) {
+            try {
+                const row = await window.OfflineQueue.enqueue(data);
+                // Render the queued row in the recents panel with a
+                // marker so the operator sees it landed even though
+                // it hasn't reached the server yet.
+                const placeholder = {
+                    id: 'queued-' + row.uuid,
+                    callsign: data.call_worked,
+                    frequency: data.frequency_mhz || '',
+                    band: '',
+                    mode: data.mode || '',
+                    notes: data.notes || '',
+                    time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+                    queued: true,
+                };
+                this.recent = [placeholder, ...this.recent].slice(0, 5);
+                this._clearPerContactFields();
+                this.showFlash('success', `Queued offline: ${data.call_worked}. Will sync when online.`);
+                this.$nextTick(() => {
+                    if (this.$refs.callsign) this.$refs.callsign.focus();
+                });
+            } catch (e) {
+                this.showFlash('error', 'Could not queue offline: ' + e.message);
+            }
+        },
+        _clearPerContactFields() {
+            this.form.callsign = '';
+            this.form.rstSent  = '';
+            this.form.rstRecv  = '';
+            // freq/mode/notes preserved for net rotations (T8 behaviour).
         },
         showFlash(kind, message) {
             this.flashKind = kind;
