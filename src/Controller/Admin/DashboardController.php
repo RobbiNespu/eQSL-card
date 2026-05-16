@@ -45,7 +45,7 @@ class DashboardController extends AppController
         $users = $this->fetchTable('Users');
         $cards = $this->fetchTable('Cards');
         $templates = $this->fetchTable('Templates');
-        $uploads = $this->fetchTable('Uploads');
+        $uploads = $this->fetchTable('CardBackgrounds');
         $audit = $this->fetchTable('AuditLogs');
 
         $stats = [

@@ -435,8 +435,8 @@ class TemplatesController extends AppController
                 $entity->set('background_upload_id', null);
             } else {
                 $bgId = (int)$bgIdRaw;
-                $owned = $this->fetchTable('Uploads')->find()
-                    ->where(['id' => $bgId, 'user_id' => $userId, 'Uploads.deleted_at IS' => null])
+                $owned = $this->fetchTable('CardBackgrounds')->find()
+                    ->where(['id' => $bgId, 'user_id' => $userId, 'CardBackgrounds.deleted_at IS' => null])
                     ->count();
                 if ($owned > 0) {
                     $entity->set('background_upload_id', $bgId);
@@ -632,7 +632,7 @@ class TemplatesController extends AppController
             rename($tmpDest, $finalPath);
         }
 
-        $uploads = $this->fetchTable('Uploads');
+        $uploads = $this->fetchTable('CardBackgrounds');
         $row = $uploads->find()->where(['sha256_hash' => $sha])->first();
         if (!$row) {
             $row = $uploads->saveOrFail($uploads->newEntity([

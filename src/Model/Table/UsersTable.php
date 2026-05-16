@@ -25,7 +25,7 @@ class UsersTable extends Table
 
         $this->hasMany('Cards');
         $this->hasMany('Templates');
-        $this->hasMany('Uploads');
+        $this->hasMany('CardBackgrounds', ['foreignKey' => 'upload_id']);
     }
 
     public function validationDefault(Validator $validator): Validator

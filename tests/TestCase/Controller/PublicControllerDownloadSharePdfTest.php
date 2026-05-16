@@ -17,7 +17,7 @@ final class PublicControllerDownloadSharePdfTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     private function seedShare(string $slug, array $cardExtras = []): array
     {
@@ -35,7 +35,7 @@ final class PublicControllerDownloadSharePdfTest extends TestCase
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         $up = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $u->id, 'original_filename' => 'bg.webp',
             'storage_path' => 'files/uploads/share-test.webp', 'mime_type' => 'image/webp',

@@ -21,7 +21,7 @@ final class QsosControllerIndexTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     private function seedUserAndLogin(string $email = 'op@x.com'): int
     {
@@ -152,7 +152,7 @@ final class QsosControllerIndexTest extends TestCase
             'layout_json' => json_encode(['fields' => []]),
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         $up = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $userId, 'original_filename' => 'b.jpg',
             'storage_path' => 'files/uploads/b.jpg', 'mime_type' => 'image/jpeg',

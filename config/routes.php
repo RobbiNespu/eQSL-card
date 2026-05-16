@@ -171,13 +171,22 @@ return function (RouteBuilder $routes): void {
          * BEFORE this line will match cleanly without ambiguity.
          */
         // Background-image library (per-user). Edit/delete also serve admin
-        // operating-on-anyone's uploads — controller-level role check.
-        $builder->connect('/uploads', ['controller' => 'Uploads', 'action' => 'index'])
+        // operating-on-anyone's backgrounds — controller-level role check.
+        // Renamed from /uploads to /card-backgrounds when the underlying
+        // table was rebranded; the legacy URLs below 301-redirect here so
+        // existing bookmarks and shared links keep working.
+        $builder->connect('/card-backgrounds', ['controller' => 'CardBackgrounds', 'action' => 'index'])
             ->setMethods(['GET']);
-        $builder->connect('/uploads/{id}/edit', ['controller' => 'Uploads', 'action' => 'edit'])
+        $builder->connect('/card-backgrounds/{id}/edit', ['controller' => 'CardBackgrounds', 'action' => 'edit'])
             ->setPass(['id'])->setMethods(['GET', 'POST', 'PUT', 'PATCH'])->setPatterns(['id' => '\d+']);
-        $builder->connect('/uploads/{id}/delete', ['controller' => 'Uploads', 'action' => 'delete'])
+        $builder->connect('/card-backgrounds/{id}/delete', ['controller' => 'CardBackgrounds', 'action' => 'delete'])
             ->setPass(['id'])->setMethods(['POST'])->setPatterns(['id' => '\d+']);
+
+        // Back-compat: old /uploads URLs redirect (301) to the new
+        // /card-backgrounds equivalents so existing bookmarks survive.
+        $builder->redirect('/uploads', '/card-backgrounds', ['status' => 301]);
+        $builder->redirect('/uploads/:id/edit', '/card-backgrounds/:id/edit', ['status' => 301, 'persist' => ['id']]);
+        $builder->redirect('/uploads/:id/delete', '/card-backgrounds/:id/delete', ['status' => 301, 'persist' => ['id']]);
 
         $builder->connect('/cards', ['controller' => 'Cards', 'action' => 'index'])
             ->setMethods(['GET']);
@@ -393,11 +402,14 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/audit', ['controller' => 'Audit', 'action' => 'index'])
             ->setMethods(['GET']);
 
-        // Admin all-uploads listing (deep-links into /uploads/{id}/edit and
-        // /uploads/{id}/delete with ?return=/admin/uploads so the redirect
-        // round-trips back here).
-        $builder->connect('/uploads', ['controller' => 'Uploads', 'action' => 'index'])
+        // Admin all-backgrounds listing (deep-links into the user-facing
+        // /card-backgrounds/{id}/edit and /delete with
+        // ?return=/admin/card-backgrounds so the redirect round-trips back
+        // here). Legacy /admin/uploads URL 301-redirects to keep old
+        // bookmarks alive.
+        $builder->connect('/card-backgrounds', ['controller' => 'CardBackgrounds', 'action' => 'index'])
             ->setMethods(['GET']);
+        $builder->redirect('/uploads', '/admin/card-backgrounds', ['status' => 301]);
 
         /*
          * Cleanup tools (M4-T9/T10/T11). `index` renders a dry-run preview

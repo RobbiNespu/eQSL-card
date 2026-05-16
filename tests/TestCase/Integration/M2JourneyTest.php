@@ -20,7 +20,7 @@ final class M2JourneyTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.Uploads', 'app.Cards', 'app.PasswordResets'];
+    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.CardBackgrounds', 'app.Cards', 'app.PasswordResets'];
 
     /** Bridge $_SESSION → IntegrationTestTrait's _session between requests (T6 helper). */
     private function bridgeSession(): void

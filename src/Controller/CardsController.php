@@ -62,7 +62,7 @@ class CardsController extends AppController
      * Single-card detail view (M2-T8).
      *
      * Scoped by `user_id` so a user cannot peek at another operator's card via
-     * a guessed id — the query simply 404s. We `contain` Templates and Uploads
+     * a guessed id — the query simply 404s. We `contain` Templates and CardBackgrounds
      * because the view surfaces template name and the original background-image
      * filename. `qso_data_json` is decoded once here so the template stays free
      * of decoding logic; if the column is malformed JSON we fall back to an
@@ -83,7 +83,7 @@ class CardsController extends AppController
         // `active` finder keeps that policy in one place (CardsTable).
         $card = $this->fetchTable('Cards')->find('active')
             ->where(['Cards.id' => $id, 'Cards.user_id' => $userId])
-            ->contain(['Templates', 'Uploads'])
+            ->contain(['Templates', 'CardBackgrounds'])
             ->firstOrFail();
 
         $qsoData = json_decode((string)$card->qso_data_json, true) ?: [];

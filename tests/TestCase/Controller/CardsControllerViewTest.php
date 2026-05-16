@@ -10,7 +10,7 @@ use Cake\TestSuite\TestCase;
 final class CardsControllerViewTest extends TestCase
 {
     use IntegrationTestTrait;
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     private static int $shaCounter = 0;
 
@@ -33,7 +33,7 @@ final class CardsControllerViewTest extends TestCase
             'layout_json' => json_encode(['fields' => []]),
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
-        $u = $this->getTableLocator()->get('Uploads');
+        $u = $this->getTableLocator()->get('CardBackgrounds');
         self::$shaCounter++;
         $upload = $u->saveOrFail($u->newEntity([
             'user_id' => $userId,

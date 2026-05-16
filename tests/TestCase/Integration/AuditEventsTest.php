@@ -26,7 +26,7 @@ final class AuditEventsTest extends TestCase
     protected array $fixtures = [
         'app.Users',
         'app.Templates',
-        'app.Uploads',
+        'app.CardBackgrounds',
         'app.Cards',
         'app.AuditLogs',
         'app.GuestVisits',
@@ -74,7 +74,7 @@ final class AuditEventsTest extends TestCase
             'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         self::$shaCounter++;
         $upload = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $userId,

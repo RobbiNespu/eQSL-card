@@ -146,9 +146,9 @@ class QsosController extends AppController
         // User's existing uploads (capped) for the bulk-render background picker.
         // Soft-deleted uploads (deleted_at non-null) must drop out — they're
         // hidden from /uploads and the on-disk file is already gone.
-        $userUploads = $this->fetchTable('Uploads')->find()
-            ->where(['user_id' => $userId, 'Uploads.deleted_at IS' => null])
-            ->orderBy(['Uploads.created_at' => 'DESC'])
+        $userUploads = $this->fetchTable('CardBackgrounds')->find()
+            ->where(['user_id' => $userId, 'CardBackgrounds.deleted_at IS' => null])
+            ->orderBy(['CardBackgrounds.created_at' => 'DESC'])
             ->limit(20)
             ->all();
 
@@ -474,8 +474,8 @@ class QsosController extends AppController
         // Skip soft-deleted uploads — they're hidden from /uploads and the
         // on-disk JPEG is already gone, so offering them in the picker would
         // surface a 404 on the next step.
-        $existingUploads = $this->fetchTable('Uploads')->find()
-            ->where(['user_id' => $userId, 'Uploads.deleted_at IS' => null])
+        $existingUploads = $this->fetchTable('CardBackgrounds')->find()
+            ->where(['user_id' => $userId, 'CardBackgrounds.deleted_at IS' => null])
             ->orderBy(['created_at' => 'DESC'])
             ->limit(20);
 
@@ -829,8 +829,8 @@ class QsosController extends AppController
         // template author for a system/public template), so we deliberately
         // do NOT re-scope by user_id here. The deleted_at guard remains —
         // a soft-deleted row's file may have been pruned and would 500 GD.
-        $upload = $this->fetchTable('Uploads')->find()
-            ->where(['id' => $uploadId, 'Uploads.deleted_at IS' => null])
+        $upload = $this->fetchTable('CardBackgrounds')->find()
+            ->where(['id' => $uploadId, 'CardBackgrounds.deleted_at IS' => null])
             ->firstOrFail();
 
         $finalPath = WWW_ROOT . $upload->storage_path;
@@ -915,14 +915,14 @@ class QsosController extends AppController
      */
     private function resolveTemplateBackground(object $template, int $userId): array
     {
-        $uploadsTbl = $this->fetchTable('Uploads');
+        $uploadsTbl = $this->fetchTable('CardBackgrounds');
 
         // Template-bound bg path. Must be active (deleted_at IS NULL) and
         // still on disk — soft-deleted rows might have had their file pruned.
         $boundId = (int)($template->background_upload_id ?? 0);
         if ($boundId > 0) {
             $bound = $uploadsTbl->find()
-                ->where(['id' => $boundId, 'Uploads.deleted_at IS' => null])
+                ->where(['id' => $boundId, 'CardBackgrounds.deleted_at IS' => null])
                 ->first();
             if ($bound !== null && is_file(WWW_ROOT . $bound->storage_path)) {
                 return [$bound, $bound->author_name, (string)$bound->license];

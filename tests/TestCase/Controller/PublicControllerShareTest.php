@@ -21,7 +21,7 @@ final class PublicControllerShareTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     /**
      * `uploads.sha256_hash` carries a UNIQUE index, so each seeded upload
@@ -45,7 +45,7 @@ final class PublicControllerShareTest extends TestCase
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         self::$shaCounter++;
         $upload = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $u->id,

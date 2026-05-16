@@ -8,12 +8,17 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
-class UploadsTable extends Table
+/**
+ * Card background images. Renamed from `UploadsTable` in
+ * 20260516000007_RenameUploadsToCardBackgrounds — the underlying
+ * data is unchanged, only the name on the outside.
+ */
+class CardBackgroundsTable extends Table
 {
     public function initialize(array $config): void
     {
         parent::initialize($config);
-        $this->setTable('uploads');
+        $this->setTable('card_backgrounds');
         $this->setPrimaryKey('id');
         $this->addBehavior('Timestamp', [
             'events' => [
@@ -25,11 +30,12 @@ class UploadsTable extends Table
 
         $this->belongsTo('Users');
         $this->belongsTo('GuestVisits');
-        // M4-T10: orphan-uploads sweep walks `Uploads.notMatching('Cards', …)` to
-        // find rows referenced by no card. The reciprocal `Cards.belongsTo
-        // Uploads` association already exists (M2 schema); we add the inverse
-        // here so the cleanup query has the join target it needs.
-        $this->hasMany('Cards');
+        // M4-T10 cleanup walks CardBackgrounds.notMatching('Cards', …) to
+        // find rows referenced by no card. The reciprocal
+        // Cards.belongsTo CardBackgrounds association still uses the
+        // legacy `upload_id` FK column name; we keep that for backward
+        // compat with existing card rows.
+        $this->hasMany('Cards', ['foreignKey' => 'upload_id']);
     }
 
     public function validationDefault(Validator $validator): Validator
@@ -67,7 +73,7 @@ class UploadsTable extends Table
             return ($hasUser xor $hasGuest);
         }, 'ownerExclusive', [
             'errorField' => 'user_id',
-            'message' => 'Upload must have either user_id OR guest_visit_id, not both.',
+            'message' => 'Card background must have either user_id OR guest_visit_id, not both.',
         ]);
 
         return $rules;

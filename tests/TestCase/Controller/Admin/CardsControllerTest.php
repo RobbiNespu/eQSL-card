@@ -17,7 +17,7 @@ use Cake\TestSuite\TestCase;
 final class CardsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Uploads', 'app.Cards', 'app.GuestVisits'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.CardBackgrounds', 'app.Cards', 'app.GuestVisits'];
 
     private static int $shaCounter = 0;
 

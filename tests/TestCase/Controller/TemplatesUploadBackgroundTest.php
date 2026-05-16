@@ -23,7 +23,7 @@ final class TemplatesUploadBackgroundTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Uploads'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.CardBackgrounds'];
 
     private function loginAs(): int
     {
@@ -58,7 +58,7 @@ final class TemplatesUploadBackgroundTest extends TestCase
         $this->assertStringContainsString('files/uploads/', $body['url']);
         $this->assertGreaterThan(0, $body['upload_id']);
 
-        $row = $this->getTableLocator()->get('Uploads')->get($body['upload_id']);
+        $row = $this->getTableLocator()->get('CardBackgrounds')->get($body['upload_id']);
         $this->assertSame($userId, $row->user_id);
     }
 

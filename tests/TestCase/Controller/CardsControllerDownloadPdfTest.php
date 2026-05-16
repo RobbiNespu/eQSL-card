@@ -23,7 +23,7 @@ final class CardsControllerDownloadPdfTest extends TestCase
     use IntegrationTestTrait;
 
     protected array $fixtures = [
-        'app.Users', 'app.Templates', 'app.Uploads', 'app.Cards', 'app.GuestVisits',
+        'app.Users', 'app.Templates', 'app.CardBackgrounds', 'app.Cards', 'app.GuestVisits',
     ];
 
     private function loginAs(string $email = 'op@x.com'): int
@@ -53,7 +53,7 @@ final class CardsControllerDownloadPdfTest extends TestCase
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         $up = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $userId,
             'guest_visit_id' => $guestVisitId,

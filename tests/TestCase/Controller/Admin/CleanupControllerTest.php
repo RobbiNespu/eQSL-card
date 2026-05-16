@@ -26,7 +26,7 @@ final class CleanupControllerTest extends TestCase
     protected array $fixtures = [
         'app.Users',
         'app.Templates',
-        'app.Uploads',
+        'app.CardBackgrounds',
         'app.Cards',
         'app.GuestVisits',
         'app.AuditLogs',
@@ -78,7 +78,7 @@ final class CleanupControllerTest extends TestCase
 
     private function seedUpload(?int $guestVisitId = null, ?int $userId = null): \Cake\Datasource\EntityInterface
     {
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         self::$shaCounter++;
         $data = [
             'original_filename' => 'g.jpg',
@@ -155,7 +155,7 @@ final class CleanupControllerTest extends TestCase
         $visitId = $this->seedGuestVisit();
         $upload = $this->seedUpload(guestVisitId: $visitId);
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         // Backdate so it falls past the 30-day cutoff.
         $uploads->updateAll(['created_at' => DateTime::now()->subDays(60)], ['id' => $upload->id]);
 
