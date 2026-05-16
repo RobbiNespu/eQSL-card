@@ -4,34 +4,42 @@
 </p>
 
 <p class="text-muted">
-  Combined view across the admin-curated local directory and the auto-fetched
-  external cache (<code>UNION ALL</code> across both tables). A callsign that
-  exists in both stores will appear twice, with different source badges, so
-  duplicates are visible at a glance instead of being silently merged.
+  Combined view across every callsign-data store this install maintains —
+  the admin-curated local directory, the per-callsign auto-fetch cache,
+  and the bulk RadioID lookup cache (<code>UNION ALL</code> across all
+  three). A callsign that exists in multiple stores will appear once per
+  store with a different source badge, so overlaps are visible at a
+  glance instead of being silently merged.
 </p>
 
 <div class="row g-3 mb-3">
-  <div class="col-sm-4">
+  <div class="col-sm-3">
     <div class="card p-2 text-center">
-      <p class="display-6 mb-0"><?= h($directoryCount) ?></p>
-      <p class="text-muted small mb-0">From local directory</p>
+      <p class="display-6 mb-0"><?= h(number_format($directoryCount)) ?></p>
+      <p class="text-muted small mb-0">Local directory</p>
     </div>
   </div>
-  <div class="col-sm-4">
+  <div class="col-sm-3">
     <div class="card p-2 text-center">
-      <p class="display-6 mb-0"><?= h($cacheCount) ?></p>
-      <p class="text-muted small mb-2">From external cache</p>
+      <p class="display-6 mb-0"><?= h(number_format($cacheCount)) ?></p>
+      <p class="text-muted small mb-2">External cache</p>
       <?php if ($cacheCount > 0): ?>
-        <?= $this->Form->postLink('Clear external cache', '/admin/callsign-lookups/clear', [
+        <?= $this->Form->postLink('Clear', '/admin/callsign-lookups/clear', [
             'class'   => 'btn btn-outline-danger btn-sm',
             'confirm' => 'Delete every cached row? The chain will re-fetch on demand. QSO history is untouched.',
         ]) ?>
       <?php endif; ?>
     </div>
   </div>
-  <div class="col-sm-4">
+  <div class="col-sm-3">
     <div class="card p-2 text-center">
-      <p class="display-6 mb-0"><?= h($totalCount) ?></p>
+      <p class="display-6 mb-0"><?= h(number_format($registryCount)) ?></p>
+      <p class="text-muted small mb-0">RadioID registry</p>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card p-2 text-center">
+      <p class="display-6 mb-0"><?= h(number_format($totalCount)) ?></p>
       <p class="text-muted small mb-0">Total rows (with duplicates)</p>
     </div>
   </div>
@@ -80,6 +88,11 @@
                       title="Admin-curated CSV entry<?= !empty($row['source_detail']) ? ' from ' . h($row['source_detail']) : '' ?>">
                   Directory<?= !empty($row['source_detail']) ? ' · ' . h($row['source_detail']) : '' ?>
                 </span>
+              <?php elseif ($row['source_type'] === 'radioid'): ?>
+                <span class="badge bg-success"
+                      title="Local RadioID lookup cache, radio_id <?= h($row['source_detail']) ?>">
+                  RadioID
+                </span>
               <?php else: ?>
                 <span class="badge bg-secondary"
                       title="Auto-fetched from <?= h($row['source_detail']) ?>">
@@ -101,6 +114,12 @@
               <?php if ($row['source_type'] === 'directory'): ?>
                 <a class="btn btn-outline-primary btn-sm"
                    href="/admin/callsign-lookups/provider/local?q=<?= h($row['callsign']) ?>">Manage</a>
+              <?php elseif ($row['source_type'] === 'radioid'): ?>
+                <?php if (!empty($row['source_detail'])): ?>
+                  <a class="btn btn-outline-primary btn-sm"
+                     href="https://radioid.net/database/view?id=<?= h($row['source_detail']) ?>"
+                     rel="noopener" target="_blank">View upstream &nearr;</a>
+                <?php endif; ?>
               <?php else: ?>
                 <a class="btn btn-outline-primary btn-sm"
                    href="/admin/callsign-lookups/<?= h($row['id']) ?>/edit">Edit cache</a>

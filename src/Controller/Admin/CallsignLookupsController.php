@@ -32,13 +32,13 @@ class CallsignLookupsController extends AppController
      * so the admin sees the same set the runtime uses.
      */
     private const PROVIDER_MAP = [
-        'local'       => 'Local directory — admin-imported CSV (recommended FIRST)',
-        'radioid'     => 'RadioID.net — worldwide DMR registry, JSON API',
-        'radioid_api' => 'RadioID API (users) — broader users endpoint; behind Cloudflare',
-        'qrz'         => 'QRZ.com — requires paid XML key, currently disabled',
-        'mcmc'        => 'MCMC Malaysia — live scrape (9M / 9W)',
-        'marts'       => 'MARTS Malaysia — use local directory; site unstable',
-        'rapi'        => 'Indonesia RAPI — use local directory; PDF-only sources',
+        'local'                 => 'Local directory — admin-imported CSV (recommended FIRST)',
+        'radioid_database_dump' => 'RadioID registry — periodic stream into a local lookup cache; respects radioid.net/api_use_policy',
+        'radioid_api'           => 'RadioID API (users) — broader users endpoint; behind Cloudflare',
+        'qrz'                   => 'QRZ.com — requires paid XML key, currently disabled',
+        'mcmc'                  => 'MCMC Malaysia — live scrape (9M / 9W)',
+        'marts'                 => 'MARTS Malaysia — use local directory; site unstable',
+        'rapi'                  => 'Indonesia RAPI — use local directory; PDF-only sources',
     ];
 
     public function initialize(): void
@@ -85,20 +85,21 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Unified view across both data sources.
+     * Unified view across every callsign-data table this app maintains.
      *
-     * UNION ALL across `callsign_directory` (CSV-uploaded) and
-     * `callsign_lookups` (auto-fetched cache), projecting both into a
+     * UNION ALL across three sources — `callsign_directory` (admin
+     * CSV), `callsign_lookups` (per-call auto-fetch cache), and
+     * `radioid_registry` (bulk RadioID dump) — projecting each into a
      * uniform shape (literal `source_type` discriminator, aliased
-     * `source_detail` and `updated_at`). UNION ALL keeps duplicates — when
-     * a callsign exists in both tables it shows up twice with different
-     * source badges, which is exactly what the operator wants to see.
+     * `source_detail` and `updated_at`). UNION ALL keeps duplicates so
+     * a callsign that lives in two stores appears twice with different
+     * source badges — the operator can spot overlaps at a glance.
      *
-     * Done as raw SQL because the two tables have different columns and
-     * mapping that through the ORM's union() with literal expressions is
-     * uglier than the SQL itself. Counts and pagination are computed
-     * server-side; the connection-level execute() returns plain arrays
-     * which match the existing view's expectations.
+     * Done as raw SQL because the three tables have different columns
+     * and projecting them through the ORM's union() with literal
+     * expressions is uglier than the SQL itself. Counts and pagination
+     * are computed server-side; the connection-level execute() returns
+     * plain arrays the view consumes directly.
      */
     public function all(): void
     {
@@ -106,7 +107,9 @@ class CallsignLookupsController extends AppController
         $dirTable = $this->fetchTable('CallsignDirectory');
         $cacheTable = $this->fetchTable('CallsignLookups');
 
-        // Counts via the ORM — same filter applied to both tables.
+        // Counts via the ORM where the model exists. The radioid_registry
+        // is a thin lookup table without a Cake table class — count via
+        // the connection directly so we keep the same filter shape.
         $dirCountQ = $dirTable->find();
         $cacheCountQ = $cacheTable->find();
         if ($q !== '') {
@@ -116,7 +119,18 @@ class CallsignLookupsController extends AppController
         }
         $directoryCount = $dirCountQ->count();
         $cacheCount = $cacheCountQ->count();
-        $totalRows = $directoryCount + $cacheCount;
+
+        $conn = $cacheTable->getConnection();
+        $registryCountSql = 'SELECT COUNT(*) AS c FROM radioid_registry';
+        $registryCountParams = [];
+        if ($q !== '') {
+            $registryCountSql .= ' WHERE UPPER(callsign) LIKE :patC';
+            $registryCountParams['patC'] = '%' . strtoupper($q) . '%';
+        }
+        $registryCount = (int)$conn->execute($registryCountSql, $registryCountParams)
+            ->fetch('assoc')['c'];
+
+        $totalRows = $directoryCount + $cacheCount + $registryCount;
 
         // Pagination
         $perPage = 50;
@@ -124,12 +138,35 @@ class CallsignLookupsController extends AppController
         $page = max(1, min($totalPages, (int)$this->request->getQuery('page', 1)));
         $offset = ($page - 1) * $perPage;
 
-        // Build the UNION ALL. Each SELECT picks the same column order and
-        // names so the union is well-formed; the literal 'directory' /
-        // 'cache' string becomes the source_type discriminator the view
-        // uses to render the right badge and action button per row.
+        // Build the UNION ALL. Each SELECT picks the same column order
+        // and names so the union is well-formed; the literal
+        // 'directory' / 'cache' / 'radioid' string becomes the
+        // source_type discriminator the view uses to render the right
+        // badge and action button per row. radioid_registry has no
+        // grid_square / license_class columns, so we project NULL for
+        // them to keep the column shape aligned. The first_name/
+        // last_name fields are concatenated into a single `name` column
+        // using dialect-portable CONCAT — MySQL has it natively, SQLite
+        // 3.44+ has it, both PHP-shipped builds we target are above
+        // that. Same shape for city/state into `qth`.
         $where1 = $q !== '' ? 'WHERE UPPER(callsign) LIKE :pat1' : '';
         $where2 = $q !== '' ? 'WHERE UPPER(callsign) LIKE :pat2' : '';
+        $where3 = $q !== '' ? 'WHERE UPPER(callsign) LIKE :pat3' : '';
+        $isMysql = str_contains(strtolower(get_class($conn->getDriver())), 'mysql');
+        // `||` is string concat in SQLite/Postgres but boolean OR in
+        // MySQL — branch on driver to pick the right operator.
+        $cat = static function (array $parts) use ($isMysql): string {
+            if ($isMysql) {
+                return 'CONCAT(' . implode(',', $parts) . ')';
+            }
+            return '(' . implode(' || ', $parts) . ')';
+        };
+        $nameExpr = $cat(["COALESCE(first_name, '')", "' '", "COALESCE(last_name, '')"]);
+        $qthExpr  = $cat([
+            "COALESCE(city, '')",
+            "CASE WHEN city <> '' AND state <> '' THEN ', ' ELSE '' END",
+            "COALESCE(state, '')",
+        ]);
         $sql = "
             SELECT
                 id, callsign, name, qth, country, grid_square, license_class,
@@ -146,18 +183,33 @@ class CallsignLookupsController extends AppController
                 fetched_at AS updated_at
             FROM callsign_lookups
             {$where2}
+            UNION ALL
+            SELECT
+                id,
+                callsign,
+                TRIM({$nameExpr}) AS name,
+                TRIM({$qthExpr}) AS qth,
+                country,
+                NULL AS grid_square,
+                NULL AS license_class,
+                'radioid' AS source_type,
+                CAST(radio_id AS CHAR) AS source_detail,
+                imported_at AS updated_at
+            FROM radioid_registry
+            {$where3}
             ORDER BY callsign ASC, source_type ASC
             LIMIT :lim OFFSET :off
         ";
 
         // Distinct placeholder names per occurrence — strict PDO mode
-        // rejects re-using `:pat` across the two halves of the union.
+        // rejects re-using a single :pat across the three halves.
         $params = ['lim' => $perPage, 'off' => $offset];
         $types  = ['lim' => 'integer', 'off' => 'integer'];
         if ($q !== '') {
             $like = '%' . strtoupper($q) . '%';
             $params['pat1'] = $like;
             $params['pat2'] = $like;
+            $params['pat3'] = $like;
         }
 
         $stmt = $cacheTable->getConnection()->execute($sql, $params, $types);
@@ -184,6 +236,7 @@ class CallsignLookupsController extends AppController
             'callsigns'      => $rows,
             'directoryCount' => $directoryCount,
             'cacheCount'     => $cacheCount,
+            'registryCount'  => $registryCount,
             'totalCount'     => $totalRows,
             'page'           => $page,
             'totalPages'     => $totalPages,
@@ -313,12 +366,12 @@ class CallsignLookupsController extends AppController
     public function provider(string $code): void
     {
         $known = [
-            'qrz'         => 'QRZ.com',
-            'radioid'     => 'RadioID.net',
-            'radioid_api' => 'RadioID API (users)',
-            'mcmc'        => 'MCMC Malaysia',
-            'marts'       => 'MARTS Malaysia',
-            'rapi'        => 'Indonesia RAPI',
+            'qrz'                   => 'QRZ.com',
+            'radioid_database_dump' => 'RadioID database dump',
+            'radioid_api'           => 'RadioID API (users)',
+            'mcmc'                  => 'MCMC Malaysia',
+            'marts'                 => 'MARTS Malaysia',
+            'rapi'                  => 'Indonesia RAPI',
         ];
         if (!isset($known[$code])) {
             throw new \Cake\Http\Exception\NotFoundException();
@@ -334,14 +387,143 @@ class CallsignLookupsController extends AppController
         $enabledList = array_filter(array_map('trim', explode(',', $enabledCsv)));
         $isEnabled = in_array($code, $enabledList, true);
 
+        // Extra context for the RadioID provider: how many rows are
+        // currently in the local lookup cache and when it was last
+        // refreshed. The view uses these to show a "Refresh now" button
+        // alongside the freshness summary.
+        $registryCount = null;
+        $registryLastImport = null;
+        if ($code === 'radioid_database_dump') {
+            $row = $this->fetchTable('CallsignLookups')->getConnection()->execute(
+                'SELECT COUNT(*) AS c, MAX(imported_at) AS last_import FROM radioid_registry'
+            )->fetch('assoc');
+            $registryCount = (int)($row['c'] ?? 0);
+            $registryLastImport = $row['last_import'] ?? null;
+        }
+
         $this->set([
-            'title'      => $known[$code] . ' — provider settings',
-            'code'       => $code,
-            'label'      => $known[$code],
-            'rowCount'   => $rowCount,
-            'isEnabled'  => $isEnabled,
-            'description'=> self::PROVIDER_MAP[$code] ?? '',
+            'title'              => $known[$code] . ' — provider settings',
+            'code'               => $code,
+            'label'              => $known[$code],
+            'rowCount'           => $rowCount,
+            'isEnabled'          => $isEnabled,
+            'description'        => self::PROVIDER_MAP[$code] ?? '',
+            'registryCount'      => $registryCount,
+            'registryLastImport' => $registryLastImport,
         ]);
+    }
+
+    /**
+     * Stream the RadioID lookup-cache refresh as plain text. Each
+     * progress event from the importer is echoed + flushed immediately
+     * so the browser (which reads the response via fetch() +
+     * ReadableStream) can render a live terminal-style transcript.
+     *
+     * Why streamed text instead of a single JSON 200: the import takes
+     * 5-30 seconds depending on network speed, and nginx's default
+     * proxy_read_timeout is 60 s. A single late response also leaves
+     * the operator staring at a spinner with no idea whether anything
+     * is happening. Per-chunk flush() solves both — bytes flow at
+     * least every second so nginx never sees an idle gap, and the
+     * operator gets immediate feedback.
+     *
+     * autoRender is disabled because we hand-build the response body;
+     * the view layer would otherwise try to render an empty template.
+     */
+    public function refreshRadioIdDump()
+    {
+        $this->request->allowMethod('post');
+        $this->autoRender = false;
+
+        // Give the worker enough budget for the slowest realistic case.
+        @set_time_limit(600);
+
+        // Drain any output buffer the view stack may have opened so each
+        // echo+flush below actually reaches the wire instead of stacking
+        // up in PHP's buffer.
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+        // Auto-flush every echo from here on.
+        @ob_implicit_flush(true);
+
+        // Headers: plain text so the browser stream reader can render
+        // verbatim, and X-Accel-Buffering: no so nginx forwards chunks
+        // as they arrive instead of buffering up to its proxy_buffers
+        // size before sending anything.
+        header('Content-Type: text/plain; charset=utf-8');
+        header('X-Accel-Buffering: no');
+        header('Cache-Control: no-cache');
+
+        $emit = static function (string $msg): void {
+            echo '[' . date('H:i:s') . '] ' . $msg . "\n";
+            @flush();
+        };
+
+        $emit('Starting RadioID lookup-cache stream.');
+        $importer = new \App\Service\CallsignLookup\RadioIdRegistryImporter();
+        $started = microtime(true);
+        $count = 0;
+        $errored = false;
+        try {
+            $count = $importer->refresh($emit);
+        } catch (\Throwable $e) {
+            $emit('ERROR: ' . $e->getMessage());
+            $errored = true;
+        }
+
+        if (!$errored) {
+            $elapsed = number_format(microtime(true) - $started, 1);
+            $emit("Done — {$count} rows cached in {$elapsed}s.");
+
+            try {
+                (new \App\Service\AuditLogger())->log(
+                    event: 'callsign.radioid_cache_synced',
+                    actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                    metadata: ['rows' => $count, 'seconds' => $elapsed],
+                );
+            } catch (\Throwable $e) {
+                error_log('audit: ' . $e->getMessage());
+            }
+        }
+
+        // Hard-exit so CakePHP's normal response emitter doesn't run a
+        // second time and try to re-send headers + an empty body — which
+        // would log "Cannot modify header information" warnings into the
+        // streamed body and corrupt the operator's terminal view. The
+        // streamed text/plain response has already been delivered chunk
+        // by chunk via echo+flush; there's nothing left for the
+        // framework to send.
+        exit;
+    }
+
+    /**
+     * Wipe the local RadioID lookup cache. Independent of the per-call
+     * `callsign_lookups` cache the chain writes — this only targets the
+     * bulk dump table. Sync from the provider page repopulates.
+     */
+    public function clearRadioIdDump(): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+
+        $conn = $this->fetchTable('CallsignLookups')->getConnection();
+        $row = $conn->execute('SELECT COUNT(*) AS c FROM radioid_registry')->fetch('assoc');
+        $count = (int)($row['c'] ?? 0);
+        $conn->execute('DELETE FROM radioid_registry');
+
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'callsign.radioid_cache_cleared',
+                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                metadata: ['rows_deleted' => $count],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+
+        $this->Flash->success("Cleared RadioID lookup cache — {$count} rows removed.");
+
+        return $this->redirect('/admin/callsign-lookups/provider/radioid_database_dump');
     }
 
     /**
