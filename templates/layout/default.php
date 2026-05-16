@@ -161,6 +161,53 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
 </nav>
 <main class="container" id="main-content" tabindex="-1">
   <?= $this->Flash->render() ?>
+
+  <?php /* M5 T23 — Sync status pill. Visible only when there's
+         something to communicate (queued rows or active sync).
+         Logged-in only because guests have no quick-add path that
+         could enqueue. Tap to expand the pending list with per-row
+         retry / delete. */ ?>
+  <?php if ($identity): ?>
+    <div x-data="syncStatusPill()" x-show="visible" x-cloak class="sync-pill-wrap">
+      <button type="button" :class="pillClass" @click="toggleExpanded()"
+              :aria-expanded="expanded.toString()"
+              :aria-label="label + (expanded ? ' (collapse)' : ' (expand)')">
+        <span class="sync-pill__dot" aria-hidden="true"></span>
+        <span x-text="label"></span>
+      </button>
+      <div x-show="expanded" x-cloak class="sync-pill__panel">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>Pending QSOs</strong>
+          <button type="button" class="btn btn-sm btn-outline-primary"
+                  @click="retry()"
+                  :disabled="state === 'syncing' || !online">Retry now</button>
+        </div>
+        <p x-show="rows.length === 0" x-cloak class="form-text">No pending rows.</p>
+        <ul class="sync-pill__rows" x-show="rows.length > 0" x-cloak>
+          <template x-for="row in rows" :key="row.uuid">
+            <li class="sync-pill__row">
+              <div>
+                <strong x-text="row.data.call_worked"></strong>
+                <span class="text-muted small ms-2">
+                  <span x-text="row.data.frequency_mhz || '—'"></span> ·
+                  <span x-text="row.data.mode || '—'"></span> ·
+                  <span x-text="formatTime(row.queued_at)"></span>
+                </span>
+                <p x-show="row.last_error" x-cloak class="text-danger small mb-0" x-text="row.last_error"></p>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-danger"
+                      @click="deleteRow(row.uuid)"
+                      :aria-label="`Delete queued QSO for ${row.data.call_worked}`">Delete</button>
+            </li>
+          </template>
+        </ul>
+        <p x-show="lastError" x-cloak class="text-danger small mt-2 mb-0">
+          Last error: <span x-text="lastError"></span>
+        </p>
+      </div>
+    </div>
+  <?php endif; ?>
+
   <?= $this->fetch('content') ?>
 </main>
 
@@ -267,6 +314,7 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
 <script src="<?= $this->Url->build('/js/focus-trap.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/maidenhead.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/offline-queue.js') ?>" defer></script>
+<script src="<?= $this->Url->build('/js/offline-sync.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/app.js') ?>" defer></script>
 <?= $this->fetch('script') ?>
 <!--

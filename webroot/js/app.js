@@ -422,6 +422,10 @@ function quickAddForm(recent) {
         async _queueOffline(data) {
             try {
                 const row = await window.OfflineQueue.enqueue(data);
+                // Nudge the status pill (T23) so it shows the new
+                // queued count immediately, and trigger a sync attempt
+                // if connectivity has returned since the form mounted.
+                window.dispatchEvent(new CustomEvent('eqsl-sync-trigger'));
                 // Render the queued row in the recents panel with a
                 // marker so the operator sees it landed even though
                 // it hasn't reached the server yet.
@@ -463,6 +467,98 @@ function quickAddForm(recent) {
     };
 }
 window.quickAddForm = quickAddForm;
+
+/**
+ * M5 T23 — Sync status pill Alpine component.
+ *
+ * Renders one of four states based on the eqsl-sync-status events
+ * broadcast by offline-sync.js:
+ *
+ *   - "Online" (hidden when queue empty + online)
+ *   - "Offline · N queued"  (browser reports offline; nothing syncing)
+ *   - "Syncing · M of N"    (drain in progress)
+ *   - "Error · N queued"    (last drain attempt failed)
+ *
+ * Click to expand a list of pending QSOs with per-row retry/delete.
+ */
+function syncStatusPill() {
+    return {
+        pending: 0,
+        syncing: 0,
+        state: 'idle',
+        lastError: null,
+        online: (typeof navigator === 'undefined' ? true : navigator.onLine !== false),
+        expanded: false,
+        rows: [],
+        init() {
+            window.addEventListener('eqsl-sync-status', (e) => {
+                this.pending = e.detail.pending;
+                this.syncing = e.detail.syncing;
+                this.state = e.detail.state;
+                this.lastError = e.detail.lastError;
+            });
+            window.addEventListener('online',  () => { this.online = true;  });
+            window.addEventListener('offline', () => { this.online = false; });
+            // Initial poll — read the queue count once on mount.
+            this._refreshPending();
+        },
+        async _refreshPending() {
+            if (!window.OfflineQueue) return;
+            try {
+                this.pending = await window.OfflineQueue.count();
+            } catch (e) { /* indexeddb missing — leave at 0 */ }
+        },
+        get label() {
+            if (this.state === 'syncing') {
+                return `Syncing · ${this.syncing} pending`;
+            }
+            if (!this.online) {
+                return `Offline · ${this.pending} queued`;
+            }
+            if (this.state === 'error') {
+                return `Sync error · ${this.pending} queued`;
+            }
+            return this.pending > 0
+                ? `${this.pending} queued`
+                : '';
+        },
+        get visible() {
+            return this.pending > 0 || this.state === 'syncing' || !this.online;
+        },
+        get pillClass() {
+            if (this.state === 'syncing') return 'sync-pill sync-pill--syncing';
+            if (this.state === 'error')   return 'sync-pill sync-pill--error';
+            if (!this.online)             return 'sync-pill sync-pill--offline';
+            return 'sync-pill sync-pill--queued';
+        },
+        async retry() {
+            if (window.OfflineSync) await window.OfflineSync.drain();
+            this._refreshPending();
+        },
+        async toggleExpanded() {
+            this.expanded = !this.expanded;
+            if (this.expanded) await this._loadRows();
+        },
+        async _loadRows() {
+            if (!window.OfflineQueue) return;
+            try {
+                this.rows = await window.OfflineQueue.getAll();
+            } catch (e) { this.rows = []; }
+        },
+        async deleteRow(uuid) {
+            if (!window.OfflineQueue) return;
+            await window.OfflineQueue.remove(uuid);
+            await this._refreshPending();
+            await this._loadRows();
+        },
+        formatTime(timestamp) {
+            try {
+                return new Date(timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return ''; }
+        },
+    };
+}
+window.syncStatusPill = syncStatusPill;
 
 /**
  * M5 T11 — Keep sticky form actions above the on-screen keyboard.
