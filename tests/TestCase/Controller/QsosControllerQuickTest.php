@@ -23,7 +23,7 @@ final class QsosControllerQuickTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Qsos'];
+    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Activations'];
 
     private function login(): int
     {
@@ -172,4 +172,147 @@ final class QsosControllerQuickTest extends TestCase
         $this->assertFalse($body['ok']);
         $this->assertArrayHasKey('errors', $body);
     }
+
+    /**
+     * T16 — when an active activation exists, new QSOs auto-tag with it.
+     */
+    public function testPostAutoTagsWithActiveActivation(): void
+    {
+        $userId = $this->login();
+        // Seed an active activation.
+        $tbl = $this->getTableLocator()->get('Activations');
+        $activation = $tbl->saveOrFail($tbl->newEntity([
+            'code' => 'POTA-K-1234', 'name' => 'Active Park',
+            'user_id' => $userId,
+            'started_at' => '2026-05-16 08:00:00',
+        ], ['accessibleFields' => ['*' => true]]));
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/quick', [
+            'call_worked' => 'W1AW',
+            'frequency_mhz' => '14.07415',
+            'mode' => 'FT8',
+        ]);
+
+        $row = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => $userId, 'call_worked' => 'W1AW'])
+            ->firstOrFail();
+        $this->assertSame((int)$activation->id, (int)$row->activation_id, 'QSO must auto-tag with active activation');
+    }
+
+    /**
+     * T16 — with no active activation, activation_id stays NULL.
+     */
+    public function testPostWithoutActiveActivationLeavesNull(): void
+    {
+        $userId = $this->login();
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/quick', [
+            'call_worked' => 'JA1ABC',
+            'frequency_mhz' => '14.20',
+            'mode' => 'SSB',
+        ]);
+
+        $row = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => $userId, 'call_worked' => 'JA1ABC'])
+            ->firstOrFail();
+        $this->assertNull($row->activation_id);
+    }
+
+    /**
+     * T16 — an ENDED activation must NOT auto-tag (findActiveForUser excludes
+     * rows with ended_at set).
+     */
+    public function testPostIgnoresEndedActivation(): void
+    {
+        $userId = $this->login();
+        $tbl = $this->getTableLocator()->get('Activations');
+        $tbl->saveOrFail($tbl->newEntity([
+            'code' => 'SOTA-OLD', 'name' => 'Yesterday Summit',
+            'user_id' => $userId,
+            'started_at' => '2026-05-15 08:00:00',
+            'ended_at'   => '2026-05-15 12:00:00',
+        ], ['accessibleFields' => ['*' => true]]));
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/quick', [
+            'call_worked' => '9W2NSP',
+            'frequency_mhz' => '7.020',
+            'mode' => 'CW',
+        ]);
+
+        $row = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => $userId, 'call_worked' => '9W2NSP'])
+            ->firstOrFail();
+        $this->assertNull($row->activation_id, 'Ended activations must not auto-tag new QSOs');
+    }
+
+    /**
+     * T16 — activation_id from request body is ignored (locked from mass
+     * assignment in the Qso entity). User can't spoof tagging.
+     */
+    public function testPostIgnoresActivationIdFromRequestBody(): void
+    {
+        $userId = $this->login();
+        // Seed user B's activation, then attempt to tag with it from user A.
+        $users = $this->getTableLocator()->get('Users');
+        $userB = $users->saveOrFail($users->newEntity([
+            'name' => 'B', 'email' => 'b@x.com', 'role' => 'user',
+            'callsign' => 'BB1BB', 'password_hash' => 'h',
+        ], ['accessibleFields' => ['*' => true]]));
+        $tbl = $this->getTableLocator()->get('Activations');
+        $bsAct = $tbl->saveOrFail($tbl->newEntity([
+            'code' => 'POTA-OTHER', 'name' => 'Their Park',
+            'user_id' => (int)$userB->id,
+            'started_at' => '2026-05-16 08:00:00',
+        ], ['accessibleFields' => ['*' => true]]));
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/qsos/quick', [
+            'call_worked' => 'VK2XYZ',
+            'frequency_mhz' => '14.0',
+            'mode' => 'SSB',
+            'activation_id' => (int)$bsAct->id,  // attempt to spoof
+        ]);
+
+        $row = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => $userId, 'call_worked' => 'VK2XYZ'])
+            ->firstOrFail();
+        $this->assertNull($row->activation_id, "Mustn't tag with another user's activation via request body");
+    }
+
+    /**
+     * T16 — JSON path also honours auto-tagging.
+     */
+    public function testJsonPostAutoTagsWithActiveActivation(): void
+    {
+        $userId = $this->login();
+        $tbl = $this->getTableLocator()->get('Activations');
+        $activation = $tbl->saveOrFail($tbl->newEntity([
+            'code' => 'POTA-K-1234', 'name' => 'Active Park',
+            'user_id' => $userId,
+            'started_at' => '2026-05-16 08:00:00',
+        ], ['accessibleFields' => ['*' => true]]));
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/qsos/quick', [
+            'call_worked' => 'DL1ABC',
+            'frequency_mhz' => '7.020',
+            'mode' => 'CW',
+        ]);
+
+        $this->assertResponseOk();
+        $row = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['user_id' => $userId, 'call_worked' => 'DL1ABC'])
+            ->firstOrFail();
+        $this->assertSame((int)$activation->id, (int)$row->activation_id);
+    }
+
 }

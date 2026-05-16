@@ -34,7 +34,9 @@
 
 <pre><code>Logging for  Bukit Larut SOTA  OJ02wx</code></pre>
 
-<p>Tap the banner to jump to /activations and manage it. Every QSO you save from the Quick add form while this banner is visible gets auto-tagged with the activation (T16 — wires up in a later commit; T14 just shows the banner).</p>
+<p>Tap the banner to jump to /activations and manage it. <strong>Every QSO you save from the Quick add form while this banner is visible auto-tags with the activation</strong> — the server reads the active row at save time and sets the QSO's <code>activation_id</code> for you, no per-contact UI needed.</p>
+
+<p>The auto-tag is server-side and ownership-scoped: you can't tag a QSO with another operator's activation, even if you guess their activation ID and POST it. The Qso entity locks <code>activation_id</code> from mass assignment; only the server sets it, and only from your own active activation list.</p>
 
 <p>If there's no active activation, the banner area instead shows a small "Start one" prompt linking to /activations.</p>
 
@@ -57,6 +59,5 @@
 <p>Three more features round out the activations workflow (still in progress):</p>
 <ul>
   <li><strong>T15 — GPS auto-fill</strong>: optional browser geolocation on activation start, derives Maidenhead grid square from your lat/lon.</li>
-  <li><strong>T16 — Auto-tag on save</strong>: new QSOs from /qsos/quick automatically get the active activation's id.</li>
   <li><strong>T17 — ADIF export per activation</strong>: <code>/activations/{id}/export.adi</code> returns a POTA/SOTA-upload-ready ADIF file with grid square stamped on every record.</li>
 </ul>

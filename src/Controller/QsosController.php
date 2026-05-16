@@ -251,6 +251,15 @@ class QsosController extends AppController
 
             $entity = $qsos->patchEntity($entity, $data);
             $entity->user_id = $userId;
+            // M5 T16 — auto-tag with the operator's active activation (if
+            // any). Server-side ONLY; activation_id is locked from mass
+            // assignment so a request can't spoof which activation tags
+            // the row. findActiveForUser is already scoped to $userId, so
+            // we can't accidentally tag with another user's activation.
+            $activeForTag = $this->fetchTable('Activations')->findActiveForUser($userId);
+            if ($activeForTag !== null) {
+                $entity->set('activation_id', (int)$activeForTag->id, ['guard' => false]);
+            }
             $saved = $qsos->save($entity);
             // T9 — content negotiation. If the client asked for JSON
             // (Alpine fetch submit), return a small payload it can use to
