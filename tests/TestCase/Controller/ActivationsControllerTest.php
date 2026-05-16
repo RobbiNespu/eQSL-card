@@ -216,4 +216,90 @@ final class ActivationsControllerTest extends TestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Logging without an activation');
     }
+
+    /**
+     * T17 — Export endpoint returns ADIF as text/plain with Content-Disposition
+     * attachment and a slugified filename derived from the activation code.
+     */
+    public function testExportReturnsAdifAttachment(): void
+    {
+        $userId = $this->login();
+        $activationId = $this->seedActivation($userId, [
+            'code' => 'POTA-K-1234',
+            'name' => 'Test Park',
+            'grid_square' => 'OJ02wx',
+        ]);
+        // Seed a tagged QSO.
+        $qsos = $this->getTableLocator()->get('Qsos');
+        $qso = $qsos->newEntity([
+            'user_id' => $userId,
+            'call_worked' => 'W1AW',
+            'qso_datetime_utc' => '2026-05-16 09:15:30',
+            'band' => '20m', 'mode' => 'SSB', 'frequency_mhz' => '14.2',
+            'rst_sent' => '59', 'rst_received' => '59',
+            'qso_type' => 'contact', 'transport' => 'rf',
+        ], ['accessibleFields' => ['*' => true]]);
+        $qso->set('activation_id', $activationId, ['guard' => false]);
+        $qsos->saveOrFail($qso);
+
+        $this->get('/activations/' . $activationId . '/export.adi');
+        $this->assertResponseOk();
+        $this->assertContentType('text/plain');
+        $this->assertHeaderContains('Content-Disposition', 'POTA-K-1234.adi');
+
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString('<ADIF_VER:5>3.1.4', $body);
+        $this->assertStringContainsString('<CALL:4>W1AW', $body);
+        $this->assertStringContainsString('<MY_POTA_REF:6>K-1234', $body);
+        $this->assertStringContainsString('<MY_GRIDSQUARE:6>OJ02wx', $body);
+    }
+
+    public function testExportEmptyActivationReturnsHeaderOnlyAdif(): void
+    {
+        $userId = $this->login();
+        $activationId = $this->seedActivation($userId);
+
+        $this->get('/activations/' . $activationId . '/export.adi');
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString('<EOH>', $body);
+        $this->assertStringNotContainsString('<EOR>', $body);
+    }
+
+    public function testExportOtherUserActivation404s(): void
+    {
+        $this->login('a@x.com');
+        $users = $this->getTableLocator()->get('Users');
+        $userB = $users->saveOrFail($users->newEntity([
+            'name' => 'B', 'email' => 'b@x.com', 'role' => 'user',
+            'callsign' => 'BB1BB', 'password_hash' => 'h',
+        ], ['accessibleFields' => ['*' => true]]));
+        $bsActivation = $this->seedActivation((int)$userB->id);
+
+        $this->get('/activations/' . $bsActivation . '/export.adi');
+        $this->assertResponseCode(404);
+    }
+
+    public function testExportExcludesQsosFromOtherActivations(): void
+    {
+        $userId = $this->login();
+        $a1 = $this->seedActivation($userId, ['code' => 'POTA-K-1234', 'name' => 'Park A']);
+        $a2 = $this->seedActivation($userId, ['code' => 'POTA-K-9999', 'name' => 'Park B']);
+        $qsos = $this->getTableLocator()->get('Qsos');
+
+        foreach (['W1AW' => $a1, 'JA1ABC' => $a2] as $call => $actId) {
+            $q = $qsos->newEntity([
+                'user_id' => $userId, 'call_worked' => $call,
+                'qso_datetime_utc' => '2026-05-16 09:00:00',
+                'qso_type' => 'contact', 'transport' => 'rf',
+            ], ['accessibleFields' => ['*' => true]]);
+            $q->set('activation_id', $actId, ['guard' => false]);
+            $qsos->saveOrFail($q);
+        }
+
+        $this->get('/activations/' . $a1 . '/export.adi');
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString('<CALL:4>W1AW', $body);
+        $this->assertStringNotContainsString('JA1ABC', $body);
+    }
 }

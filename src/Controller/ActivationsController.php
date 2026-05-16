@@ -126,6 +126,54 @@ class ActivationsController extends AppController
         return null;
     }
 
+    /**
+     * M5 T17 — ADIF export per activation.
+     *
+     * `/activations/{id}/export.adi` returns an ADIF 3.1.4 text/plain
+     * document with every QSO tagged to this activation, ready to upload
+     * to POTA / SOTA / IOTA portals. MY_GRIDSQUARE comes from the
+     * activation row; MY_POTA_REF / MY_SOTA_REF / MY_IOTA are inferred
+     * from the activation.code prefix (POTA-* / SOTA-* / IOTA-*).
+     *
+     * Owner-scoped: trying to export another user's activation 404s.
+     * Empty activations (zero QSOs tagged) export a header-only file —
+     * still valid ADIF, useful as a sanity check.
+     */
+    public function export(int $id): \Cake\Http\Response
+    {
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $tbl = $this->fetchTable('Activations');
+
+        $activation = $tbl->find()
+            ->where(['id' => $id, 'user_id' => $userId])
+            ->firstOrFail();
+
+        // QSOs scoped to (this activation, this user) — defensive double
+        // check; activation ownership already ensures the user_id match
+        // via the FK, but explicit beats implicit when generating an
+        // upload that goes to a public portal.
+        $qsos = $this->fetchTable('Qsos')->find()
+            ->where(['user_id' => $userId, 'activation_id' => $id])
+            ->orderBy(['qso_datetime_utc' => 'ASC', 'id' => 'ASC'])
+            ->all();
+
+        $callsign = (string)($this->Authentication->getIdentity()->getOriginalData()->callsign ?? '');
+
+        $adif = (new \App\Service\AdifExporter())->export($activation, $qsos, $callsign);
+
+        // Slugify the activation name for the filename. Awards portals
+        // accept any filename but operators appreciate something they
+        // can find later.
+        $slug = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string)$activation->code);
+        $slug = trim((string)$slug, '-');
+        $filename = ($slug !== '' ? $slug : 'activation-' . $id) . '.adi';
+
+        return $this->response
+            ->withType('text/plain')
+            ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->withStringBody($adif);
+    }
+
     public function delete(int $id): \Cake\Http\Response
     {
         $this->request->allowMethod('post');

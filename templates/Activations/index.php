@@ -43,6 +43,7 @@
                 'confirm' => 'End "' . $active->name . '"? New QSOs after this won\'t auto-tag with this activation.',
             ]) ?>
             <a class="btn btn-outline-secondary btn-sm" href="/activations/<?= $active->id ?>/edit">Edit</a>
+            <a class="btn btn-outline-primary btn-sm" href="/activations/<?= $active->id ?>/export.adi">Export ADIF</a>
           </div>
         </div>
       </div>
@@ -152,11 +153,10 @@
               </span>
             </td>
             <td data-label="QSOs">
-              <?php /* QSO count comes from a separate query in T17 (ADIF export
-                     view) — for now we just link to the future export URL. */ ?>
               <a class="btn btn-sm btn-outline-secondary" href="/activations/<?= $a->id ?>/edit">View / Edit</a>
             </td>
             <td data-label="Actions" class="table-responsive-stack__actions">
+              <a class="btn btn-sm btn-outline-primary" href="/activations/<?= $a->id ?>/export.adi" title="Download ADIF for upload to POTA / SOTA / LoTW">ADIF</a>
               <?php if ($a->isActive()): ?>
                 <?= $this->Form->postLink('End', '/activations/' . $a->id . '/end', [
                     'class' => 'btn btn-sm btn-outline-warning',

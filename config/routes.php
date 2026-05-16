@@ -144,6 +144,10 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
         $builder->connect('/activations/{id}/delete', ['controller' => 'Activations', 'action' => 'delete'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        // M5 T17 — ADIF export per activation. Filename ends in .adi which
+        // POTA / SOTA / LoTW portals all accept as the upload target.
+        $builder->connect('/activations/{id}/export.adi', ['controller' => 'Activations', 'action' => 'export'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
         // Callsign auto-complete JSON API. Authenticated; the QSO add form
         // calls this on debounced input change to pre-fill operator name /
         // QTH / grid square. See App\Service\CallsignLookup for the

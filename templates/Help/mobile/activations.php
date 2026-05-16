@@ -45,6 +45,41 @@
 
 <p>You can have multiple activations <em>technically</em> open at once (the system doesn't enforce single-active), but only the most-recently-started one shows in the banner and gets used for auto-tagging. If you want to switch from one open activation to another, end the first.</p>
 
+<h2>Exporting to POTA / SOTA / LoTW (ADIF)</h2>
+<p>Once an activation is done (or even while it's still running), you can download an ADIF file with all its QSOs:</p>
+<ul>
+  <li>On the active card: tap <strong>Export ADIF</strong>.</li>
+  <li>On any recent row: tap the <strong>ADIF</strong> button in the actions column.</li>
+  <li>Or visit <code>/activations/{id}/export.adi</code> directly.</li>
+</ul>
+
+<p>The download is a plain-text ADIF 3.1.4 document. Filename is derived from the activation code (e.g. <code>POTA-K-1234.adi</code>). Upload it to:</p>
+<ul>
+  <li><strong>POTA</strong> — <a href="https://pota.app/#/user/logs" rel="noopener">pota.app → My Account → Logs</a>.</li>
+  <li><strong>SOTA</strong> — <a href="https://www.sotadata.org.uk/" rel="noopener">sotadata.org.uk → Submit log</a>.</li>
+  <li><strong>LoTW</strong> — TQSL desktop app, then upload the signed file to ARRL.</li>
+  <li><strong>QRZ.com / eQSL.cc</strong> — both portals accept ADIF in their upload form.</li>
+</ul>
+
+<h3>What's in the file</h3>
+<p>Each QSO record has the standard fields (CALL, QSO_DATE, TIME_ON, BAND, MODE, FREQ, RST_SENT, RST_RCVD) plus the activator metadata the awards portals key on:</p>
+<ul>
+  <li><code>STATION_CALLSIGN</code> and <code>OPERATOR</code> — your callsign (from your profile).</li>
+  <li><code>MY_GRIDSQUARE</code> — the activation's grid square, overriding any per-QSO grid.</li>
+  <li><code>MY_POTA_REF</code> — set when the activation code starts with <code>POTA-</code> or <code>POTA </code>. The portal reads this to credit you for the park.</li>
+  <li><code>MY_SOTA_REF</code> — same pattern for <code>SOTA-</code> codes.</li>
+  <li><code>MY_IOTA</code> — same for <code>IOTA-</code>.</li>
+</ul>
+
+<p>If your activation code is free-text (e.g. <code>BL-2026-05-16</code> for a kampung site that has no formal reference), none of those MY_* fields appear — the file is still valid ADIF and uploadable, just without award-portal-specific tags.</p>
+
+<p>Worked-station details ship if you logged them: <code>GRIDSQUARE</code>, <code>NAME</code>, <code>QTH</code>, <code>NOTES</code>. Empty fields are omitted entirely (no <code>&lt;NAME:0&gt;</code> noise).</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'tip',
+    'body' => 'You can export a still-active activation — useful when running a long net or all-day field day, you can upload partial results periodically without ending the session. Awards portals dedupe by callsign + datetime + band so re-uploading later won\'t double-count.',
+]) ?>
+
 <h2>Editing and deleting</h2>
 <p>The <strong>Edit</strong> link on each activation row lets you rename, fix the grid square, or update notes. The <code>started_at</code> and <code>ended_at</code> fields are not exposed — those are operational signals owned by the start/end actions.</p>
 
@@ -59,5 +94,4 @@
 <p>Three more features round out the activations workflow (still in progress):</p>
 <ul>
   <li><strong>T15 — GPS auto-fill</strong>: optional browser geolocation on activation start, derives Maidenhead grid square from your lat/lon.</li>
-  <li><strong>T17 — ADIF export per activation</strong>: <code>/activations/{id}/export.adi</code> returns a POTA/SOTA-upload-ready ADIF file with grid square stamped on every record.</li>
 </ul>
