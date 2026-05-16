@@ -66,6 +66,12 @@ final class HelpCatalog
                 'migrations'   => 'Running migrations',
             ],
         ],
+        'mobile' => [
+            'label' => 'Mobile & portable ops',
+            'pages' => [
+                'navigation' => 'Bottom-tab navigation',
+            ],
+        ],
         'reference' => [
             'label' => 'Reference',
             'pages' => [
