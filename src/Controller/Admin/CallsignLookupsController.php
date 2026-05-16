@@ -85,20 +85,21 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Unified view across both data sources.
+     * Unified view across every callsign-data table this app maintains.
      *
-     * UNION ALL across `callsign_directory` (CSV-uploaded) and
-     * `callsign_lookups` (auto-fetched cache), projecting both into a
+     * UNION ALL across three sources — `callsign_directory` (admin
+     * CSV), `callsign_lookups` (per-call auto-fetch cache), and
+     * `radioid_registry` (bulk RadioID dump) — projecting each into a
      * uniform shape (literal `source_type` discriminator, aliased
-     * `source_detail` and `updated_at`). UNION ALL keeps duplicates — when
-     * a callsign exists in both tables it shows up twice with different
-     * source badges, which is exactly what the operator wants to see.
+     * `source_detail` and `updated_at`). UNION ALL keeps duplicates so
+     * a callsign that lives in two stores appears twice with different
+     * source badges — the operator can spot overlaps at a glance.
      *
-     * Done as raw SQL because the two tables have different columns and
-     * mapping that through the ORM's union() with literal expressions is
-     * uglier than the SQL itself. Counts and pagination are computed
-     * server-side; the connection-level execute() returns plain arrays
-     * which match the existing view's expectations.
+     * Done as raw SQL because the three tables have different columns
+     * and projecting them through the ORM's union() with literal
+     * expressions is uglier than the SQL itself. Counts and pagination
+     * are computed server-side; the connection-level execute() returns
+     * plain arrays the view consumes directly.
      */
     public function all(): void
     {
@@ -106,7 +107,9 @@ class CallsignLookupsController extends AppController
         $dirTable = $this->fetchTable('CallsignDirectory');
         $cacheTable = $this->fetchTable('CallsignLookups');
 
-        // Counts via the ORM — same filter applied to both tables.
+        // Counts via the ORM where the model exists. The radioid_registry
+        // is a thin lookup table without a Cake table class — count via
+        // the connection directly so we keep the same filter shape.
         $dirCountQ = $dirTable->find();
         $cacheCountQ = $cacheTable->find();
         if ($q !== '') {
@@ -116,7 +119,18 @@ class CallsignLookupsController extends AppController
         }
         $directoryCount = $dirCountQ->count();
         $cacheCount = $cacheCountQ->count();
-        $totalRows = $directoryCount + $cacheCount;
+
+        $conn = $cacheTable->getConnection();
+        $registryCountSql = 'SELECT COUNT(*) AS c FROM radioid_registry';
+        $registryCountParams = [];
+        if ($q !== '') {
+            $registryCountSql .= ' WHERE UPPER(callsign) LIKE :patC';
+            $registryCountParams['patC'] = '%' . strtoupper($q) . '%';
+        }
+        $registryCount = (int)$conn->execute($registryCountSql, $registryCountParams)
+            ->fetch('assoc')['c'];
+
+        $totalRows = $directoryCount + $cacheCount + $registryCount;
 
         // Pagination
         $perPage = 50;
@@ -124,12 +138,35 @@ class CallsignLookupsController extends AppController
         $page = max(1, min($totalPages, (int)$this->request->getQuery('page', 1)));
         $offset = ($page - 1) * $perPage;
 
-        // Build the UNION ALL. Each SELECT picks the same column order and
-        // names so the union is well-formed; the literal 'directory' /
-        // 'cache' string becomes the source_type discriminator the view
-        // uses to render the right badge and action button per row.
+        // Build the UNION ALL. Each SELECT picks the same column order
+        // and names so the union is well-formed; the literal
+        // 'directory' / 'cache' / 'radioid' string becomes the
+        // source_type discriminator the view uses to render the right
+        // badge and action button per row. radioid_registry has no
+        // grid_square / license_class columns, so we project NULL for
+        // them to keep the column shape aligned. The first_name/
+        // last_name fields are concatenated into a single `name` column
+        // using dialect-portable CONCAT — MySQL has it natively, SQLite
+        // 3.44+ has it, both PHP-shipped builds we target are above
+        // that. Same shape for city/state into `qth`.
         $where1 = $q !== '' ? 'WHERE UPPER(callsign) LIKE :pat1' : '';
         $where2 = $q !== '' ? 'WHERE UPPER(callsign) LIKE :pat2' : '';
+        $where3 = $q !== '' ? 'WHERE UPPER(callsign) LIKE :pat3' : '';
+        $isMysql = str_contains(strtolower(get_class($conn->getDriver())), 'mysql');
+        // `||` is string concat in SQLite/Postgres but boolean OR in
+        // MySQL — branch on driver to pick the right operator.
+        $cat = static function (array $parts) use ($isMysql): string {
+            if ($isMysql) {
+                return 'CONCAT(' . implode(',', $parts) . ')';
+            }
+            return '(' . implode(' || ', $parts) . ')';
+        };
+        $nameExpr = $cat(["COALESCE(first_name, '')", "' '", "COALESCE(last_name, '')"]);
+        $qthExpr  = $cat([
+            "COALESCE(city, '')",
+            "CASE WHEN city <> '' AND state <> '' THEN ', ' ELSE '' END",
+            "COALESCE(state, '')",
+        ]);
         $sql = "
             SELECT
                 id, callsign, name, qth, country, grid_square, license_class,
@@ -146,18 +183,33 @@ class CallsignLookupsController extends AppController
                 fetched_at AS updated_at
             FROM callsign_lookups
             {$where2}
+            UNION ALL
+            SELECT
+                id,
+                callsign,
+                TRIM({$nameExpr}) AS name,
+                TRIM({$qthExpr}) AS qth,
+                country,
+                NULL AS grid_square,
+                NULL AS license_class,
+                'radioid' AS source_type,
+                CAST(radio_id AS CHAR) AS source_detail,
+                imported_at AS updated_at
+            FROM radioid_registry
+            {$where3}
             ORDER BY callsign ASC, source_type ASC
             LIMIT :lim OFFSET :off
         ";
 
         // Distinct placeholder names per occurrence — strict PDO mode
-        // rejects re-using `:pat` across the two halves of the union.
+        // rejects re-using a single :pat across the three halves.
         $params = ['lim' => $perPage, 'off' => $offset];
         $types  = ['lim' => 'integer', 'off' => 'integer'];
         if ($q !== '') {
             $like = '%' . strtoupper($q) . '%';
             $params['pat1'] = $like;
             $params['pat2'] = $like;
+            $params['pat3'] = $like;
         }
 
         $stmt = $cacheTable->getConnection()->execute($sql, $params, $types);
@@ -184,6 +236,7 @@ class CallsignLookupsController extends AppController
             'callsigns'      => $rows,
             'directoryCount' => $directoryCount,
             'cacheCount'     => $cacheCount,
+            'registryCount'  => $registryCount,
             'totalCount'     => $totalRows,
             'page'           => $page,
             'totalPages'     => $totalPages,
