@@ -1,5 +1,5 @@
 <h1><?= h($title) ?></h1>
-<p>Storage maintenance: purge old guest cards, prune orphaned uploads, expire user cards past retention, wipe on-disk caches.</p>
+<p>Storage maintenance: purge old guest cards, prune orphan background images, expire user cards past retention, wipe on-disk caches.</p>
 
 <form method="get" class="row g-2 mb-4">
   <div class="col-md-2">
@@ -47,7 +47,7 @@
 
   <div class="col-md-6">
     <div class="card card-body">
-      <h2 class="h5">Orphaned uploads to prune</h2>
+      <h2 class="h5">Orphan background images to prune</h2>
       <p class="display-6"><?= h($orphanUploadsCount) ?></p>
       <?php if ($orphanUploadsCount > 0): ?>
         <table class="table table-sm">
@@ -65,13 +65,13 @@
         </table>
         <?= $this->Form->create(null, ['url' => '/admin/cleanup/prune-uploads']) ?>
         <input type="hidden" name="days" value="<?= h($days) ?>">
-        <?= $this->Form->button('Prune orphans', [
+        <?= $this->Form->button('Prune orphan backgrounds', [
             'class' => 'btn btn-outline-danger',
-            'confirm' => 'Permanently delete ' . (int)$orphanUploadsCount . ' orphaned upload rows and their files?',
+            'confirm' => 'Permanently delete ' . (int)$orphanUploadsCount . ' orphan background rows and their files?',
         ]) ?>
         <?= $this->Form->end() ?>
       <?php else: ?>
-        <p class="form-text">No orphan uploads older than <?= h($days) ?> days.</p>
+        <p class="form-text">No orphan background images older than <?= h($days) ?> days.</p>
       <?php endif; ?>
     </div>
   </div>
@@ -83,12 +83,12 @@
         <p class="form-text">
           Disabled. Set <code>card_retention_days</code> in <a href="/admin/settings">Settings</a> to enable
           age-based soft-deletion of user-owned cards. Storage is reclaimed when you
-          run <strong>Prune orphans</strong> after this.
+          run <strong>Prune orphan backgrounds</strong> after this.
         </p>
       <?php else: ?>
         <p>
           Retention: cards older than <strong><?= h($cardRetentionDays) ?> days</strong> will be
-          soft-deleted. They still occupy disk until you run <strong>Prune orphans</strong> next.
+          soft-deleted. They still occupy disk until you run <strong>Prune orphan backgrounds</strong> next.
         </p>
         <p class="display-6"><?= h($cardsToExpire) ?></p>
         <?php if ($cardsToExpire > 0): ?>

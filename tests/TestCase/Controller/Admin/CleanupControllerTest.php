@@ -112,7 +112,7 @@ final class CleanupControllerTest extends TestCase
         $this->get('/admin/cleanup?days=30');
         $this->assertResponseOk();
         $this->assertResponseContains('Guest cards to purge');
-        $this->assertResponseContains('Orphaned uploads to prune');
+        $this->assertResponseContains('Orphan background images to prune');
     }
 
     public function testPurgeOldGuestCards(): void
