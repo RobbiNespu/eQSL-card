@@ -183,62 +183,12 @@
   <div class="alert alert-info">No templates available — please contact the operator.</div>
 <?php endif; ?>
 
-<hr>
-<h2>Background</h2>
-<div class="btn-group" role="group" aria-label="Background source">
-  <button type="button" class="btn btn-outline-primary"
-          :class="mode==='default' && 'btn-active'"
-          @click="mode='default'">Use site default</button>
-  <button type="button" class="btn btn-outline-primary"
-          :class="mode==='upload' && 'btn-active'"
-          @click="mode='upload'">Upload</button>
-  <button type="button" class="btn btn-outline-primary"
-          :class="mode==='camera' && 'btn-active'"
-          @click="startCamera()">Use camera</button>
-</div>
+<p class="form-text mt-3 mb-3">
+  The background is part of the template you pick above. If none of the available
+  templates has the look you want, <a href="/register">create an account</a> to design
+  your own template with a custom background.
+</p>
 
-<div class="mt-3" x-show="mode==='default'">
-  <p class="form-text">No image needed — your card will be generated with the site's default background.</p>
-</div>
-
-<div class="mt-3" x-show="mode==='upload'">
-  <input type="file" name="background_upload" accept="image/jpeg,image/png,image/webp" class="form-control">
-</div>
-<div class="mt-3" x-show="mode==='camera'" x-cloak>
-  <video x-ref="video" autoplay playsinline style="max-width:100%; border-radius: var(--r-md);"></video>
-  <canvas x-ref="canvas" hidden></canvas>
-  <button type="button" class="btn btn-secondary mt-2" @click="capture()">Capture</button>
-  <input type="hidden" name="background_capture" x-model="captured">
-  <img class="card-preview mt-2" x-show="captured" :src="captured" loading="lazy">
-</div>
-
-<!-- Attribution — only relevant when actually uploading or capturing. -->
-<div class="row g-3 mt-2" x-show="mode==='upload' || mode==='camera'" x-cloak>
-  <div class="col-md-6">
-    <div class="field">
-      <label class="form-label" for="background_author">Background — author / photographer</label>
-      <input type="text" id="background_author" name="background_author" class="form-control"
-             placeholder="Leave blank if unknown">
-    </div>
-  </div>
-  <div class="col-md-6">
-    <div class="field">
-      <label class="form-label" for="background_license">Background — license</label>
-      <select id="background_license" name="background_license" class="form-select">
-        <?php foreach (\App\Service\ImageLicense::options() as $code => $label): ?>
-          <option value="<?= h($code) ?>"<?= $code === 'unknown' ? ' selected' : '' ?>><?= h($label) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </div>
-  </div>
-  <div class="col-12">
-    <p class="form-text">
-      The credit footer on your card will show: <em>Background: &lt;author&gt; (&lt;license&gt;) — used by &lt;your callsign&gt;</em>.
-      If you leave the author blank, it'll say "unknown source".
-    </p>
-  </div>
-</div>
-
-<button class="btn btn-primary mt-4">Generate eQSL</button>
+<button class="btn btn-primary mt-2">Generate eQSL</button>
 <?= $this->Form->end() ?>
 </div>

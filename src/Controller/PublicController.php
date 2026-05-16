@@ -238,84 +238,14 @@ class PublicController extends AppController
             )
         );
 
-        // Resolve background source
-        $tmpUpload = $this->resolveBackground($data);
-
-        // T7 hardening: image-bomb defense — reject ridiculous pixel counts BEFORE decode
-        $bgInfo = @getimagesize($tmpUpload);
-        if ($bgInfo === false) {
-            @unlink($tmpUpload);
-            throw new \Cake\Http\Exception\BadRequestException('Background is not a valid image.');
-        }
-        if ($bgInfo[0] * $bgInfo[1] > 50_000_000) {
-            @unlink($tmpUpload);
-            throw new \Cake\Http\Exception\BadRequestException('Image dimensions exceed allowed limit.');
-        }
-
-        // Optimize once into a scratch path, then dedup by the POST-optimize hash.
-        // 1600x1200 q78 produces backgrounds slightly larger than the 1500x1000
-        // card canvas (so we don't upscale on render) at ~40% smaller files
-        // than the prior 2000x1500 q82 baseline; quality loss is invisible
-        // under a JPEG-compressed photo background.
-        $optimizer = new \App\Service\ImageOptimizer(maxWidth: 1600, maxHeight: 1200, quality: 78);
-        $tmpDest = tempnam(sys_get_temp_dir(), 'eqsl_opt_');
-        $info = $optimizer->optimize($tmpUpload, $tmpDest);
-        @unlink($tmpUpload);
-
-        $sha = $info['sha256_hash'];
-        $uploadsDir = WWW_ROOT . 'files/uploads/';
-        if (!is_dir($uploadsDir)) {
-            mkdir($uploadsDir, 0o775, true);
-        }
-        $finalPath = $uploadsDir . $sha . '.jpg';
-        if (is_file($finalPath)) {
-            @unlink($tmpDest);
-        } else {
-            rename($tmpDest, $finalPath);
-        }
-
-        $uploads = $this->fetchTable('Uploads');
-        $upload = $uploads->find()->where(['sha256_hash' => $sha])->first();
-
-        // Attribution: if the user actually uploaded or captured something
-        // (not the default-bg fallback), trust the form fields. Otherwise
-        // pull the admin-configured attribution from app_settings.
-        $userSuppliedBg = ($this->request->getUploadedFile('background_upload')?->getError() === UPLOAD_ERR_OK)
-            || str_starts_with((string)($data['background_capture'] ?? ''), 'data:image/');
-        if ($userSuppliedBg) {
-            $authorName = trim((string)($data['background_author'] ?? ''));
-            $authorName = $authorName !== '' ? $authorName : null;
-            $licenseRaw = trim((string)($data['background_license'] ?? ''));
-            $license = ($licenseRaw !== '' && array_key_exists($licenseRaw, \App\Service\ImageLicense::LICENSES))
-                ? $licenseRaw
-                : 'unknown';
-        } else {
-            $appSettings = new \App\Service\AppSettings();
-            $authorName = trim((string)$appSettings->get('default_background_author', ''));
-            $authorName = $authorName !== '' ? $authorName : null;
-            $license = (string)$appSettings->get('default_background_license', 'unknown');
-        }
-
-        if (!$upload) {
-            $upload = $uploads->saveOrFail($uploads->newEntity([
-                'guest_visit_id' => $visit->id,
-                'original_filename' => 'guest-upload.jpg',
-                'storage_path' => 'files/uploads/' . $sha . '.jpg',
-                'mime_type' => 'image/jpeg',
-                'width_px' => $info['width_px'],
-                'height_px' => $info['height_px'],
-                'file_size_bytes' => $info['file_size_bytes'],
-                'sha256_hash' => $sha,
-                'author_name' => $authorName,
-                'license' => $license,
-            ]));
-        }
-
-        // Load the chosen template (with strict guest-allowed scope), or fall back to system
+        // Load the chosen template first (with strict guest-allowed scope),
+        // or fall back to the first system template. The template owns its
+        // background now — guests no longer pick / upload backgrounds on
+        // this flow; if they want a different look they pick a different
+        // template.
         $templateId = (int)($data['template_id'] ?? 0);
         $template = null;
         if ($templateId > 0) {
-            // Must be public-approved or system
             $template = $this->fetchTable('Templates')->find()
                 ->where(['Templates.id' => $templateId])
                 ->where(['OR' => [
@@ -330,6 +260,12 @@ class PublicController extends AppController
                 ->firstOrFail();
         }
         $layout = json_decode($template->layout_json, true);
+
+        // Resolve the background. Template-bound bg wins; otherwise fall
+        // through to the site-default image (SHA-deduped against the
+        // existing uploads library, owned by the guest visit on first
+        // insert so /admin/uploads still attributes it correctly).
+        [$upload, $authorName, $license, $finalPath] = $this->resolveTemplateBackgroundForGuest($template, $visit->id);
 
         // Build QSO data
         $qso = $this->buildQsoData($data);
@@ -400,42 +336,109 @@ class PublicController extends AppController
     }
 
     /**
-     * Move an uploaded file or decode a base64 capture into a temp file
-     * and return its path.
+     * Resolve the background to use for a guest render. Templates own their
+     * backgrounds; this method returns the right upload + attribution + the
+     * resolved on-disk path the renderer will hand to CardRenderer.
+     *
+     * Template-bound bg wins. When the template has no bound bg (or the
+     * bound row was deleted from /uploads), we fall through to the site-
+     * default image (`_default-bg.jpg` if uploaded by an admin, otherwise
+     * the bundled `_demo-bg.jpg`), optimise it, SHA-dedup it against
+     * existing uploads, and either reuse the existing row or insert a new
+     * one owned by this guest visit.
+     *
+     * @return array{0:object,1:?string,2:string,3:string} [upload, author, license, on-disk path]
      */
-    private function resolveBackground(array $data): string
+    private function resolveTemplateBackgroundForGuest(object $template, int $guestVisitId): array
     {
-        $upload = $this->request->getUploadedFile('background_upload');
-        if ($upload && $upload->getError() === UPLOAD_ERR_OK) {
-            $tmp = tempnam(sys_get_temp_dir(), 'eqsl_');
-            $upload->moveTo($tmp);
-            return $tmp;
-        }
-        $capture = (string)($data['background_capture'] ?? '');
-        if (str_starts_with($capture, 'data:image/')) {
-            $blob = base64_decode((string)preg_replace('#^data:image/[^;]+;base64,#', '', $capture));
-            $tmp = tempnam(sys_get_temp_dir(), 'eqsl_');
-            file_put_contents($tmp, $blob);
-            return $tmp;
+        $uploadsTbl = $this->fetchTable('Uploads');
+
+        // 1) Template-bound bg path (preferred).
+        $boundId = (int)($template->background_upload_id ?? 0);
+        if ($boundId > 0) {
+            $bound = $uploadsTbl->find()
+                ->where(['id' => $boundId, 'Uploads.deleted_at IS' => null])
+                ->first();
+            if ($bound !== null) {
+                $abs = WWW_ROOT . $bound->storage_path;
+                if (is_file($abs)) {
+                    return [$bound, $bound->author_name, (string)$bound->license, $abs];
+                }
+            }
+            // Bound row vanished — fall through to site default rather than
+            // 500ing on the guest.
         }
 
-        // No user-supplied background — fall back to the admin-configured
-        // default (uploadable via /admin/settings) or the bundled demo bg.
-        // We copy to a temp path because the caller @unlinks the returned file.
+        // 2) Site default fallback. Choose admin override then bundled demo.
         $candidates = [
             WWW_ROOT . 'files/templates/_default-bg.jpg',
             WWW_ROOT . 'files/templates/_demo-bg.jpg',
         ];
+        $source = null;
         foreach ($candidates as $abs) {
             if (is_file($abs)) {
-                $tmp = tempnam(sys_get_temp_dir(), 'eqsl_');
-                copy($abs, $tmp);
-                return $tmp;
+                $source = $abs;
+                break;
             }
         }
-        throw new \Cake\Http\Exception\BadRequestException(
-            'No background image available — admin must set a default.'
-        );
+        if ($source === null) {
+            throw new \Cake\Http\Exception\BadRequestException(
+                'No background image available — admin must set a default.'
+            );
+        }
+
+        // Bomb-defence guard before GD touches it.
+        $info = @getimagesize($source);
+        if ($info === false) {
+            throw new \Cake\Http\Exception\BadRequestException('Default background is not a valid image.');
+        }
+        if ($info[0] * $info[1] > 50_000_000) {
+            throw new \Cake\Http\Exception\BadRequestException('Default background dimensions exceed allowed limit.');
+        }
+
+        // Optimise + SHA-dedup.
+        $optimizer = new \App\Service\ImageOptimizer(maxWidth: 1600, maxHeight: 1200, quality: 78);
+        $tmpDest = tempnam(sys_get_temp_dir(), 'eqsl_opt_');
+        $opt = $optimizer->optimize($source, $tmpDest);
+        $sha = $opt['sha256_hash'];
+        $uploadsDir = WWW_ROOT . 'files/uploads/';
+        if (!is_dir($uploadsDir)) {
+            mkdir($uploadsDir, 0o775, true);
+        }
+        $finalPath = $uploadsDir . $sha . '.jpg';
+        if (is_file($finalPath)) {
+            @unlink($tmpDest);
+        } else {
+            rename($tmpDest, $finalPath);
+        }
+
+        $settings = new \App\Service\AppSettings();
+        $authorName = trim((string)$settings->get('default_background_author', ''));
+        $authorName = $authorName !== '' ? $authorName : null;
+        $license = (string)$settings->get('default_background_license', 'unknown');
+
+        $upload = $uploadsTbl->find()->where(['sha256_hash' => $sha])->first();
+        if (!$upload) {
+            $upload = $uploadsTbl->saveOrFail($uploadsTbl->newEntity([
+                'guest_visit_id'    => $guestVisitId,
+                'original_filename' => 'site-default.jpg',
+                'storage_path'      => 'files/uploads/' . $sha . '.jpg',
+                'mime_type'         => 'image/jpeg',
+                'width_px'          => $opt['width_px'],
+                'height_px'         => $opt['height_px'],
+                'file_size_bytes'   => $opt['file_size_bytes'],
+                'sha256_hash'       => $sha,
+                'author_name'       => $authorName,
+                'license'           => $license,
+            ]));
+        } elseif ($upload->deleted_at !== null) {
+            $upload->set('deleted_at', null, ['guard' => false]);
+            $upload->set('author_name', $authorName, ['guard' => false]);
+            $upload->set('license', $license, ['guard' => false]);
+            $uploadsTbl->saveOrFail($upload);
+        }
+
+        return [$upload, $authorName, $license, $finalPath];
     }
 
     /**

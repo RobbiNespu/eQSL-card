@@ -37,8 +37,10 @@ jobs:
       - name: Run PHPUnit
         run: vendor/bin/phpunit
         env:
-          DATABASE_TEST_URL: sqlite:///:memory:
-          EMAIL_TRANSPORT_DEFAULT_URL: debug://localhost
+          # Quoted because the values contain colons not followed by a space —
+          # GitHub Actions' YAML parser rejects them as bare scalars.
+          DATABASE_TEST_URL: "sqlite:///:memory:"
+          EMAIL_TRANSPORT_DEFAULT_URL: "debug://localhost"
 
   vitest:
     name: Vitest (designer JS helpers)

@@ -157,20 +157,12 @@
                   <?php endforeach; ?>
                 </select>
               </div>
-              <div class="mb-3">
-                <label class="form-label">Background</label>
-                <select class="form-select" x-model="uploadId">
-                  <?php if ($userUploads->count() > 0): ?>
-                    <option value="">— pick an existing upload —</option>
-                    <?php foreach ($userUploads as $u): ?>
-                      <option value="<?= $u->id ?>"><?= h($u->original_filename ?: 'upload #' . $u->id) ?> · <?= h(round($u->file_size_bytes / 1024)) ?> KB</option>
-                    <?php endforeach; ?>
-                  <?php else: ?>
-                    <option value="">No uploads yet — upload one via the single-render flow first</option>
-                  <?php endif; ?>
-                </select>
-                <p class="form-text small">Use <a href="/qsos/<?= $qsos->first()->id ?? '' ?>/render">single-render</a> to upload a new background — it'll then appear in this list.</p>
-              </div>
+              <p class="form-text small mt-2">
+                The background is part of the template — every card in this batch
+                will share whatever background the chosen template has bound.
+                Templates without a bound background fall through to the site
+                default at render time.
+              </p>
             </div>
           </template>
           <template x-if="started">

@@ -40,6 +40,10 @@ function designer(initial) {
         snapToGrid: false,
         previewTab: 'design',
         previewFabric: null,
+        // Background is now persisted on the template itself (cards inherit
+        // it at render time). Initial values come from the bound entity for
+        // edits, both blank for new templates.
+        backgroundUploadId: initial.backgroundUploadId || null,
 
         init() {
             // Defer until the <canvas x-ref="canvas"> element is mounted.
@@ -471,12 +475,11 @@ function designer(initial) {
             this.previewFabric.requestRenderAll();
         },
 
-        // M3-T5 — designer preview background. The URL is preview-only:
-        // templates stay background-agnostic per spec §6.4, so we don't
-        // serialise `backgroundUrl` into `layout_json`. The upload itself
-        // does land in the user's `uploads` library and can be reused at
-        // render time.
-        backgroundUrl: null,
+        // Background URL is held in state for the live preview; the actual
+        // persisted reference is `backgroundUploadId` above. When the user
+        // uploads a file the server returns the `uploads.id` and the URL —
+        // we keep both: id for save(), url for the preview.
+        backgroundUrl: initial.backgroundUrl || null,
 
         async uploadBackground(file) {
             if (!file) return;
@@ -496,7 +499,22 @@ function designer(initial) {
             }
             const data = await r.json();
             this.backgroundUrl = data.url;
+            this.backgroundUploadId = data.upload_id || null;
             this.applyBackground();
+        },
+
+        // Detach the bound background. The card render will then fall
+        // through to the site-default image. State update only — actual
+        // persistence happens when the user clicks Save.
+        removeBackground() {
+            this.backgroundUrl = null;
+            this.backgroundUploadId = null;
+            if (this.fabricCanvas && this.fabricCanvas.setBackgroundImage) {
+                this.fabricCanvas.setBackgroundImage(null, () => this.fabricCanvas.requestRenderAll());
+            } else if (this.fabricCanvas) {
+                this.fabricCanvas.backgroundImage = null;
+                this.fabricCanvas.requestRenderAll();
+            }
         },
 
         applyBackground(targetCanvas) {
@@ -545,6 +563,9 @@ function designer(initial) {
             body.append('layout_json', (window.designerHelpers && window.designerHelpers.serializeLayout)
                 ? window.designerHelpers.serializeLayout(this.fields)
                 : JSON.stringify({ fields: this.fields }));
+            // Empty string explicitly clears the background on the template;
+            // a numeric id binds the upload row as the template's background.
+            body.append('background_upload_id', this.backgroundUploadId ? String(this.backgroundUploadId) : '');
             if (this.makePublic) {
                 body.append('make_public', '1');
             }

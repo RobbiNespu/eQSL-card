@@ -5,12 +5,12 @@
  * exercised under Node without a DOM/Fabric mock. Execution happens in
  * CI (M4-T19) — the dev Docker image is PHP-only.
  */
-const { describe, it, expect } = require('vitest');
-const {
-    fontFamilyFor,
-    parseLayoutJson,
-    serializeLayout,
-} = require('../../webroot/js/designer-helpers.js');
+import { describe, it, expect } from 'vitest';
+// designer-helpers.js stays CommonJS (loaded by <script> tags from PHP),
+// so we default-import it and pull the named exports off the resulting
+// module.exports object — the most reliable ESM-from-CJS interop shape.
+import helpers from '../../webroot/js/designer-helpers.js';
+const { fontFamilyFor, parseLayoutJson, serializeLayout } = helpers;
 
 describe('fontFamilyFor', () => {
     it('maps known TTF filenames to css font-family', () => {

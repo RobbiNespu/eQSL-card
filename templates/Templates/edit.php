@@ -15,6 +15,25 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
   <a href="/help/templates/designer">📖 Designer guide →</a>
 </p>
 
+<?php
+// Bound-background bootstrap. If the template already has a background
+// upload attached, load both the id (for save round-trip) and the URL
+// (so the canvas preview shows it on initial paint).
+$bgUploadId = $template->background_upload_id ?? null;
+$bgUrl = null;
+if (!empty($bgUploadId)) {
+    $bgRow = $this->fetchTable('Uploads')->find()
+        ->where(['id' => $bgUploadId, 'Uploads.deleted_at IS' => null])
+        ->first();
+    if ($bgRow) {
+        $bgUrl = '/' . $bgRow->storage_path;
+    } else {
+        // Bound row vanished (deleted from /uploads). Forget the id so
+        // the designer doesn't try to re-persist a stale reference.
+        $bgUploadId = null;
+    }
+}
+?>
 <div x-data="designer(<?= h(json_encode([
     'mode' => $mode,
     'templateId' => $template->id ?? null,
@@ -23,7 +42,9 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
     'canvasWidth' => $template->canvas_width ?? 1500,
     'canvasHeight' => $template->canvas_height ?? 1000,
     'layoutJson' => $template->layout_json ?? '{"fields":[]}',
-])) ?>)" class="row">
+    'backgroundUploadId' => $bgUploadId,
+    'backgroundUrl' => $bgUrl,
+])) ?>)" x-init="$nextTick(() => { if (backgroundUrl) applyBackground(); })" class="row">
 
   <div class="col-lg-3">
     <h2>Template details</h2>
@@ -82,10 +103,17 @@ $jsVersion = static fn (string $rel): string => (string)(@filemtime(WWW_ROOT . l
 
   <div class="col-lg-6">
     <div class="mb-2">
-      <label class="form-label small">Preview background (optional)</label>
+      <label class="form-label small">Background image</label>
       <input type="file" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp"
              @change="uploadBackground($event.target.files[0])">
-      <p class="form-text small">Used only for visual reference while designing. The actual background is chosen at render time.</p>
+      <div class="form-text small d-flex align-items-center justify-content-between gap-2">
+        <span>
+          <template x-if="backgroundUploadId"><span>✓ Bound to upload #<span x-text="backgroundUploadId"></span> — cards rendered from this template use this image.</span></template>
+          <template x-if="!backgroundUploadId"><span>No background bound — cards fall back to the site default at render time.</span></template>
+        </span>
+        <button type="button" class="btn btn-link btn-sm p-0" x-show="backgroundUploadId" x-cloak
+                @click="removeBackground()">Remove</button>
+      </div>
     </div>
     <div role="tablist" class="tabs tabs-lifted">
       <button role="tab" class="tab" :class="previewTab === 'design' ? 'tab-active' : ''" @click="switchTab('design')">Design</button>
