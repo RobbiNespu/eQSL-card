@@ -33,7 +33,7 @@ class CallsignLookupsController extends AppController
      */
     private const PROVIDER_MAP = [
         'local'                 => 'Local directory — admin-imported CSV (recommended FIRST)',
-        'radioid_database_dump' => 'RadioID registry — periodic sync into a local lookup cache; respects radioid.net/api_use_policy',
+        'radioid_database_dump' => 'RadioID registry — periodic stream into a local lookup cache; respects radioid.net/api_use_policy',
         'radioid_api'           => 'RadioID API (users) — broader users endpoint; behind Cloudflare',
         'qrz'                   => 'QRZ.com — requires paid XML key, currently disabled',
         'mcmc'                  => 'MCMC Malaysia — live scrape (9M / 9W)',
