@@ -21,6 +21,36 @@ final class HamRadio
         '70cm', '33cm', '23cm', '13cm', '9cm', '6cm', '3cm',
     ];
 
+    /**
+     * Frequency edges (MHz, inclusive) for each band, narrowed to the
+     * Malaysian amateur-service allocations (MCMC / RAEM Class A & B).
+     * Operators in other ITU regions have wider edges on several bands
+     * (e.g. USA 40m runs to 7.300, Region 1 has a 4m band); a typed
+     * frequency outside the table below simply leaves the band picker
+     * untouched rather than guessing.
+     *
+     * Bands not currently allocated to MY hams (160m, 4m, 1.25m, 33cm,
+     * 23cm and above) are intentionally absent here. Those bands still
+     * appear in the BANDS dropdown above so an operator can pick them
+     * manually for cross-region QSOs — they just don't auto-fill.
+     *
+     * @var array<string, array{0:float,1:float}>
+     */
+    public const BAND_RANGES = [
+        '80m'  => [3.500,   3.900],
+        '60m'  => [5.3515,  5.3665],
+        '40m'  => [7.000,   7.200],
+        '30m'  => [10.100,  10.150],
+        '20m'  => [14.000,  14.350],
+        '17m'  => [18.068,  18.168],
+        '15m'  => [21.000,  21.450],
+        '12m'  => [24.890,  24.990],
+        '10m'  => [28.000,  29.700],
+        '6m'   => [50.000,  54.000],
+        '2m'   => [144.000, 148.000],
+        '70cm' => [430.000, 440.000],
+    ];
+
     /** Common modes, grouped by family. */
     public const MODES = [
         // Voice
@@ -58,6 +88,32 @@ final class HamRadio
     public static function modeOptions(?string $current = null): array
     {
         return self::buildOptions(self::MODES, $current);
+    }
+
+    /**
+     * Resolve the canonical band for an RF frequency, in MHz. Returns
+     * null when the frequency is outside every known amateur band — the
+     * caller should leave the band field alone rather than guess.
+     *
+     * Use cases: auto-fill the band picker when an operator types a
+     * frequency in the QSO form, and the same logic for ADIF imports
+     * that supply FREQ but no BAND tag.
+     */
+    public static function bandForFrequency(float|int|string|null $mhz): ?string
+    {
+        if ($mhz === null || $mhz === '') {
+            return null;
+        }
+        $f = (float)$mhz;
+        if ($f <= 0) {
+            return null;
+        }
+        foreach (self::BAND_RANGES as $band => [$lo, $hi]) {
+            if ($f >= $lo && $f <= $hi) {
+                return $band;
+            }
+        }
+        return null;
     }
 
     /**

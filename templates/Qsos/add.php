@@ -42,6 +42,9 @@ $initialState = h(json_encode([
     'operatorQth'   => $qso->operator_qth ?? '',
     'gridSquare'    => $qso->grid_square ?? '',
     'ncsPrefill'    => $ncsPrefill,
+    // Band-from-frequency lookup table — single source of truth from
+    // HamRadio::BAND_RANGES so PHP imports and the JS auto-fill agree.
+    'bandRanges'    => \App\Service\HamRadio::BAND_RANGES,
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 ?>
 
@@ -112,6 +115,36 @@ function qsoFormState(initial) {
       this.operatorQth  = '';
       this.gridSquare   = '';
       this.lookupSource = '';
+    },
+    bandForFrequency(mhzRaw) {
+      /* Look up the canonical band for an RF MHz value. Mirrors
+         HamRadio::bandForFrequency on the server. Returns '' (not null)
+         when out of every known range so the caller can assign it
+         straight into a string-typed <select>.value. */
+      const f = parseFloat(mhzRaw);
+      if (!isFinite(f) || f <= 0) return '';
+      for (const [band, range] of Object.entries(this.bandRanges || {})) {
+        if (f >= range[0] && f <= range[1]) return band;
+      }
+      return '';
+    },
+    onFrequencyInput(ev) {
+      /* Auto-fill the band <select> when the operator types a frequency.
+         Skip silently when the typed value isn't on any amateur band, so
+         a partially-typed digit ("1") doesn't briefly blank the band.
+         Skip too when the user has already manually picked a band that
+         doesn't match — don't fight a deliberate override. */
+      const band = this.bandForFrequency(ev.target.value);
+      if (!band) return;
+      const sel = document.getElementById('band');
+      if (!sel) return;
+      /* If the operator manually picked a band already, only overwrite
+         when it's empty OR when the typed frequency clearly contradicts
+         the current pick (i.e. the new lookup returns a different band).
+         The user-friendly default: typing wins, since the frequency is
+         the higher-fidelity signal. */
+      sel.value = band;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
     },
   });
 }
@@ -272,14 +305,12 @@ function qsoFormState(initial) {
     <div class="col-md-4">
       <div class="field">
         <label class="form-label" for="frequency-mhz">Frequency (MHz)</label>
-        <?= $this->Form->control('frequency_mhz', [
-            'label' => false,
-            'id'    => 'frequency-mhz',
-            'class' => 'form-control',
-            'placeholder' => 'e.g. 14.07415',
-            'templates' => ['inputContainer' => '{{content}}'],
-        ]) ?>
-        <p class="form-text small mb-0">Megahertz. Up to 4 decimal places.</p>
+        <input type="text" id="frequency-mhz" name="frequency_mhz" class="form-control"
+               placeholder="e.g. 14.07415"
+               value="<?= h($qso->frequency_mhz ?? '') ?>"
+               @input.debounce.150ms="onFrequencyInput($event)"
+               autocomplete="off" inputmode="decimal">
+        <p class="form-text small mb-0">Megahertz — up to 4 decimal places. Band auto-fills.</p>
       </div>
     </div>
     <div class="col-md-4">
