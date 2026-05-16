@@ -2008,3 +2008,129 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
     font-size: 0.95em;
   }
 }
+
+/* ============================================================
+   M5 T7 — Quick-add form styling
+   Layout is naturally responsive (single column phones,
+   constrained-width on desktop). T8/T10/T11 will extend with
+   chips, sticky save button, etc.
+   ============================================================ */
+.quick-add {
+  max-width: 540px;
+  margin: 0 auto;
+}
+.quick-add__form .form-control-lg {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  min-height: 52px;
+}
+.quick-add__recent {
+  border-top: 1px solid var(--border, #e2e8f0);
+  padding-top: var(--s-3, 12px);
+}
+.quick-add__recent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.quick-add__recent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--s-2, 8px) 0;
+  border-bottom: 1px solid var(--border-soft, #f1f5f9);
+  font-size: 0.95em;
+}
+.quick-add__recent-item:last-child {
+  border-bottom: 0;
+}
+.quick-add__recent-call {
+  font-weight: 700;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.quick-add__recent-meta {
+  font-size: 0.85em;
+  color: var(--text-muted, var(--bs-secondary-color));
+}
+
+/* ============================================================
+   M5 T8 — Quick-add: tappable recent QSO rows
+   The recent panel moves from bottom (T7) to top (T8) and each
+   item becomes a <button> so the operator can clone its
+   freq/mode/notes into the form with one tap.
+   ============================================================ */
+.quick-add__recent {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--r-md, 8px);
+  background: var(--surface-2, var(--bs-tertiary-bg, #f8fafc));
+  padding: var(--s-3, 12px) var(--s-4, 16px);
+}
+.quick-add__recent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--s-2, 8px);
+}
+/* Override the T7 recent-item rule (was an <li>; now a <button>). */
+.quick-add__recent-item {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3, 12px);
+  padding: var(--s-2, 8px) var(--s-3, 12px);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm, 6px);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--bs-body-color);
+  min-height: 44px;
+}
+.quick-add__recent-item:hover,
+.quick-add__recent-item:focus-visible {
+  background: var(--bs-tertiary-bg, #e2e8f0);
+  outline: none;
+}
+.quick-add__recent-item:active {
+  background: var(--bs-secondary-bg, #cbd5e1);
+}
+[data-theme="eqsl-dark"] .quick-add__recent-item:hover,
+[data-theme="eqsl-dark"] .quick-add__recent-item:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ============================================================
+   M5 T9 — Quick-add: transient flash banner
+   Shown for ~3 s after each XHR submit. Replaces the page-reload
+   flash on the JS path; the HTML/no-JS fallback path still uses
+   the framework Flash component.
+   ============================================================ */
+.quick-add__flash {
+  padding: var(--s-2, 8px) var(--s-3, 12px);
+  border-radius: var(--r-md, 8px);
+  font-weight: 500;
+  margin-bottom: var(--s-3, 12px);
+  border: 1px solid transparent;
+}
+.quick-add__flash--success {
+  background: var(--success-soft, #d1fae5);
+  border-color: var(--success, #10b981);
+  color: #064e3b;
+}
+.quick-add__flash--error {
+  background: var(--danger-soft, #fee2e2);
+  border-color: var(--danger, #ef4444);
+  color: #7f1d1d;
+}
+[data-theme="eqsl-dark"] .quick-add__flash--success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success, #34d399);
+}
+[data-theme="eqsl-dark"] .quick-add__flash--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger, #fca5a5);
+}

@@ -198,6 +198,119 @@ class QsosController extends AppController
      * @return \Cake\Http\Response|null Redirect on save, or null while
      *   rendering the form.
      */
+    /**
+     * M5 T7 — Quick-add: portable-first one-thumb QSO entry.
+     *
+     * Renders a stripped-down form (callsign, freq, mode, RST sent/recv,
+     * notes). On POST:
+     *   - date/time UTC defaults to now (operator can override server-side
+     *     via a hidden field if they need to backfill — UI doesn't expose
+     *     it on mobile for speed),
+     *   - band auto-derives from frequency via HamRadio::bandForFrequency,
+     *   - transport defaults to 'rf' (RF over the air — the activation
+     *     baseline),
+     *   - qso_type defaults to 'contact'.
+     *
+     * After save, the controller re-renders the same form (no redirect)
+     * with a success flash and an empty entity, leaving the callsign
+     * input focused for the next contact. T7 ships the route + form +
+     * basics; T8 adds the pinned "Last 5 QSOs" panel, T9 wires the
+     * save-and-refocus loop on the client, T10 adds notes chips, T11
+     * makes the submit button sticky-above-keyboard.
+     */
+    public function quick(): ?\Cake\Http\Response
+    {
+        $qsos = $this->fetchTable('Qsos');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $entity = $qsos->newEmptyEntity();
+
+        if ($this->request->is('post')) {
+            $data = $this->request->getData();
+            // Auto-fill date/time UTC if the client didn't send one (mobile
+            // form omits the field by default). Server is the timekeeper.
+            if (empty($data['qso_datetime_utc'])) {
+                $data['qso_datetime_utc'] = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
+                    ->format('Y-m-d H:i:s');
+            }
+            // Auto-derive band from frequency if the client didn't send one.
+            if (empty($data['band']) && !empty($data['frequency_mhz'])) {
+                $derived = \App\Service\HamRadio::bandForFrequency($data['frequency_mhz']);
+                if ($derived !== null) {
+                    $data['band'] = $derived;
+                }
+            }
+            // Default transport to RF and qso_type to contact — both are the
+            // overwhelming portable-ops baseline. Operators who need
+            // internet-mediated or net mode use /qsos/new (more fields).
+            if (empty($data['transport'])) {
+                $data['transport'] = 'rf';
+            }
+            if (empty($data['qso_type'])) {
+                $data['qso_type'] = 'contact';
+            }
+
+            $entity = $qsos->patchEntity($entity, $data);
+            $entity->user_id = $userId;
+            $saved = $qsos->save($entity);
+            // T9 — content negotiation. If the client asked for JSON
+            // (Alpine fetch submit), return a small payload it can use to
+            // prepend to the recents panel and clear the form, without
+            // reloading the page.
+            if ($this->request->accepts('application/json')) {
+                $this->response = $this->response->withType('application/json');
+                if ($saved) {
+                    $payload = [
+                        'ok'  => true,
+                        'qso' => [
+                            'id'        => (int)$entity->id,
+                            'callsign'  => (string)$entity->call_worked,
+                            'frequency' => (string)($entity->frequency_mhz ?? ''),
+                            'band'      => (string)($entity->band ?? ''),
+                            'mode'      => (string)($entity->mode ?? ''),
+                            'notes'     => (string)($entity->notes ?? ''),
+                            'time'      => $entity->qso_datetime_utc instanceof \DateTimeInterface
+                                ? $entity->qso_datetime_utc->format('H:i') : '',
+                        ],
+                    ];
+                } else {
+                    $this->response = $this->response->withStatus(422);
+                    $payload = [
+                        'ok'     => false,
+                        'errors' => $entity->getErrors(),
+                    ];
+                }
+                $this->response = $this->response->withStringBody(json_encode($payload, JSON_THROW_ON_ERROR));
+                return $this->response;
+            }
+            if ($saved) {
+                $this->Flash->success('Logged ' . $entity->call_worked . '.');
+                // Re-render the empty form (HTML fallback for no-JS clients).
+                $entity = $qsos->newEmptyEntity();
+            } else {
+                $this->Flash->error('Could not save QSO. Check fields and try again.');
+            }
+        }
+
+        // Last 5 QSOs for the pinned context panel (T8). Lightweight: just
+        // the fields the panel renders, no `contain()` fan-out.
+        $recent = $qsos->find()
+            ->select(['id', 'call_worked', 'frequency_mhz', 'band', 'mode',
+                      'rst_sent', 'rst_received', 'qso_datetime_utc', 'notes'])
+            ->where(['user_id' => $userId])
+            ->orderBy(['qso_datetime_utc' => 'DESC', 'id' => 'DESC'])
+            ->limit(5)
+            ->all();
+
+        $this->set([
+            'qso' => $entity,
+            'recent' => $recent,
+            'title' => 'Quick add — log a contact',
+        ]);
+        $this->render('quick');
+
+        return null;
+    }
+
     public function add(): ?\Cake\Http\Response
     {
         $qsos = $this->fetchTable('Qsos');
