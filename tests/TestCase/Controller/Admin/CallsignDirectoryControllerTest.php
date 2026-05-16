@@ -55,7 +55,7 @@ final class CallsignDirectoryControllerTest extends TestCase
         $this->enableCsrfToken();
         $this->enableSecurityToken();
         $this->post('/admin/callsign-directory/upload', ['source_label' => 'TestBatch']);
-        $this->assertRedirect('/admin/callsign-directory');
+        $this->assertRedirect('/admin/callsign-lookups/provider/local');
 
         $table = $this->getTableLocator()->get('CallsignDirectory');
         $this->assertSame(2, $table->find()->count());
@@ -75,7 +75,7 @@ final class CallsignDirectoryControllerTest extends TestCase
         $this->enableCsrfToken();
         $this->enableSecurityToken();
         $this->post('/admin/callsign-directory/upload');
-        $this->assertRedirect('/admin/callsign-directory');
+        $this->assertRedirect('/admin/callsign-lookups/provider/local');
         // Couldn't surface the flash message without a follow-up GET; the
         // important guarantee is that no rows landed in the DB.
         $this->assertSame(
@@ -96,7 +96,7 @@ final class CallsignDirectoryControllerTest extends TestCase
         $this->enableCsrfToken();
         $this->enableSecurityToken();
         $this->post('/admin/callsign-directory/clear');
-        $this->assertRedirect('/admin/callsign-directory');
+        $this->assertRedirect('/admin/callsign-lookups/provider/local');
         $this->assertSame(0, $table->find()->count());
 
         $audit = $this->getTableLocator()->get('AuditLogs');
