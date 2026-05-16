@@ -251,11 +251,40 @@ class QsosController extends AppController
 
             $entity = $qsos->patchEntity($entity, $data);
             $entity->user_id = $userId;
-            if ($qsos->save($entity)) {
+            $saved = $qsos->save($entity);
+            // T9 — content negotiation. If the client asked for JSON
+            // (Alpine fetch submit), return a small payload it can use to
+            // prepend to the recents panel and clear the form, without
+            // reloading the page.
+            if ($this->request->accepts('application/json')) {
+                $this->response = $this->response->withType('application/json');
+                if ($saved) {
+                    $payload = [
+                        'ok'  => true,
+                        'qso' => [
+                            'id'        => (int)$entity->id,
+                            'callsign'  => (string)$entity->call_worked,
+                            'frequency' => (string)($entity->frequency_mhz ?? ''),
+                            'band'      => (string)($entity->band ?? ''),
+                            'mode'      => (string)($entity->mode ?? ''),
+                            'notes'     => (string)($entity->notes ?? ''),
+                            'time'      => $entity->qso_datetime_utc instanceof \DateTimeInterface
+                                ? $entity->qso_datetime_utc->format('H:i') : '',
+                        ],
+                    ];
+                } else {
+                    $this->response = $this->response->withStatus(422);
+                    $payload = [
+                        'ok'     => false,
+                        'errors' => $entity->getErrors(),
+                    ];
+                }
+                $this->response = $this->response->withStringBody(json_encode($payload, JSON_THROW_ON_ERROR));
+                return $this->response;
+            }
+            if ($saved) {
                 $this->Flash->success('Logged ' . $entity->call_worked . '.');
-                // Re-render the empty form rather than redirecting to /qsos/{id}
-                // — the whole point of quick-add is to stay here for the next
-                // contact. T9 will swap this for a no-reload XHR submission.
+                // Re-render the empty form (HTML fallback for no-JS clients).
                 $entity = $qsos->newEmptyEntity();
             } else {
                 $this->Flash->error('Could not save QSO. Check fields and try again.');

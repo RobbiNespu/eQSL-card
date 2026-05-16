@@ -225,27 +225,34 @@ function bulkRenderForm() {
 window.bulkRenderForm = bulkRenderForm;
 
 /**
- * M5 T7-T8 — Quick-add form Alpine.js component.
+ * M5 T7-T9 — Quick-add form Alpine.js component.
  *
  * Backing state for /qsos/quick. Holds the form values reactively so
  * `cloneFromRecent()` can mutate band/mode/frequency/notes when the
- * operator taps a recent QSO row to reuse its parameters (typical net
- * scenario: same freq + mode for a string of check-ins).
- *
- * Callsign and RST are NOT cloned — those are always per-contact
- * variables. After clone we focus the callsign input so the next
- * action is "type the new callsign".
+ * operator taps a recent QSO row, and so `submit()` can POST via fetch
+ * (T9) instead of a full page reload.
  *
  * `recent` is pre-serialised by the template (PHP → JSON) and passed
  * in as a constructor arg.
  *
- * T9 will extend this with submit() that POSTs via fetch + clears the
- * form on success, replacing the synchronous re-render currently
- * handled by QsosController::quick().
+ * After a successful save:
+ *   - The new QSO is prepended to recent[] (panel updates without reload).
+ *   - call_worked + RST are cleared (per-contact fields).
+ *   - frequency/mode/notes are PRESERVED — net rotations don't re-type.
+ *   - Callsign input is refocused → next action is "type the new callsign".
+ *   - A transient flash banner fades after 3 s.
+ *
+ * No-JS fallback: the <form> still posts synchronously and the
+ * controller renders the empty form with a flash. Tests cover this
+ * path in QsosControllerQuickTest.
  */
 function quickAddForm(recent) {
     return {
         recent: Array.isArray(recent) ? recent : [],
+        submitting: false,
+        flashKind: '',     // 'success' | 'error' | ''
+        flashMessage: '',
+        flashTimer: null,
         form: {
             callsign: '',
             frequency: '',
@@ -259,16 +266,73 @@ function quickAddForm(recent) {
             this.form.frequency = r.frequency || '';
             this.form.mode      = r.mode      || '';
             this.form.notes     = r.notes     || '';
-            // Clear callsign + RST so the operator types the new contact's
-            // values fresh — those should never carry forward.
             this.form.callsign = '';
             this.form.rstSent  = '';
             this.form.rstRecv  = '';
-            // Hand focus back to the callsign input so the next tap is
-            // "type the new callsign".
             this.$nextTick(() => {
                 if (this.$refs.callsign) this.$refs.callsign.focus();
             });
+        },
+        async submit($event) {
+            $event.preventDefault();
+            if (this.submitting) return;
+            if (!this.form.callsign.trim()) {
+                this.showFlash('error', 'Callsign is required.');
+                return;
+            }
+            this.submitting = true;
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content
+                || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
+            const body = new URLSearchParams({
+                call_worked:   this.form.callsign,
+                frequency_mhz: this.form.frequency,
+                mode:          this.form.mode,
+                rst_sent:      this.form.rstSent,
+                rst_received:  this.form.rstRecv,
+                notes:         this.form.notes,
+            });
+
+            try {
+                const resp = await fetch('/qsos/quick', {
+                    method: 'POST',
+                    headers: {
+                        'Accept':       'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': decodeURIComponent(csrf),
+                    },
+                    body,
+                });
+                const data = await resp.json().catch(() => null);
+                if (!resp.ok || !data || !data.ok) {
+                    this.showFlash('error',
+                        data?.errors
+                            ? 'Save failed — check fields.'
+                            : `Save failed (${resp.status}).`);
+                    return;
+                }
+                this.recent = [data.qso, ...this.recent].slice(0, 5);
+                this.form.callsign = '';
+                this.form.rstSent  = '';
+                this.form.rstRecv  = '';
+                this.showFlash('success', `Logged ${data.qso.callsign}.`);
+                this.$nextTick(() => {
+                    if (this.$refs.callsign) this.$refs.callsign.focus();
+                });
+            } catch (e) {
+                this.showFlash('error', 'Network error — please retry.');
+            } finally {
+                this.submitting = false;
+            }
+        },
+        showFlash(kind, message) {
+            this.flashKind = kind;
+            this.flashMessage = message;
+            if (this.flashTimer) clearTimeout(this.flashTimer);
+            this.flashTimer = setTimeout(() => {
+                this.flashKind = '';
+                this.flashMessage = '';
+            }, 3000);
         },
     };
 }

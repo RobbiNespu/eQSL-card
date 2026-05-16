@@ -125,4 +125,51 @@ final class QsosControllerQuickTest extends TestCase
         $this->get('/qsos/quick');
         $this->assertRedirectContains('/login');
     }
+
+    /**
+     * T9 — XHR contract. Clients sending Accept: application/json get a
+     * JSON {ok: true, qso: {...}} payload instead of the HTML re-render.
+     */
+    public function testJsonPostReturnsJsonPayload(): void
+    {
+        $userId = $this->login();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/qsos/quick', [
+            'call_worked' => 'JA1XYZ',
+            'frequency_mhz' => '21.250',
+            'mode' => 'SSB',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertContentType('application/json');
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertIsArray($body);
+        $this->assertTrue($body['ok']);
+        $this->assertSame('JA1XYZ', $body['qso']['callsign']);
+        $this->assertSame('15m', $body['qso']['band'], '21.250 MHz derives to 15m');
+        $this->assertSame('SSB', $body['qso']['mode']);
+    }
+
+    /**
+     * T9 — JSON path with validation failure returns 422 + errors map.
+     */
+    public function testJsonPostValidationFailureReturns422(): void
+    {
+        $this->login();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/qsos/quick', [
+            // call_worked is required by the QSO entity validation.
+            'call_worked' => '',
+            'mode' => 'CW',
+        ]);
+
+        $this->assertResponseCode(422);
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($body['ok']);
+        $this->assertArrayHasKey('errors', $body);
+    }
 }

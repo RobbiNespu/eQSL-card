@@ -74,11 +74,22 @@ $recentJson = json_encode(array_map(static function ($r): array {
     </section>
   <?php endif; ?>
 
+  <?php /* T9 — Alpine intercepts submit and POSTs JSON via fetch. The
+         plain <form action> still works for no-JS clients (server returns
+         the empty-form HTML render with a flash). The custom attribute
+         pass-through happens via CakePHP FormHelper options. */ ?>
   <?= $this->Form->create($qso, [
       'url' => '/qsos/quick',
       'class' => 'quick-add__form',
       'novalidate' => false,
+      '@submit' => 'submit($event)',
   ]) ?>
+    <?php /* Transient flash banner (T9). Replaces the page-reload flash
+           on the success path; HTML fallback still uses the Flash component. */ ?>
+    <div class="quick-add__flash" x-show="flashMessage" x-cloak
+         :class="`quick-add__flash--${flashKind}`"
+         role="status" aria-live="polite"
+         x-text="flashMessage"></div>
 
     <div class="field">
       <label class="form-label" for="quick-callsign">

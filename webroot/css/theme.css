@@ -2102,3 +2102,35 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
 [data-theme="eqsl-dark"] .quick-add__recent-item:focus-visible {
   background: rgba(255, 255, 255, 0.06);
 }
+
+/* ============================================================
+   M5 T9 — Quick-add: transient flash banner
+   Shown for ~3 s after each XHR submit. Replaces the page-reload
+   flash on the JS path; the HTML/no-JS fallback path still uses
+   the framework Flash component.
+   ============================================================ */
+.quick-add__flash {
+  padding: var(--s-2, 8px) var(--s-3, 12px);
+  border-radius: var(--r-md, 8px);
+  font-weight: 500;
+  margin-bottom: var(--s-3, 12px);
+  border: 1px solid transparent;
+}
+.quick-add__flash--success {
+  background: var(--success-soft, #d1fae5);
+  border-color: var(--success, #10b981);
+  color: #064e3b;
+}
+.quick-add__flash--error {
+  background: var(--danger-soft, #fee2e2);
+  border-color: var(--danger, #ef4444);
+  color: #7f1d1d;
+}
+[data-theme="eqsl-dark"] .quick-add__flash--success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success, #34d399);
+}
+[data-theme="eqsl-dark"] .quick-add__flash--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger, #fca5a5);
+}

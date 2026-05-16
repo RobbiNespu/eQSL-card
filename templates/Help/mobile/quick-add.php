@@ -35,7 +35,11 @@
 <p>If you need any of the stripped fields, the form has a link at the top to switch to the full one.</p>
 
 <h2>The save loop</h2>
-<p>Tap <strong>Log contact</strong>. The QSO saves, a flash banner confirms (<em>"Logged 9M2RDX."</em>), and the form clears for the next entry. The callsign input doesn't yet re-focus automatically — that's coming in a follow-up phase of M5 along with no-reload submission for an even tighter loop. For now you get a single-tap-into-callsign workflow.</p>
+<p>Tap <strong>Log contact</strong>. The QSO is POSTed via XHR — no page reload — and a green banner confirms (<em>"Logged 9M2RDX."</em>) for a few seconds before fading. The callsign and RST fields clear; <strong>frequency, mode, and notes are deliberately preserved</strong> (you almost always log the next contact on the same freq during portable ops). The cursor jumps back to the callsign input.</p>
+
+<p>If your callsign field is empty when you tap save, you get a red banner telling you so — the request never leaves the browser. If the server rejects the save (e.g. invalid frequency), a red banner shows "Save failed — check fields" and the form state is preserved so you can fix and resubmit.</p>
+
+<p>The recents panel at the top updates in place — your new QSO appears as the first row, the bottom row falls off if there were already five. No page reload anywhere in the loop.</p>
 
 <h2>The recents panel</h2>
 <p>Pinned at the top of the page (above the form) is a "Last logged" panel showing your most recent 5 QSOs — callsign, band, mode, time. During a busy net or activation it gives you immediate context for what just happened without having to flip to the logbook.</p>
