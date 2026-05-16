@@ -39,6 +39,19 @@
 <?= $this->fetch('meta') ?>
 </head>
 <body>
+<?php
+/* M5 T3 — Determine active route once for the bottom-tab highlight.
+   $tabActive('/qsos') returns true for /qsos AND /qsos/123/edit etc.
+   Root path '/' must equality-match so the home tab doesn't claim every
+   page. */
+$tabPath = $this->getRequest()->getPath();
+$tabActive = function (string $prefix) use ($tabPath): bool {
+    return $prefix === '/' ? $tabPath === '/' : str_starts_with($tabPath, $prefix);
+};
+$identity = $this->getRequest()->getAttribute('identity');
+$userData = $identity && method_exists($identity, 'getOriginalData') ? $identity->getOriginalData() : null;
+$isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
+?>
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <nav class="navbar navbar-expand-lg">
   <div class="container">
@@ -46,25 +59,41 @@
       eQSL Card
       <span class="brand-mark" aria-hidden="true"></span>
     </a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse"
-            data-target="#mainNav" aria-controls="mainNav"
-            aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
+
+    <!-- Theme toggle lives outside the collapse menu so it stays reachable
+         on mobile (where the collapse menu is hidden in favour of the
+         bottom-tab bar). On desktop, flex order-lg-last keeps it on the
+         far right after the nav-links group. -->
+    <button type="button" id="themeToggle" class="theme-toggle-btn order-lg-last"
+            aria-label="Toggle colour scheme"
+            title="Toggle colour scheme">
+      <span aria-hidden="true">
+        <svg class="theme-icon theme-icon--sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none; vertical-align: -3px;">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="theme-icon theme-icon--moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px;">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </span>
     </button>
+
     <div class="navbar-collapse" id="mainNav">
     <ul class="navbar-nav ms-auto">
-      <?php if ($this->getRequest()->getAttribute('identity')): ?>
+      <?php if ($identity): ?>
         <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" href="/qsos">Logbook</a></li>
         <li class="nav-item"><a class="nav-link" href="/cards">Cards</a></li>
         <li class="nav-item"><a class="nav-link" href="/card-backgrounds">Backgrounds</a></li>
         <li class="nav-item"><a class="nav-link" href="/templates">Templates</a></li>
         <li class="nav-item"><a class="nav-link" href="/help">Help</a></li>
-        <?php
-        $identity = $this->getRequest()->getAttribute('identity');
-        $userData = method_exists($identity, 'getOriginalData') ? $identity->getOriginalData() : null;
-        $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
-        ?>
         <?php if ($isAdmin): ?>
           <li class="nav-item">
             <details class="dropdown dropdown-end">
@@ -93,31 +122,6 @@
         <li class="nav-item"><a class="nav-link" href="/help">Help</a></li>
         <li class="nav-item"><a class="nav-link btn btn-primary text-white" href="/register">Create account</a></li>
       <?php endif; ?>
-      <li class="nav-item">
-        <button type="button" id="themeToggle" class="nav-link"
-                aria-label="Toggle colour scheme"
-                title="Toggle colour scheme"
-                style="background: transparent; border: 0; cursor: pointer;">
-          <span aria-hidden="true">
-            <!-- Sun (visible in dark mode) -->
-            <svg class="theme-icon theme-icon--sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none; vertical-align: -3px;">
-              <circle cx="12" cy="12" r="5"></circle>
-              <line x1="12" y1="1" x2="12" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="23"></line>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-              <line x1="1" y1="12" x2="3" y2="12"></line>
-              <line x1="21" y1="12" x2="23" y2="12"></line>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-            <!-- Moon (visible in light mode) -->
-            <svg class="theme-icon theme-icon--moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px;">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
-          </span>
-        </button>
-      </li>
     </ul>
     </div>
   </div>
@@ -126,6 +130,94 @@
   <?= $this->Flash->render() ?>
   <?= $this->fetch('content') ?>
 </main>
+
+<?php /* ================================================================
+       M5 T3 — Mobile bottom-tab navigation
+       Visible only below the lg breakpoint (< 992 px). Replaces the
+       hamburger-collapse menu on phones with one-thumb navigation. The
+       "More" tab opens a bottom sheet via Alpine.js with secondary
+       destinations (Backgrounds, Templates, Help, Admin, Sign out).
+       Quick add deep-links to /qsos/new today; will swap to /qsos/quick
+       once T7 lands the dedicated portable-entry route.
+       ================================================================ */ ?>
+<?php if ($identity): ?>
+<div x-data="{ moreOpen: false }" @keydown.escape.window="moreOpen = false">
+  <nav class="mobile-tabbar" aria-label="Primary mobile navigation">
+    <a class="mobile-tabbar__btn" href="/dashboard" <?= $tabActive('/dashboard') ? 'aria-current="page"' : '' ?>>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      <span>Home</span>
+    </a>
+    <a class="mobile-tabbar__btn" href="/qsos" <?= $tabActive('/qsos') && !str_starts_with($tabPath, '/qsos/new') ? 'aria-current="page"' : '' ?>>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span>Logbook</span>
+    </a>
+    <a class="mobile-tabbar__btn mobile-tabbar__btn--primary" href="/qsos/new" <?= $tabActive('/qsos/new') ? 'aria-current="page"' : '' ?>>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>Quick add</span>
+    </a>
+    <a class="mobile-tabbar__btn" href="/cards" <?= $tabActive('/cards') ? 'aria-current="page"' : '' ?>>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Cards</span>
+    </a>
+    <button type="button" class="mobile-tabbar__btn" @click="moreOpen = true"
+            :aria-expanded="moreOpen.toString()" aria-haspopup="dialog"
+            aria-controls="mobileMoreSheet">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+      <span>More</span>
+    </button>
+  </nav>
+
+  <div class="mobile-sheet" id="mobileMoreSheet" x-show="moreOpen" x-cloak
+       role="dialog" aria-modal="true" aria-label="More navigation">
+    <div class="mobile-sheet__backdrop" @click="moreOpen = false"></div>
+    <div class="mobile-sheet__panel" @click.stop x-transition.opacity>
+      <div class="mobile-sheet__handle" aria-hidden="true"></div>
+
+      <div class="mobile-sheet__heading">Library</div>
+      <a class="mobile-sheet__item" href="/card-backgrounds" @click="moreOpen = false">Backgrounds</a>
+      <a class="mobile-sheet__item" href="/templates" @click="moreOpen = false">Templates</a>
+      <a class="mobile-sheet__item" href="/help" @click="moreOpen = false">Help</a>
+
+      <?php if ($isAdmin): ?>
+        <div class="mobile-sheet__divider"></div>
+        <div class="mobile-sheet__heading">Admin</div>
+        <a class="mobile-sheet__item" href="/admin" @click="moreOpen = false">Dashboard</a>
+        <a class="mobile-sheet__item" href="/admin/settings" @click="moreOpen = false">Settings</a>
+        <a class="mobile-sheet__item" href="/admin/templates/pending" @click="moreOpen = false">Pending templates</a>
+        <a class="mobile-sheet__item" href="/admin/users" @click="moreOpen = false">Users</a>
+        <a class="mobile-sheet__item" href="/admin/cards" @click="moreOpen = false">All cards</a>
+        <a class="mobile-sheet__item" href="/admin/card-backgrounds" @click="moreOpen = false">All backgrounds</a>
+        <a class="mobile-sheet__item" href="/admin/audit" @click="moreOpen = false">Audit log</a>
+        <a class="mobile-sheet__item" href="/admin/callsign-lookups" @click="moreOpen = false">Callsign auto-complete</a>
+        <a class="mobile-sheet__item" href="/admin/cleanup" @click="moreOpen = false">Cleanup</a>
+        <a class="mobile-sheet__item" href="/admin/upgrade" @click="moreOpen = false">Run migrations</a>
+      <?php endif; ?>
+
+      <div class="mobile-sheet__divider"></div>
+      <?= $this->Form->postLink('Sign out', '/logout', ['class' => 'mobile-sheet__item mobile-sheet__item--danger']) ?>
+    </div>
+  </div>
+</div>
+<?php else: /* Guest mobile nav — smaller surface, no More sheet needed */ ?>
+<nav class="mobile-tabbar" aria-label="Primary mobile navigation">
+  <a class="mobile-tabbar__btn" href="/" <?= $tabActive('/') ? 'aria-current="page"' : '' ?>>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+    <span>Home</span>
+  </a>
+  <a class="mobile-tabbar__btn" href="/help" <?= $tabActive('/help') ? 'aria-current="page"' : '' ?>>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-.7.5-1.5 1-1.5 2"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span>Help</span>
+  </a>
+  <a class="mobile-tabbar__btn" href="/login" <?= $tabActive('/login') ? 'aria-current="page"' : '' ?>>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    <span>Sign in</span>
+  </a>
+  <a class="mobile-tabbar__btn mobile-tabbar__btn--primary" href="/register" <?= $tabActive('/register') ? 'aria-current="page"' : '' ?>>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>
+    <span>Register</span>
+  </a>
+</nav>
+<?php endif; ?>
 <footer class="site-footer">
   <div class="container">
     <span class="site-footer__rule" aria-hidden="true"></span>

@@ -1649,3 +1649,362 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
 .screenshot.has-dark .screenshot__img--dark { display: none; }
 [data-theme="eqsl-dark"] .screenshot.has-dark .screenshot__img--light { display: none; }
 [data-theme="eqsl-dark"] .screenshot.has-dark .screenshot__img--dark { display: block; }
+
+/* ============================================================
+   M5 T3 — Mobile bottom-tab navigation + More sheet
+   Visible only below the lg breakpoint (< 992 px). On desktop
+   the whole bottom-tabbar block is display: none and the
+   existing top navbar handles navigation as before.
+   ============================================================ */
+
+/* Theme toggle as a standalone button (extracted from nav-link list
+   so it can stay visible when the mobile collapse menu is hidden).
+   Inherits the previous nav-link look — transparent button, no border. */
+.theme-toggle-btn {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+.theme-toggle-btn:hover,
+.theme-toggle-btn:focus-visible {
+  background: var(--bs-tertiary-bg, transparent);
+}
+
+.mobile-tabbar { display: none; }
+.mobile-sheet { display: none; }
+
+@media (max-width: 991.98px) {
+  /* The hamburger + collapsed menu are redundant on mobile — bottom
+     tabs do the navigating now. */
+  .navbar .navbar-toggler { display: none !important; }
+  .navbar #mainNav { display: none !important; }
+
+  /* Push page content above the fixed tabbar. 56 px tab height + 16 px
+     breathing room + iOS home-indicator safe-area. */
+  body {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0) + 16px);
+  }
+
+  .mobile-tabbar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    background: var(--bs-body-bg, #ffffff);
+    border-top: 1px solid var(--bs-border-color, #e2e8f0);
+    z-index: 1020;
+    /* Respect existing dark-mode tokens — these resolve correctly under
+       both data-theme="eqsl" and data-theme="eqsl-dark". */
+  }
+  .mobile-tabbar__btn {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 44px;
+    padding: 6px 2px;
+    color: var(--bs-body-color, #1f2937);
+    text-decoration: none;
+    font-size: 11px;
+    line-height: 1.1;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity 0.15s ease;
+  }
+  .mobile-tabbar__btn:hover,
+  .mobile-tabbar__btn:focus-visible {
+    opacity: 1;
+    outline: none;
+  }
+  .mobile-tabbar__btn[aria-current="page"] {
+    opacity: 1;
+    color: var(--accent, var(--bs-primary, #0d6efd));
+    font-weight: 600;
+  }
+  /* Quick-add button gets a subtle primary accent so it's the obvious
+     "log a contact now" affordance. */
+  .mobile-tabbar__btn--primary svg {
+    color: var(--accent, var(--bs-primary, #0d6efd));
+  }
+  .mobile-tabbar__btn svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  /* More sheet — bottom drawer */
+  .mobile-sheet { display: block; }
+  .mobile-sheet[x-cloak] { display: none !important; }
+  .mobile-sheet__backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1030;
+    animation: mobile-sheet-fade 0.15s ease;
+  }
+  .mobile-sheet__panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bs-body-bg, #ffffff);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 12px 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+    z-index: 1040;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+    animation: mobile-sheet-slide 0.2s ease;
+  }
+  .mobile-sheet__handle {
+    width: 40px;
+    height: 4px;
+    background: var(--bs-border-color, #cbd5e1);
+    border-radius: 2px;
+    margin: 0 auto 12px;
+  }
+  .mobile-sheet__heading {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+    padding: 12px 8px 4px;
+  }
+  .mobile-sheet__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 8px;
+    text-decoration: none;
+    color: var(--bs-body-color, #1f2937);
+    border-radius: 8px;
+    min-height: 44px;
+    font-size: 15px;
+  }
+  .mobile-sheet__item:hover,
+  .mobile-sheet__item:focus-visible {
+    background: var(--bs-tertiary-bg, #f1f5f9);
+    outline: none;
+  }
+  .mobile-sheet__item--danger {
+    color: var(--bs-danger, #dc2626);
+  }
+  .mobile-sheet__divider {
+    height: 1px;
+    background: var(--bs-border-color, #e2e8f0);
+    margin: 8px 0;
+  }
+
+  @keyframes mobile-sheet-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes mobile-sheet-slide {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+}
+
+/* ============================================================
+   M5 T4 — Mobile-tuned form action row
+   On < 992 px viewports, the primary form action becomes
+   full-width and the secondary action collapses to a text
+   button below it. Reachable with one thumb without scrolling.
+   ============================================================ */
+@media (max-width: 991.98px) {
+  .form-actions-mobile {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-2, 8px);
+  }
+  .form-actions-mobile .btn-primary {
+    width: 100%;
+    font-size: 1rem;
+    min-height: 48px;
+  }
+  .form-actions-mobile .btn-secondary {
+    background: transparent;
+    border: 0;
+    color: var(--bs-body-color);
+    text-decoration: underline;
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+   M5 T5 — Table → stacked card layout on mobile
+   Activates on < 768 px viewports for any <table> tagged
+   `.table-responsive-stack`. Each <tr> becomes a card; each <td>
+   becomes a horizontal label-value row driven by data-label.
+   Replaces the previous overflow-x: auto behaviour for these
+   tables — operators with 9 columns on a 375 px phone couldn't
+   reach action buttons without horizontal scroll for every row.
+   ============================================================ */
+@media (max-width: 767.98px) {
+  .table-responsive-stack { display: block; width: 100%; }
+  .table-responsive-stack thead {
+    /* Hide table header — labels come from data-label on each cell. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+  .table-responsive-stack tbody { display: block; }
+  .table-responsive-stack tr {
+    display: block;
+    border: 1px solid var(--border-strong, #cbd5e1);
+    border-radius: var(--r-md, 8px);
+    padding: 12px 14px;
+    margin-bottom: var(--s-2, 8px);
+    background: var(--surface, var(--bs-body-bg, #ffffff));
+  }
+  .table-responsive-stack.table-striped tr:nth-of-type(odd) {
+    /* The default stripe background looks odd as full-card colour;
+       use a subtle surface variant instead. */
+    background: var(--surface-2, var(--bs-tertiary-bg, #f8fafc));
+  }
+  .table-responsive-stack td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 4px 0;
+    border: 0;
+    text-align: right;
+  }
+  .table-responsive-stack td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted, var(--bs-secondary-color));
+    font-size: var(--t-xs, 0.85em);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: left;
+    flex: 0 0 auto;
+  }
+  /* Callsign cell — top of the card, full-width, no inline label
+     (the bold callsign IS the heading). */
+  .table-responsive-stack td[data-label="Callsign"] {
+    display: block;
+    text-align: left;
+    font-size: 1.1em;
+    padding: 0 0 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+  }
+  .table-responsive-stack td[data-label="Callsign"]::before { content: ""; display: none; }
+  /* Select checkbox — minimal label, top-right of card. */
+  .table-responsive-stack td[data-label="Select"] {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    padding: 0;
+  }
+  .table-responsive-stack td[data-label="Select"]::before { content: ""; display: none; }
+  .table-responsive-stack tr { position: relative; }
+  /* Action buttons — full-width row at bottom of the card, side-by-side
+     buttons, large tap targets. */
+  .table-responsive-stack__actions {
+    display: flex !important;
+    justify-content: stretch;
+    gap: 8px;
+    padding-top: 12px !important;
+    margin-top: 8px;
+    border-top: 1px solid var(--border, #e2e8f0);
+  }
+  .table-responsive-stack__actions::before { content: ""; display: none; }
+  .table-responsive-stack__actions .btn {
+    flex: 1 1 0;
+    min-height: 40px;
+  }
+  /* Empty cells: collapse so they don't leave dangling label rows. */
+  .table-responsive-stack td:empty,
+  .table-responsive-stack td:has(> :empty:only-child) {
+    display: none;
+  }
+}
+
+/* ============================================================
+   M5 T6 — Polish: designer banner + tap-targets + dl breakpoint
+   ============================================================ */
+
+/* I2 — Designer is desktop-only. Show banner < 992 px, hide on lg+. */
+.designer-desktop-only-banner {
+  display: none;
+}
+@media (max-width: 991.98px) {
+  .designer-desktop-only-banner {
+    display: block;
+    padding: var(--s-3, 12px) var(--s-4, 16px);
+    background: var(--warning-soft, #fef3c7);
+    border: 1px solid var(--warning, #f59e0b);
+    border-radius: var(--r-md, 8px);
+    color: #78350f;
+    font-size: var(--t-sm, 0.95em);
+    line-height: 1.45;
+  }
+  [data-theme="eqsl-dark"] .designer-desktop-only-banner {
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--warning, #fbbf24);
+  }
+}
+
+/* CardBackgrounds tap-targets — turn the inline anchor list into a chip
+   pill list so each template name is its own 44 px-ish tap area. */
+.template-chip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.template-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  min-height: 32px;
+  background: var(--bs-tertiary-bg, #f1f5f9);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  font-size: 0.85em;
+  text-decoration: none;
+  color: var(--bs-body-color);
+  line-height: 1.2;
+}
+.template-chip:hover,
+.template-chip:focus-visible {
+  background: var(--bs-secondary-bg, #e2e8f0);
+  text-decoration: none;
+  outline: none;
+}
+@media (max-width: 991.98px) {
+  /* On phones, bump up to 44 px tap target. */
+  .template-chip {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 0.95em;
+  }
+}

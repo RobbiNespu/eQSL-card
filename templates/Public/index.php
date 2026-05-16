@@ -66,7 +66,10 @@
       ]) ?>
     </div>
   </div>
-  <div class="col-md-3">
+  <!-- Band / Mode / RST: col-sm-6 ladders 1-up (phone) → 2-up (tablet
+       portrait, 576-767 px) → 4-up (md+) so the 768 px jump from 1 to 4
+       narrow squashed columns is smoothed out. Audit finding I1, 2026-05-16. -->
+  <div class="col-6 col-md-3">
     <div class="field">
       <label class="form-label" for="band">Band</label>
       <?= $this->Form->control('band', [
@@ -77,7 +80,7 @@
       ]) ?>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="field">
       <label class="form-label" for="mode">Mode</label>
       <?= $this->Form->control('mode', [
@@ -88,7 +91,7 @@
       ]) ?>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="field">
       <label class="form-label" for="rst_sent">RST sent</label>
       <?= $this->Form->control('rst_sent', [
@@ -97,7 +100,7 @@
       ]) ?>
     </div>
   </div>
-  <div class="col-md-3">
+  <div class="col-6 col-md-3">
     <div class="field">
       <label class="form-label" for="rst_received">RST received</label>
       <?= $this->Form->control('rst_received', [

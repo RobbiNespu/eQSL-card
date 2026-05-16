@@ -342,25 +342,30 @@ function qsoFormState(initial) {
       </div>
     </div>
 
-    <!-- Signal report ------------------------------------------------- -->
-    <div class="col-md-3">
+    <!-- Signal report — paired side-by-side on mobile (col-6) so the
+         operator doesn't have to scroll past one to reach the other on
+         a 375 px viewport. RST values are short (3 digits) so two-up
+         fits comfortably even on small phones. -->
+    <div class="col-6 col-md-3">
       <div class="field">
         <label class="form-label" for="rst-sent">RST sent</label>
         <?= $this->Form->control('rst_sent', [
             'label' => false,
             'id'    => 'rst-sent',
             'class' => 'form-control',
+            'inputmode' => 'numeric',
             'templates' => ['inputContainer' => '{{content}}'],
         ]) ?>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
       <div class="field">
         <label class="form-label" for="rst-received">RST received</label>
         <?= $this->Form->control('rst_received', [
             'label' => false,
             'id'    => 'rst-received',
             'class' => 'form-control',
+            'inputmode' => 'numeric',
             'templates' => ['inputContainer' => '{{content}}'],
         ]) ?>
       </div>
@@ -404,7 +409,11 @@ function qsoFormState(initial) {
     </div>
   </div>
 
-  <div class="d-flex gap-2 mt-4">
+  <!-- Submit row — uses .form-actions-mobile so on phones the primary
+       button is full-width and stays visually anchored above the
+       bottom-tab bar; Cancel goes to a secondary text link. On desktop
+       the original inline layout is preserved. -->
+  <div class="d-flex gap-2 mt-4 form-actions-mobile">
     <button class="btn btn-primary"><?= $mode === 'edit' ? 'Save changes' : 'Add QSO' ?></button>
     <a class="btn btn-secondary" href="/qsos">Cancel</a>
   </div>

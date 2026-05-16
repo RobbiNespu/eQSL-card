@@ -32,6 +32,7 @@ final class HelpCatalog
             'label' => 'Logging QSOs',
             'pages' => [
                 'add-qso'      => 'Log a contact',
+                'logbook'      => 'Browse your logbook',
                 'import'       => 'Import an ADIF / CSV log',
                 'net-checkins' => 'Logging net check-ins',
                 'autocomplete' => 'Callsign auto-complete',
@@ -64,6 +65,12 @@ final class HelpCatalog
                 'callsign-dir' => 'Callsign directory CSV upload',
                 'audit'        => 'Audit log',
                 'migrations'   => 'Running migrations',
+            ],
+        ],
+        'mobile' => [
+            'label' => 'Mobile & portable ops',
+            'pages' => [
+                'navigation' => 'Bottom-tab navigation',
             ],
         ],
         'reference' => [
