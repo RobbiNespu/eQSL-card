@@ -21,7 +21,7 @@
 </div>
 
 <?php if ($code === 'radioid_database_dump'): ?>
-<div class="card mb-4">
+<div class="card mb-4" x-data="radioIdSync()">
   <div class="card-body">
     <h2 class="h5">Local lookup cache</h2>
     <p class="mb-1">
@@ -34,14 +34,24 @@
         Cache is empty — click below to populate it from the upstream registry.
       <?php endif; ?>
     </p>
-    <?= $this->Form->postLink(
-        ($registryCount ? '↻ Sync now' : '↓ Populate cache now (first run)'),
-        '/admin/callsign-lookups/provider/radioid_database_dump/refresh',
-        [
-            'class'   => 'btn btn-primary btn-sm',
-            'confirm' => 'Pull the latest RadioID user registry into the local cache? Takes 5–15 seconds.',
-        ]
-    ) ?>
+
+    <button type="button" class="btn btn-primary btn-sm" @click="start()" :disabled="running">
+      <span x-show="!running">
+        <?= $registryCount ? '↻ Sync now' : '↓ Populate cache now (first run)' ?>
+      </span>
+      <span x-show="running" x-cloak>Streaming…</span>
+    </button>
+
+    <!-- Live terminal — visible only while/after a sync has run. The
+         response is text/plain; we read it as a chunked stream via
+         fetch().body.getReader() so each emit() line from the server
+         lands here in real time. -->
+    <pre x-show="lines.length > 0"
+         x-cloak
+         class="mt-3 mb-0 p-2 small"
+         style="background:#0b0e14;color:#a3c5ff;border-radius:6px;max-height:320px;overflow:auto;font-family:Geist Mono Variable,ui-monospace,monospace;"
+         x-text="lines.join('')"></pre>
+
     <p class="form-text small mt-2 mb-0">
       Sync pulls the user registry that <strong>RadioID</strong> publishes
       for download, stores it in a local table on this install, and uses
@@ -53,6 +63,58 @@
     </p>
   </div>
 </div>
+
+<?php $this->start('script'); ?>
+<script>
+function radioIdSync() {
+  return {
+    running: false,
+    lines: [],
+    async start() {
+      if (this.running) return;
+      if (!confirm('Pull the latest RadioID user registry into the local cache? Takes 5-30 seconds.')) {
+        return;
+      }
+      this.running = true;
+      this.lines = [];
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.content
+                || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
+      try {
+        const r = await fetch('/admin/callsign-lookups/provider/radioid_database_dump/refresh', {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': csrf, 'Accept': 'text/plain' },
+          credentials: 'same-origin',
+        });
+        if (!r.ok || !r.body) {
+          this.lines.push('HTTP ' + r.status + ' — could not start sync.\n');
+          return;
+        }
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        // Each read() resolves when the server has flushed bytes
+        // downstream — that's how we get the live transcript instead
+        // of a single late dump.
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          this.lines.push(decoder.decode(value, { stream: true }));
+          // Auto-scroll the terminal to the bottom.
+          this.$nextTick(() => {
+            const pre = this.$el.querySelector('pre');
+            if (pre) pre.scrollTop = pre.scrollHeight;
+          });
+        }
+        this.lines.push('\n(Reload the page to see the updated cache row count.)\n');
+      } catch (e) {
+        this.lines.push('FETCH ERROR: ' + (e.message || e) + '\n');
+      } finally {
+        this.running = false;
+      }
+    },
+  };
+}
+</script>
+<?php $this->end(); ?>
 <?php endif; ?>
 
 <h2 class="h5">Settings</h2>

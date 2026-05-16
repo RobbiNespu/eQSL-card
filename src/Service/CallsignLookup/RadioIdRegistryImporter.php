@@ -44,10 +44,19 @@ final class RadioIdRegistryImporter
     /**
      * Stream-download the CSV to a temp file. Returns the local path.
      *
+     * Reads in 64 KB chunks (rather than one stream_copy_to_stream call)
+     * so the optional $onProgress callback can fire mid-download. That
+     * also lets the HTTP layer flush bytes downstream every chunk —
+     * critical when the request is fronted by nginx, whose default
+     * proxy_read_timeout is 60 s. With periodic progress emission, nginx
+     * never sees a long idle gap and the request can run for minutes.
+     *
+     * @param string $url Source URL.
+     * @param (callable(string):void)|null $onProgress Status emitter.
      * @throws \RuntimeException When the source is unreachable or the
      *   downloaded payload exceeds MAX_BYTES.
      */
-    public function download(string $url = self::SOURCE_URL): string
+    public function download(string $url = self::SOURCE_URL, ?callable $onProgress = null): string
     {
         $context = stream_context_create([
             'http' => [
@@ -59,6 +68,7 @@ final class RadioIdRegistryImporter
             ],
         ]);
 
+        $onProgress?->__invoke('Connecting to upstream…');
         $src = @fopen($url, 'r', false, $context);
         if ($src === false) {
             throw new \RuntimeException('Could not open ' . $url);
@@ -71,38 +81,61 @@ final class RadioIdRegistryImporter
             throw new \RuntimeException('Could not open temp file for writing.');
         }
 
-        // stream_copy_to_stream lets us cap the maximum bytes copied. If
-        // the source is corrupt or someone replaces the URL with a huge
-        // payload, we bail before exhausting disk.
-        $copied = stream_copy_to_stream($src, $dstFh, self::MAX_BYTES);
+        // Chunked copy with progress + size cap. 64 KB chunks balance
+        // syscall overhead against status-emission cadence (256 chunks
+        // per 16 MB CSV → roughly one progress line per 1 MB).
+        $copied = 0;
+        $emitEvery = 1024 * 1024; // 1 MB
+        $nextEmit = $emitEvery;
+        while (!feof($src)) {
+            $chunk = fread($src, 65536);
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            $written = fwrite($dstFh, $chunk);
+            if ($written === false) {
+                fclose($src); fclose($dstFh); @unlink($dst);
+                throw new \RuntimeException('Disk write failed during download.');
+            }
+            $copied += $written;
+            if ($copied > self::MAX_BYTES) {
+                fclose($src); fclose($dstFh); @unlink($dst);
+                throw new \RuntimeException(sprintf(
+                    'Download exceeded %d-byte cap; refusing to import.',
+                    self::MAX_BYTES
+                ));
+            }
+            if ($onProgress && $copied >= $nextEmit) {
+                $onProgress(sprintf('Downloaded %.1f MB…', $copied / 1048576));
+                $nextEmit += $emitEvery;
+            }
+        }
         fclose($src);
         fclose($dstFh);
 
-        if ($copied === false || $copied === 0) {
+        if ($copied === 0) {
             @unlink($dst);
             throw new \RuntimeException('Empty / failed download from ' . $url);
         }
-        if ($copied >= self::MAX_BYTES) {
-            @unlink($dst);
-            throw new \RuntimeException(sprintf(
-                'Download exceeded %d-byte cap; refusing to import.',
-                self::MAX_BYTES
-            ));
-        }
 
+        $onProgress?->__invoke(sprintf('Download complete — %.1f MB.', $copied / 1048576));
         return $dst;
     }
 
     /**
-     * Stream-parse a local CSV into `radioid_registry`. TRUNCATE-then-
-     * insert because the upstream is canonical; we don't try to merge
+     * Stream-parse a local CSV into `radioid_registry`. Wholesale
+     * replace because the upstream is canonical; we don't try to merge
      * row-by-row. Returns the imported row count.
      *
+     * @param string $csvPath Local CSV file to read.
+     * @param (callable(string):void)|null $onProgress Status emitter
+     *   called every BATCH_SIZE rows so a downstream UI (terminal,
+     *   SSE) can show live progress.
      * @throws \RuntimeException If the CSV header doesn't match the
      *   expected RadioID schema (defends against accidentally pointing
      *   the importer at the wrong URL).
      */
-    public function import(string $csvPath): int
+    public function import(string $csvPath, ?callable $onProgress = null): int
     {
         if (!is_file($csvPath) || !is_readable($csvPath)) {
             throw new \RuntimeException('CSV not readable: ' . $csvPath);
@@ -168,11 +201,13 @@ final class RadioIdRegistryImporter
                 if (count($rows) >= self::BATCH_SIZE) {
                     $total += $this->flush($conn, $rows);
                     $rows = [];
+                    $onProgress?->__invoke(sprintf('Imported %s rows…', number_format($total)));
                 }
             }
             if (!empty($rows)) {
                 $total += $this->flush($conn, $rows);
             }
+            $onProgress?->__invoke(sprintf('Import complete — %s rows.', number_format($total)));
             return $total;
         } finally {
             fclose($fh);
@@ -182,12 +217,15 @@ final class RadioIdRegistryImporter
     /**
      * One-shot: download + import in a single call. Cleans up the temp
      * file regardless of success. Returns the imported row count.
+     *
+     * @param (callable(string):void)|null $onProgress Status emitter
+     *   threaded through both the download and import phases.
      */
-    public function refresh(): int
+    public function refresh(?callable $onProgress = null): int
     {
-        $path = $this->download();
+        $path = $this->download(self::SOURCE_URL, $onProgress);
         try {
-            return $this->import($path);
+            return $this->import($path, $onProgress);
         } finally {
             @unlink($path);
         }

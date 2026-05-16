@@ -361,23 +361,64 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Sync the RadioID local lookup cache — admin-triggered, sync-flow
-     * (the import completes in seconds; no queue needed). Use sparingly:
-     * RadioID's API use policy expects polite, low-frequency fetches,
-     * not per-request polling. A weekly or on-demand cadence is plenty.
+     * Stream the RadioID lookup-cache refresh as plain text. Each
+     * progress event from the importer is echoed + flushed immediately
+     * so the browser (which reads the response via fetch() +
+     * ReadableStream) can render a live terminal-style transcript.
+     *
+     * Why streamed text instead of a single JSON 200: the import takes
+     * 5-30 seconds depending on network speed, and nginx's default
+     * proxy_read_timeout is 60 s. A single late response also leaves
+     * the operator staring at a spinner with no idea whether anything
+     * is happening. Per-chunk flush() solves both — bytes flow at
+     * least every second so nginx never sees an idle gap, and the
+     * operator gets immediate feedback.
+     *
+     * autoRender is disabled because we hand-build the response body;
+     * the view layer would otherwise try to render an empty template.
      */
-    public function refreshRadioIdDump(): \Cake\Http\Response
+    public function refreshRadioIdDump()
     {
         $this->request->allowMethod('post');
+        $this->autoRender = false;
+
+        // Give the worker enough budget for the slowest realistic case.
+        @set_time_limit(600);
+
+        // Drain any output buffer the view stack may have opened so each
+        // echo+flush below actually reaches the wire instead of stacking
+        // up in PHP's buffer.
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+        // Auto-flush every echo from here on.
+        @ob_implicit_flush(true);
+
+        // Headers: plain text so the browser stream reader can render
+        // verbatim, and X-Accel-Buffering: no so nginx forwards chunks
+        // as they arrive instead of buffering up to its proxy_buffers
+        // size before sending anything.
+        header('Content-Type: text/plain; charset=utf-8');
+        header('X-Accel-Buffering: no');
+        header('Cache-Control: no-cache');
+
+        $emit = static function (string $msg): void {
+            echo '[' . date('H:i:s') . '] ' . $msg . "\n";
+            @flush();
+        };
+
+        $emit('Starting RadioID lookup-cache stream.');
         $importer = new \App\Service\CallsignLookup\RadioIdRegistryImporter();
         $started = microtime(true);
+        $count = 0;
         try {
-            $count = $importer->refresh();
+            $count = $importer->refresh($emit);
         } catch (\Throwable $e) {
-            $this->Flash->error('Sync failed: ' . $e->getMessage());
-            return $this->redirect('/admin/callsign-lookups/provider/radioid_database_dump');
+            $emit('ERROR: ' . $e->getMessage());
+            return null;
         }
         $elapsed = number_format(microtime(true) - $started, 1);
+        $emit("Done — {$count} rows cached in {$elapsed}s.");
 
         try {
             (new \App\Service\AuditLogger())->log(
@@ -389,8 +430,7 @@ class CallsignLookupsController extends AppController
             error_log('audit: ' . $e->getMessage());
         }
 
-        $this->Flash->success("RadioID lookup cache synced — {$count} rows in {$elapsed}s.");
-        return $this->redirect('/admin/callsign-lookups/provider/radioid_database_dump');
+        return null;
     }
 
     /**
