@@ -26,9 +26,12 @@ final class HamRadioTest extends TestCase
     {
         $this->assertSame('6m',   HamRadio::bandForFrequency(50.150));
         $this->assertSame('2m',   HamRadio::bandForFrequency(144.300));
-        $this->assertSame('2m',   HamRadio::bandForFrequency(147.000));   // Region 2 only
+        $this->assertSame('2m',   HamRadio::bandForFrequency(147.500));
         $this->assertSame('70cm', HamRadio::bandForFrequency(433.500));
-        $this->assertSame('70cm', HamRadio::bandForFrequency(446.000));   // Region 2 only
+        // 446 MHz is allocated to amateur use in some regions (e.g. USA's
+        // 70cm runs 420-450) but falls outside the Malaysian 430-440
+        // window we resolve against, so the lookup correctly misses.
+        $this->assertNull(HamRadio::bandForFrequency(446.000));
     }
 
     public function testBandForFrequencyHandlesEdges(): void
