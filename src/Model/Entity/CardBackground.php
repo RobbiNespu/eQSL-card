@@ -5,7 +5,15 @@ namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
 
-class Upload extends Entity
+/**
+ * Card background image — uploaded by an operator (user_id) or a
+ * guest (guest_visit_id), used as the canvas under a rendered QSL
+ * card. Renamed from "Upload" in migration 20260516000007 to make
+ * the entity name match the actual purpose; FK column names on
+ * sibling tables (cards.upload_id, templates.background_upload_id)
+ * stay put for backward-compat with existing data.
+ */
+class CardBackground extends Entity
 {
     protected array $_accessible = [
         'user_id' => true,

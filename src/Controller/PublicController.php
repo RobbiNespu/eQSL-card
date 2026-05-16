@@ -351,13 +351,13 @@ class PublicController extends AppController
      */
     private function resolveTemplateBackgroundForGuest(object $template, int $guestVisitId): array
     {
-        $uploadsTbl = $this->fetchTable('Uploads');
+        $uploadsTbl = $this->fetchTable('CardBackgrounds');
 
         // 1) Template-bound bg path (preferred).
         $boundId = (int)($template->background_upload_id ?? 0);
         if ($boundId > 0) {
             $bound = $uploadsTbl->find()
-                ->where(['id' => $boundId, 'Uploads.deleted_at IS' => null])
+                ->where(['id' => $boundId, 'CardBackgrounds.deleted_at IS' => null])
                 ->first();
             if ($bound !== null) {
                 $abs = WWW_ROOT . $bound->storage_path;

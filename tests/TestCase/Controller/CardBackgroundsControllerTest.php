@@ -7,10 +7,16 @@ use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\TestSuite\IntegrationTestTrait;
 use Cake\TestSuite\TestCase;
 
-final class UploadsControllerTest extends TestCase
+/**
+ * Renamed from UploadsControllerTest along with the underlying table
+ * rename (uploads → card_backgrounds) in migration 20260516000007.
+ * URLs use the new /card-backgrounds prefix; the legacy /uploads URLs
+ * still 301-redirect via the back-compat routes in config/routes.php.
+ */
+final class CardBackgroundsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
-    protected array $fixtures = ['app.Users', 'app.Uploads', 'app.AuditLogs'];
+    protected array $fixtures = ['app.Users', 'app.CardBackgrounds', 'app.AuditLogs'];
 
     private static int $shaCounter = 0;
 
@@ -25,11 +31,11 @@ final class UploadsControllerTest extends TestCase
         return $u->id;
     }
 
-    private function seedUpload(int $userId, array $extras = []): int
+    private function seedBackground(int $userId, array $extras = []): int
     {
         self::$shaCounter++;
-        $uploads = $this->getTableLocator()->get('Uploads');
-        $row = $uploads->saveOrFail($uploads->newEntity(array_merge([
+        $bgs = $this->getTableLocator()->get('CardBackgrounds');
+        $row = $bgs->saveOrFail($bgs->newEntity(array_merge([
             'user_id' => $userId,
             'original_filename' => 'bg.jpg',
             'storage_path' => 'files/uploads/x.jpg',
@@ -42,7 +48,7 @@ final class UploadsControllerTest extends TestCase
         return $row->id;
     }
 
-    public function testIndexShowsOnlyOwnUploads(): void
+    public function testIndexShowsOnlyOwnBackgrounds(): void
     {
         $u1 = $this->loginAs('a@x.com');
         $users = $this->getTableLocator()->get('Users');
@@ -50,10 +56,10 @@ final class UploadsControllerTest extends TestCase
             'name' => 'B', 'email' => 'b@x.com', 'role' => 'user', 'callsign' => 'BB1BB', 'password_hash' => 'h',
         ], ['accessibleFields' => ['*' => true]]));
 
-        $this->seedUpload($u1, ['author_name' => 'MineMine']);
-        $this->seedUpload($u2->id, ['author_name' => 'TheirsTheirs']);
+        $this->seedBackground($u1, ['author_name' => 'MineMine']);
+        $this->seedBackground($u2->id, ['author_name' => 'TheirsTheirs']);
 
-        $this->get('/uploads');
+        $this->get('/card-backgrounds');
         $this->assertResponseOk();
         $this->assertResponseContains('MineMine');
         $this->assertResponseNotContains('TheirsTheirs');
@@ -62,15 +68,15 @@ final class UploadsControllerTest extends TestCase
     public function testEditOwnSavesAttribution(): void
     {
         $userId = $this->loginAs('a@x.com');
-        $id = $this->seedUpload($userId);
+        $id = $this->seedBackground($userId);
         $this->enableCsrfToken();
         $this->enableSecurityToken();
-        $this->put("/uploads/{$id}/edit", [
+        $this->put("/card-backgrounds/{$id}/edit", [
             'author_name' => 'Updated Name',
             'license' => 'pixabay_license',
         ]);
-        $this->assertRedirectContains('/uploads');
-        $row = $this->getTableLocator()->get('Uploads')->get($id);
+        $this->assertRedirectContains('/card-backgrounds');
+        $row = $this->getTableLocator()->get('CardBackgrounds')->get($id);
         $this->assertSame('Updated Name', $row->author_name);
         $this->assertSame('pixabay_license', $row->license);
     }
@@ -82,82 +88,85 @@ final class UploadsControllerTest extends TestCase
         $b = $users->saveOrFail($users->newEntity([
             'name' => 'B', 'email' => 'b@x.com', 'role' => 'user', 'callsign' => 'BB1BB', 'password_hash' => 'h',
         ], ['accessibleFields' => ['*' => true]]));
-        $bsUpload = $this->seedUpload($b->id);
+        $bsBg = $this->seedBackground($b->id);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();
-        $this->put("/uploads/{$bsUpload}/edit", ['author_name' => 'hijack', 'license' => 'unknown']);
+        $this->put("/card-backgrounds/{$bsBg}/edit", ['author_name' => 'hijack', 'license' => 'unknown']);
         $this->assertResponseCode(404);
-        $row = $this->getTableLocator()->get('Uploads')->get($bsUpload);
+        $row = $this->getTableLocator()->get('CardBackgrounds')->get($bsBg);
         $this->assertSame('Original Author', $row->author_name);
     }
 
-    public function testAdminCanEditOtherUserUpload(): void
+    public function testAdminCanEditOtherUserBackground(): void
     {
         $admin = $this->loginAs('admin@x.com', 'admin');
         $users = $this->getTableLocator()->get('Users');
         $regular = $users->saveOrFail($users->newEntity([
             'name' => 'R', 'email' => 'r@x.com', 'role' => 'user', 'callsign' => 'RR1RR', 'password_hash' => 'h',
         ], ['accessibleFields' => ['*' => true]]));
-        $rsUpload = $this->seedUpload($regular->id);
+        $rsBg = $this->seedBackground($regular->id);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();
-        $this->put("/uploads/{$rsUpload}/edit", ['author_name' => 'admin override', 'license' => 'pixabay_license']);
+        $this->put("/card-backgrounds/{$rsBg}/edit", ['author_name' => 'admin override', 'license' => 'pixabay_license']);
         $this->assertResponseCode(302);
-        $row = $this->getTableLocator()->get('Uploads')->get($rsUpload);
+        $row = $this->getTableLocator()->get('CardBackgrounds')->get($rsBg);
         $this->assertSame('admin override', $row->author_name);
     }
 
     public function testDeleteSetsDeletedAt(): void
     {
         $userId = $this->loginAs('a@x.com');
-        $id = $this->seedUpload($userId);
+        $id = $this->seedBackground($userId);
         $this->enableCsrfToken();
         $this->enableSecurityToken();
-        $this->post("/uploads/{$id}/delete");
-        $this->assertRedirectContains('/uploads');
-        $row = $this->getTableLocator()->get('Uploads')->get($id);
+        $this->post("/card-backgrounds/{$id}/delete");
+        $this->assertRedirectContains('/card-backgrounds');
+        $row = $this->getTableLocator()->get('CardBackgrounds')->get($id);
         $this->assertNotNull($row->deleted_at);
     }
 
     public function testReturnQueryParamHonoured(): void
     {
         $admin = $this->loginAs('admin@x.com', 'admin');
-        $id = $this->seedUpload($admin);
+        $id = $this->seedBackground($admin);
         $this->enableCsrfToken();
         $this->enableSecurityToken();
-        $this->put("/uploads/{$id}/edit?return=/admin/uploads", [
+        $this->put("/card-backgrounds/{$id}/edit?return=/admin/card-backgrounds", [
             'author_name' => 'X', 'license' => 'unknown',
         ]);
-        $this->assertRedirect('/admin/uploads');
+        $this->assertRedirect('/admin/card-backgrounds');
     }
 
     public function testAnonymousRedirectedToLogin(): void
     {
-        $this->get('/uploads');
+        $this->get('/card-backgrounds');
         $this->assertRedirectContains('/login');
     }
 
-    private function loginAsDefault(): int
-    {
-        return $this->loginAs('a@x.com');
-    }
-
-    public function testAdminAllUploadsListing(): void
+    public function testAdminAllBackgroundsListing(): void
     {
         $admin = $this->loginAs('admin@x.com', 'admin');
-        $this->seedUpload($admin, ['author_name' => 'CalligraphicAuthor']);
+        $this->seedBackground($admin, ['author_name' => 'CalligraphicAuthor']);
 
-        $this->get('/admin/uploads');
+        $this->get('/admin/card-backgrounds');
         $this->assertResponseOk();
         $this->assertResponseContains('CalligraphicAuthor');
     }
 
-    public function testAdminAllUploadsForbiddenForRegular(): void
+    public function testAdminAllBackgroundsForbiddenForRegular(): void
     {
         $this->loginAs('user@x.com', 'user');
-        $this->get('/admin/uploads');
+        $this->get('/admin/card-backgrounds');
         $this->assertResponseCode(403);
+    }
+
+    public function testLegacyUploadsUrlRedirectsToCardBackgrounds(): void
+    {
+        $this->loginAs('a@x.com');
+        $this->get('/uploads');
+        $this->assertResponseCode(301);
+        $this->assertRedirectContains('/card-backgrounds');
     }
 }

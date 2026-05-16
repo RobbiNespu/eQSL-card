@@ -20,7 +20,7 @@ final class CardsControllerIndexTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     private function seedUserAndLogin(string $email = 'op@x.com'): int
     {
@@ -56,7 +56,7 @@ final class CardsControllerIndexTest extends TestCase
         $counter++;
         $hash = str_pad(dechex($userId * 1000 + $counter), 64, '0', STR_PAD_LEFT);
 
-        $u = $this->getTableLocator()->get('Uploads');
+        $u = $this->getTableLocator()->get('CardBackgrounds');
         $row = $u->saveOrFail($u->newEntity([
             'user_id' => $userId,
             'original_filename' => 'bg.jpg',

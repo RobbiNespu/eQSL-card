@@ -20,7 +20,7 @@ final class QsosControllerBulkRenderTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     private function seedUserAndLogin(): int
     {
@@ -71,7 +71,7 @@ final class QsosControllerBulkRenderTest extends TestCase
         imagejpeg($img, $bgPath);
         imagedestroy($img);
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         $upload = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $u,
             'original_filename' => 'bulk-test.jpg',
@@ -154,7 +154,7 @@ final class QsosControllerBulkRenderTest extends TestCase
         imagejpeg($img, $bgPath);
         imagedestroy($img);
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         $upload = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $u,
             'original_filename' => 'p.jpg',

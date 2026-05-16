@@ -28,7 +28,7 @@ class CardsTable extends Table
         $this->belongsTo('Users');
         $this->belongsTo('GuestVisits');
         $this->belongsTo('Templates');
-        $this->belongsTo('Uploads');
+        $this->belongsTo('CardBackgrounds', ['foreignKey' => 'upload_id']);
     }
 
     public function validationDefault(Validator $validator): Validator

@@ -92,12 +92,14 @@ class ApplicationTest extends TestCase
         $middleware->seek(4);
         $this->assertInstanceOf(RoutingMiddleware::class, $middleware->current());
         $middleware->seek(5);
-        $this->assertInstanceOf(AuthenticationMiddleware::class, $middleware->current());
+        $this->assertInstanceOf(\App\Middleware\BasePathMiddleware::class, $middleware->current());
         $middleware->seek(6);
-        $this->assertInstanceOf(BodyParserMiddleware::class, $middleware->current());
+        $this->assertInstanceOf(AuthenticationMiddleware::class, $middleware->current());
         $middleware->seek(7);
-        $this->assertInstanceOf(CsrfProtectionMiddleware::class, $middleware->current());
+        $this->assertInstanceOf(BodyParserMiddleware::class, $middleware->current());
         $middleware->seek(8);
+        $this->assertInstanceOf(CsrfProtectionMiddleware::class, $middleware->current());
+        $middleware->seek(9);
         $this->assertInstanceOf(RateLimitMiddleware::class, $middleware->current());
     }
 }

@@ -5,7 +5,7 @@ namespace App\Test\Fixture;
 
 use Cake\TestSuite\Fixture\TestFixture;
 
-class UploadsFixture extends TestFixture
+class CardBackgroundsFixture extends TestFixture
 {
     public array $records = [];
 }

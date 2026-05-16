@@ -21,7 +21,7 @@ final class QsosControllerRenderTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Qsos', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     private function seedUserAndLogin(string $email = 'op@x.com'): int
     {
@@ -128,7 +128,7 @@ final class QsosControllerRenderTest extends TestCase
     private function seedCard(int $userId, int $qsoId, int $templateId): int
     {
         // Need an upload row to satisfy cards.upload_id NOT NULL.
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         $u = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $userId,
             'original_filename' => 'guard.jpg',

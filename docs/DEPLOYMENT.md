@@ -106,6 +106,67 @@ Or point the document root directly at `/home/user/eqsl/webroot`. Keeps
 `config/`, `src/`, `vendor/`, `tmp/`, `logs/` unreachable by URL even if
 `.htaccess` is ignored.
 
+### 5a. URL subfolder layout (`https://tools.example.com/qsl`)
+
+To serve the app under a URL path instead of its own domain — e.g. you
+have several tools at `tools.example.com` and want eQSL Card at `/qsl`:
+
+```
+/home/user/public_html/
+├── other-tool/         ←  different app, untouched
+├── qsl/                ←  drop eQSL Card here
+│   ├── .htaccess       ←  routes / → /webroot/
+│   ├── webroot/
+│   │   ├── .htaccess
+│   │   └── index.php
+│   ├── src/, config/, vendor/, tmp/, logs/
+│   └── ...
+└── index.html          ←  your landing page (optional)
+```
+
+Three things to configure:
+
+1. **GH Action** — set the secret `FTP_SERVER_DIR` to `/public_html/qsl/`
+   (with trailing slash). The deploy workflow uploads into that dir.
+
+2. **`config/app_local.php`** on the server — add:
+
+   ```php
+   'App' => [
+       'base' => '/qsl',
+       'fullBaseUrl' => 'https://tools.example.com/qsl',
+   ],
+   'Session' => [
+       'cookiePath' => '/qsl',
+   ],
+   ```
+
+   - `App.base` tells CakePHP's router to prefix every URL it generates
+     with `/qsl/`. The bundled `BasePathMiddleware` also reads the
+     request webroot and rewrites the ~78 raw `href="/..."` strings in
+     templates on the way out, so no template edits are needed.
+   - `App.fullBaseUrl` is used by emails and any code that builds
+     absolute URLs outside a request context.
+   - `Session.cookiePath` scopes the session cookie to `/qsl` so it
+     doesn't collide with other apps on the same hostname.
+
+3. **`.htaccess`** — both the bundled root and webroot files already
+   use relative `RewriteRule` patterns, so they work from any
+   subdirectory without changes. If your host strips relative rewrites,
+   add `RewriteBase /qsl/` after `RewriteEngine on` in `/qsl/.htaccess`.
+
+Verify after first deploy:
+
+- `https://tools.example.com/qsl/install` shows the installer wizard
+  (or `/qsl/` shows the guest form if already installed).
+- View source on any page — every `href="..."`, `action="..."`, and
+  `src="..."` should start with `/qsl/`. If you see bare `/dashboard`
+  in the HTML the `BasePathMiddleware` isn't firing (check the
+  middleware order in `src/Application.php`).
+- Sign in works — session cookie path matches.
+- Static assets (CSS, JS, fonts, uploaded backgrounds) all load with
+  `/qsl/` prefix.
+
 ---
 
 ## 6. Updating an installed host

@@ -24,7 +24,7 @@ final class CardsControllerRevokeTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     /**
      * `uploads.sha256_hash` is UNIQUE-indexed, so each seeded upload row needs
@@ -54,7 +54,7 @@ final class CardsControllerRevokeTest extends TestCase
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         self::$shaCounter++;
         $upload = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $userId,
@@ -110,7 +110,7 @@ final class CardsControllerRevokeTest extends TestCase
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
 
-        $uploads = $this->getTableLocator()->get('Uploads');
+        $uploads = $this->getTableLocator()->get('CardBackgrounds');
         self::$shaCounter++;
         $upload = $uploads->saveOrFail($uploads->newEntity([
             'user_id' => $u, 'original_filename' => 'b.jpg', 'storage_path' => 'p' . self::$shaCounter . '.jpg',

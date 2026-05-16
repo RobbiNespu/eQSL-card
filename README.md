@@ -1,7 +1,7 @@
 # eQSL Card Generator
 
 [![CI](https://github.com/RobbiNespu/eQSL-card/actions/workflows/ci.yml/badge.svg)](https://github.com/RobbiNespu/eQSL-card/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/PHPUnit-220%20tests-brightgreen)
+![Tests](https://img.shields.io/badge/PHPUnit-389%20tests-brightgreen)
 ![PHP](https://img.shields.io/badge/PHP-8.1-blue)
 ![CakePHP](https://img.shields.io/badge/CakePHP-5.2-D33C43)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)

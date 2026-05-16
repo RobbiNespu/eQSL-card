@@ -10,7 +10,7 @@ use Laminas\Diactoros\UploadedFile;
 final class PublicControllerGenerateTest extends TestCase
 {
     use IntegrationTestTrait;
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.GuestVisits', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.GuestVisits', 'app.CardBackgrounds', 'app.Cards'];
 
     public function testGuestCanGenerateAndCardIsPersisted(): void
     {

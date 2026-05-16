@@ -20,7 +20,7 @@ final class DashboardControllerTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Cards', 'app.Uploads', 'app.AuditLogs', 'app.GuestVisits'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Cards', 'app.CardBackgrounds', 'app.AuditLogs', 'app.GuestVisits'];
 
     private function loginAs(string $role): int
     {

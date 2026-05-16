@@ -25,7 +25,7 @@
   <div class="col-md-3">
     <div class="card card-body text-center">
       <div class="display-6"><?= h($stats['storage_mb_uploads']) ?> MB</div>
-      <div class="form-text">Upload storage</div>
+      <div class="form-text">Background storage</div>
     </div>
   </div>
 </div>
@@ -38,8 +38,9 @@
       <li class="list-group-item"><a href="/admin/templates/pending">Pending template moderation (<?= h($stats['templates_pending']) ?>)</a></li>
       <li class="list-group-item"><a href="/admin/users">User management</a></li>
       <li class="list-group-item"><a href="/admin/cards">All cards browser</a></li>
+      <li class="list-group-item"><a href="/admin/card-backgrounds">All background images</a></li>
       <li class="list-group-item"><a href="/admin/audit">Audit log viewer</a></li>
-      <li class="list-group-item"><a href="/admin/cleanup">Cleanup tools (purge old guest cards, prune orphan uploads)</a></li>
+      <li class="list-group-item"><a href="/admin/cleanup">Cleanup tools (purge old guest cards, prune orphan backgrounds)</a></li>
       <li class="list-group-item"><a href="/admin/upgrade">Run pending migrations</a></li>
     </ul>
   </div>

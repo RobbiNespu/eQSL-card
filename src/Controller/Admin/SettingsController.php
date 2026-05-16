@@ -169,7 +169,7 @@ class SettingsController extends AppController
         // we reuse the existing row and refresh its attribution; otherwise
         // we insert a fresh row that points at a copy in files/uploads/.
         $sha = hash_file('sha256', $finalPath);
-        $uploadsTable = $this->fetchTable('Uploads');
+        $uploadsTable = $this->fetchTable('CardBackgrounds');
         $existingRow = $uploadsTable->find()->where(['sha256_hash' => $sha])->first();
         if ($existingRow !== null) {
             // Resurrect a soft-deleted match and refresh attribution to

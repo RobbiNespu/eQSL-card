@@ -73,12 +73,12 @@ class CleanupController extends AppController
                 'Cards.created_at <' => $cutoff,
             ]);
 
-        $uploads = $this->fetchTable('Uploads');
+        $uploads = $this->fetchTable('CardBackgrounds');
         // Orphaned uploads: no `cards` row references them. `notMatching`
         // produces a LEFT JOIN + IS NULL filter against the `Uploads.hasMany
         // Cards` association declared on UploadsTable.
         $orphanQuery = $uploads->find()
-            ->where(['Uploads.created_at <' => $cutoff])
+            ->where(['CardBackgrounds.created_at <' => $cutoff])
             ->notMatching('Cards', function ($q) {
                 return $q;
             });
@@ -96,11 +96,11 @@ class CleanupController extends AppController
                 ->all(),
             'orphanUploadsCount' => $orphanQuery->count(),
             'orphanUploadsSample' => $uploads->find()
-                ->where(['Uploads.created_at <' => $cutoff])
+                ->where(['CardBackgrounds.created_at <' => $cutoff])
                 ->notMatching('Cards', function ($q) {
                     return $q;
                 })
-                ->orderBy(['Uploads.created_at' => 'ASC'])
+                ->orderBy(['CardBackgrounds.created_at' => 'ASC'])
                 ->limit(5)
                 ->all(),
             // Retention preview — how many user cards would soft-delete on
@@ -265,9 +265,9 @@ class CleanupController extends AppController
         $days = max(1, (int)$this->request->getData('days', 30));
         $cutoff = DateTime::now()->subDays($days);
 
-        $uploads = $this->fetchTable('Uploads');
+        $uploads = $this->fetchTable('CardBackgrounds');
         $rows = $uploads->find()
-            ->where(['Uploads.created_at <' => $cutoff])
+            ->where(['CardBackgrounds.created_at <' => $cutoff])
             ->notMatching('Cards', function ($q) {
                 return $q;
             })

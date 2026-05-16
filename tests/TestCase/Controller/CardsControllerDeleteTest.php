@@ -19,7 +19,7 @@ final class CardsControllerDeleteTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.Templates', 'app.Uploads', 'app.Cards'];
+    protected array $fixtures = ['app.Users', 'app.Templates', 'app.CardBackgrounds', 'app.Cards'];
 
     /**
      * `uploads.sha256_hash` carries a UNIQUE index, so each seeded upload row
@@ -49,7 +49,7 @@ final class CardsControllerDeleteTest extends TestCase
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
 
-        $u = $this->getTableLocator()->get('Uploads');
+        $u = $this->getTableLocator()->get('CardBackgrounds');
         self::$shaCounter++;
         $upload = $u->saveOrFail($u->newEntity([
             'user_id' => $userId,
