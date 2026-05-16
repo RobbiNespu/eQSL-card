@@ -71,6 +71,7 @@ final class HelpCatalog
             'label' => 'Mobile & portable ops',
             'pages' => [
                 'navigation' => 'Bottom-tab navigation',
+                'quick-add'  => 'Quick-add for portable ops',
             ],
         ],
         'reference' => [

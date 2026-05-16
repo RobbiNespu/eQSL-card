@@ -147,11 +147,11 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
       <span>Home</span>
     </a>
-    <a class="mobile-tabbar__btn" href="/qsos" <?= $tabActive('/qsos') && !str_starts_with($tabPath, '/qsos/new') ? 'aria-current="page"' : '' ?>>
+    <a class="mobile-tabbar__btn" href="/qsos" <?= $tabActive('/qsos') && !str_starts_with($tabPath, '/qsos/new') && !str_starts_with($tabPath, '/qsos/quick') ? 'aria-current="page"' : '' ?>>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       <span>Logbook</span>
     </a>
-    <a class="mobile-tabbar__btn mobile-tabbar__btn--primary" href="/qsos/new" <?= $tabActive('/qsos/new') ? 'aria-current="page"' : '' ?>>
+    <a class="mobile-tabbar__btn mobile-tabbar__btn--primary" href="/qsos/quick" <?= $tabActive('/qsos/quick') ? 'aria-current="page"' : '' ?>>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span>Quick add</span>
     </a>

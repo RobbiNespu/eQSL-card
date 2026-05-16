@@ -2009,3 +2009,49 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
     font-size: 0.95em;
   }
 }
+
+/* ============================================================
+   M5 T7 — Quick-add form styling
+   Layout is naturally responsive (single column phones,
+   constrained-width on desktop). T8/T10/T11 will extend with
+   chips, sticky save button, etc.
+   ============================================================ */
+.quick-add {
+  max-width: 540px;
+  margin: 0 auto;
+}
+.quick-add__form .form-control-lg {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  min-height: 52px;
+}
+.quick-add__recent {
+  border-top: 1px solid var(--border, #e2e8f0);
+  padding-top: var(--s-3, 12px);
+}
+.quick-add__recent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.quick-add__recent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--s-2, 8px) 0;
+  border-bottom: 1px solid var(--border-soft, #f1f5f9);
+  font-size: 0.95em;
+}
+.quick-add__recent-item:last-child {
+  border-bottom: 0;
+}
+.quick-add__recent-call {
+  font-weight: 700;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.quick-add__recent-meta {
+  font-size: 0.85em;
+  color: var(--text-muted, var(--bs-secondary-color));
+}

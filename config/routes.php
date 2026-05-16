@@ -120,6 +120,13 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
         $builder->connect('/qsos/new', ['controller' => 'Qsos', 'action' => 'add'])
             ->setMethods(['GET', 'POST']);
+        // M5 T7 — Quick-add: portable-first one-thumb entry surface.
+        // Minimal form, auto-fills date/time UTC at submit, derives band from
+        // frequency, carries operator name/QTH/grid from the user's previous
+        // QSO. Stays on the page after save (no redirect) so the operator can
+        // log the next contact without leaving the keyboard.
+        $builder->connect('/qsos/quick', ['controller' => 'Qsos', 'action' => 'quick'])
+            ->setMethods(['GET', 'POST']);
         $builder->connect('/qsos/import', ['controller' => 'Qsos', 'action' => 'import'])
             ->setMethods(['GET', 'POST']);
         // Callsign auto-complete JSON API. Authenticated; the QSO add form
