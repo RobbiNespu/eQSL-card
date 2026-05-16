@@ -46,6 +46,7 @@ final class Installer
                 'canvas_width'   => (int)$payload['canvas_width'],
                 'canvas_height'  => (int)$payload['canvas_height'],
                 'layout_json'    => json_encode(['fields' => $payload['fields']], JSON_UNESCAPED_SLASHES),
+                'qso_type'       => $payload['qso_type'] ?? 'contact',
                 'thumbnail_path' => null,
                 'is_public'      => true,
                 'is_approved'    => true,

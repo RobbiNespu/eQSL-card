@@ -16,6 +16,7 @@ class Template extends Entity
         'layout_json' => true,
         'thumbnail_path' => true,
         'background_upload_id' => true,
+        'qso_type' => true,
         'is_public' => true,        // user can request public; admin reviews
         'is_approved' => false,     // admin-only via service layer
         'is_system' => false,       // installer-only via service layer

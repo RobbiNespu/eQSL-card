@@ -70,6 +70,13 @@ final class SeedNetCheckInTemplate extends AbstractMigration
         ];
 
         $now = date('Y-m-d H:i:s');
+        // qso_type intentionally NOT set here — this migration predates the
+        // templates.qso_type column. On fresh installs the row is inserted
+        // first, and the later migration 20260516000003_AddQsoTypeToTemplates
+        // both adds the column AND backfills this row to 'net' via a
+        // name-and-is_system match. Touching the column here would fail
+        // because the column doesn't exist yet at this point in the
+        // migration timeline.
         $conn->insert('templates', [
             'name'             => 'Net check-in',
             'description'      => 'System template for NCS-issued net check-in cards. Uses {ncs_callsign}, {net_title}, {net_organisation} placeholders.',

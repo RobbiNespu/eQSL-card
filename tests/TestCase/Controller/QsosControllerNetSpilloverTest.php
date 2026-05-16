@@ -69,12 +69,12 @@ final class QsosControllerNetSpilloverTest extends TestCase
         $tpls = $this->getTableLocator()->get('Templates');
         $classic = $tpls->saveOrFail($tpls->newEntity([
             'name' => 'Classic — bottom panel', 'canvas_width' => 1500, 'canvas_height' => 1000,
-            'layout_json' => '{"fields":[]}',
+            'layout_json' => '{"fields":[]}', 'qso_type' => 'contact',
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
         $netTpl = $tpls->saveOrFail($tpls->newEntity([
             'name' => 'Net check-in', 'canvas_width' => 1500, 'canvas_height' => 1000,
-            'layout_json' => '{"fields":[]}',
+            'layout_json' => '{"fields":[]}', 'qso_type' => 'net',
             'is_system' => true, 'is_public' => true, 'is_approved' => true,
         ], ['accessibleFields' => ['is_system' => true, 'is_public' => true, 'is_approved' => true]]));
 

@@ -1,6 +1,7 @@
 {
     "name": "Classic — bottom panel",
     "description": "Default eQSL layout shipped with the installer.",
+    "qso_type": "contact",
     "canvas_width": 1500,
     "canvas_height": 1000,
     "fields": [

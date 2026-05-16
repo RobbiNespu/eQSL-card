@@ -44,6 +44,10 @@ function designer(initial) {
         // it at render time). Initial values come from the bound entity for
         // edits, both blank for new templates.
         backgroundUploadId: initial.backgroundUploadId || null,
+        // Categorisation: which QSO type this template was designed for.
+        // Drives the render-from-QSO picker filter so users only see
+        // matching templates when rendering a contact or net check-in card.
+        qsoType: initial.qsoType || 'contact',
 
         init() {
             // Defer until the <canvas x-ref="canvas"> element is mounted.
@@ -566,6 +570,7 @@ function designer(initial) {
             // Empty string explicitly clears the background on the template;
             // a numeric id binds the upload row as the template's background.
             body.append('background_upload_id', this.backgroundUploadId ? String(this.backgroundUploadId) : '');
+            body.append('qso_type', this.qsoType || 'contact');
             if (this.makePublic) {
                 body.append('make_public', '1');
             }
