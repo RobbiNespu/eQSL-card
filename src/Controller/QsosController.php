@@ -783,8 +783,15 @@ class QsosController extends AppController
         $qsos = $this->fetchTable('Qsos');
         $qso = $qsos->find()->where(['id' => $qsoId, 'user_id' => $userId])->firstOrFail();
         $template = $this->fetchTable('Templates')->get($templateId);
+        // Upload is no longer user-picked — it's resolved internally by
+        // resolveTemplateBackground (or its bulk equivalent), which derives
+        // the row from the template's binding or the site-default. That
+        // means it may legitimately be owned by another user (e.g. the
+        // template author for a system/public template), so we deliberately
+        // do NOT re-scope by user_id here. The deleted_at guard remains —
+        // a soft-deleted row's file may have been pruned and would 500 GD.
         $upload = $this->fetchTable('Uploads')->find()
-            ->where(['id' => $uploadId, 'user_id' => $userId, 'Uploads.deleted_at IS' => null])
+            ->where(['id' => $uploadId, 'Uploads.deleted_at IS' => null])
             ->firstOrFail();
 
         $finalPath = WWW_ROOT . $upload->storage_path;
@@ -948,19 +955,19 @@ class QsosController extends AppController
         return [$upload, $authorName, $license];
     }
 
+    /**
+     * Return a temp copy of the site-default background image. Strictly
+     * disk-only — does NOT read $_FILES['background_upload'].
+     *
+     * Per-render background uploads were removed in 67ee8e7 (backgrounds
+     * are now template-bound). Leaving the request-file branch active
+     * here would re-introduce that capability via a crafted POST whenever
+     * the chosen template has no bound background, which is the exact
+     * scenario this helper is invoked for. The returned path is a temp
+     * copy so the caller's @unlink doesn't delete the source.
+     */
     private function resolveBackgroundUpload(): string
     {
-        $upload = $this->request->getUploadedFile('background_upload');
-        if ($upload && $upload->getError() === UPLOAD_ERR_OK) {
-            $tmp = tempnam(sys_get_temp_dir(), 'eqsl_');
-            $upload->moveTo($tmp);
-
-            return $tmp;
-        }
-
-        // No file supplied — fall back to the same chain as the guest flow:
-        // admin-override default → bundled demo bg. Returned path is a temp
-        // copy so the caller's @unlink doesn't delete the source.
         $candidates = [
             WWW_ROOT . 'files/templates/_default-bg.jpg',
             WWW_ROOT . 'files/templates/_demo-bg.jpg',

@@ -52,8 +52,8 @@
 
 <h2>Inspirations + acknowledgements</h2>
 <ul>
-  <li><strong>RoIPMARS</strong> (Malaysian Amateur Radio over Internet Protocol Society) and the wider asian radio over IP community for the amateur radio scene was always conducting local and international net check-in events</li>
-  <li><strong>9W2LGX</strong> — Who is the one of the main person behind ROIPMARS which asking me to develop the application but I dont have much time that time.</li>
+  <li><strong>RoIPMARS</strong> (Malaysian Amateur Radio over Internet Protocol Society) and the wider Asian radio-over-IP community for conducting local and international net check-in events.</li>
+  <li><strong>9W2LGX</strong> — one of the main people behind RoIPMARS, who asked me to develop this application but I didn't have much time back then.</li>
 </ul>
 
 <h2>Licence</h2>

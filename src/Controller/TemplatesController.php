@@ -428,9 +428,14 @@ class TemplatesController extends AppController
                     ->count();
                 if ($owned > 0) {
                     $entity->set('background_upload_id', $bgId);
+                } else {
+                    // Unowned/missing id — keep the silent-on-which-id security
+                    // property (no "id X not found" leak) but surface a generic
+                    // notice so the user knows their bg request was dropped.
+                    $this->Flash->error(
+                        'Selected background not found or not owned. Existing background kept.'
+                    );
                 }
-                // Silently ignore an upload_id the user doesn't own; the
-                // existing bound bg (if any) is left alone.
             }
         }
 
