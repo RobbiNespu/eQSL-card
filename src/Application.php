@@ -158,9 +158,24 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
      */
     public function getAuthenticationService(ServerRequestInterface $request): AuthenticationServiceInterface
     {
+        // Subfolder-deploy guard: the Form authenticator's `loginUrl`
+        // and the unauthenticated-redirect target both need to include
+        // the deploy base path (e.g. `/qsl/login` on tools.example.com/qsl).
+        // Form authenticator's _checkUrl does a strict path comparison —
+        // if loginUrl is bare `/login` but the request is at `/qsl/login`,
+        // the authenticator silently returns FAIL_OTHER and the user
+        // sees "Invalid email or password" even with correct credentials.
+        //
+        // Read App.base from config (set in app_local.php for subfolder
+        // deploys; empty string on root deploys). Don't trust the
+        // request's webroot attribute here — Authentication may be
+        // instantiated outside a request context (CLI, tests).
+        $base = rtrim((string)\Cake\Core\Configure::read('App.base', ''), '/');
+        $loginUrl = $base . '/login';
+
         $service = new AuthenticationService();
         $service->setConfig([
-            'unauthenticatedRedirect' => '/login',
+            'unauthenticatedRedirect' => $loginUrl,
             'queryParam' => 'redirect',
         ]);
 
@@ -183,7 +198,7 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
         $service->loadAuthenticator('Authentication.Session');
         $service->loadAuthenticator('Authentication.Form', [
             'fields' => $formFields,
-            'loginUrl' => '/login',
+            'loginUrl' => $loginUrl,
             'identifier' => [
                 'Authentication.Password' => ['fields' => $identifierFields],
             ],
