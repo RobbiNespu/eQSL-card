@@ -70,6 +70,40 @@ final class ProfileControllerTest extends TestCase
         $this->assertSame('FN31pr', $row->grid_square);
     }
 
+    /**
+     * M5 T27 — block_dupes_in_activation preference round-trips through
+     * the profile form. Default is false; user can opt in via the
+     * checkbox; the hidden 0-input ensures POST always sends a value
+     * even when the box is unchecked (otherwise unchecked → key
+     * absent from POST → false stays).
+     */
+    public function testBlockDupesInActivationPrefSavesAndClears(): void
+    {
+        $userId = $this->loginAs();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+
+        // Opt in.
+        $this->post('/profile', [
+            'name' => 'OP', 'callsign' => 'AA1AA',
+            'block_dupes_in_activation' => '1',
+        ]);
+        $this->assertRedirect('/profile');
+        $row = $this->getTableLocator()->get('Users')->get($userId);
+        $this->assertTrue((bool)$row->block_dupes_in_activation);
+
+        // Opt back out — hidden 0-input in the form means even unchecked
+        // posts send block_dupes_in_activation=0 so the column flips.
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/profile', [
+            'name' => 'OP', 'callsign' => 'AA1AA',
+            'block_dupes_in_activation' => '0',
+        ]);
+        $row = $this->getTableLocator()->get('Users')->get($userId);
+        $this->assertFalse((bool)$row->block_dupes_in_activation);
+    }
+
     public function testCannotEscalateRole(): void
     {
         $userId = $this->loginAs();

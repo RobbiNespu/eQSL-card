@@ -107,9 +107,27 @@
     'body' => 'The backing endpoint is GET /api/qsos/dupe-check?callsign=X&band=Y — owner-scoped at the SQL layer, so another operator\'s QSOs never surface in your check. If you build any third-party tooling on top of the API, the response shape is {callsign, total_qsos, last_worked_at, same_band_today, same_band_this_activation}.',
 ]) ?>
 
+<h2>Block-dupe safety preference (opt-in)</h2>
+<p>An opt-in preference on your <a href="/profile">profile page</a> turns the red dupe badge into a hard block on Save. Look for <em>"Block save when a duplicate is detected in the active activation"</em> under "Quick-add safety".</p>
+
+<p>With this on, whenever the dupe-check badge goes red ("Duplicate — already worked on this band this activation"), the <strong>Log contact</strong> button greys out and an inline alert explains why. The check is enforced both at the button (disabled) and at the request layer (the JS handler refuses to POST even if you re-enable the button via DevTools).</p>
+
+<p>Default: <strong>OFF</strong>. Turn ON if:</p>
+<ul>
+  <li>You're running a POTA / SOTA activation and want zero risk of an accidental re-log that the awards portal would reject.</li>
+  <li>You're managing a net and want to enforce one-check-in-per-callsign discipline.</li>
+</ul>
+
+<p>Leave OFF if:</p>
+<ul>
+  <li>You're running a contest where same-band re-contacts are intentional (e.g. multiplier rules).</li>
+  <li>You're operating a DXpedition where pile-up callers may re-call by accident and you want every attempt logged.</li>
+</ul>
+
+<p>The preference is per-user, server-stored. Applies to every device you log in from — no need to toggle on each phone/tablet/laptop.</p>
+
 <h2>What ships later in M5</h2>
 <ul>
-  <li><strong>T27</strong> — Optional "block dupes in activation" user preference: when enabled, the red state disables Save to prevent committing a true duplicate.</li>
   <li><strong>T28</strong> — Haptic feedback on save (<code>navigator.vibrate(30)</code>) for non-visual confirmation during portable ops.</li>
   <li><strong>T29</strong> — Voice input on the callsign field via the Web Speech API (NATO phonetic → letters). Feature-flagged.</li>
 </ul>

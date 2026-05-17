@@ -214,8 +214,24 @@ $recentJson = json_encode(array_map(static function ($r): array {
       </div>
     </div>
 
+    <?php /* M5 T27 — block-dupe inline alert + Save disable.
+           Visible only when blockingDuplicate (computed in Alpine) is
+           true: pref enabled AND dupe-check badge is red. Explains
+           why the button is disabled + offers the toggle-off link. */ ?>
+    <div class="alert alert-danger mt-3" x-show="blockingDuplicate" x-cloak role="alert">
+      <strong>Save blocked.</strong> You've already worked this callsign on this band
+      during the current activation. Logging again would create a duplicate POTA/SOTA
+      would reject.
+      <a href="/profile" class="alert-link">Disable this safety</a> on your profile if you're
+      running a contest or DXpedition where same-band dupes are allowed.
+    </div>
+
     <div class="quick-add__actions form-actions-mobile mt-4">
-      <button type="submit" class="btn btn-primary btn-lg">Log contact</button>
+      <button type="submit" class="btn btn-primary btn-lg"
+              :disabled="blockingDuplicate"
+              :title="blockingDuplicate ? 'Duplicate detected — save blocked by your profile preference' : ''">
+        Log contact
+      </button>
       <a class="btn btn-secondary" href="/qsos">Cancel</a>
     </div>
 

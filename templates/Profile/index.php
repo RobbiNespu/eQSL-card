@@ -73,6 +73,28 @@
       <p class="form-text">A short note about your station or interests. Shown on your public profile page once that ships.</p>
     </div>
 
+    <?php /* M5 T27 — opt-in safety toggle for the Quick-add dupe-check.
+           When ON, /qsos/quick disables Save while the red dup-in-
+           activation badge is showing. Default OFF so DXpedition /
+           contest operators (where intentional same-band dupes are
+           legitimate) aren't blocked. */ ?>
+    <h2 class="h5 mt-4">Quick-add safety</h2>
+    <div class="field">
+      <label class="form-check form-switch d-flex align-items-center gap-2">
+        <input type="hidden" name="block_dupes_in_activation" value="0">
+        <input type="checkbox" name="block_dupes_in_activation" value="1"
+               class="form-check-input"
+               <?= $user->block_dupes_in_activation ? 'checked' : '' ?>>
+        <span>Block save when a duplicate is detected in the active activation</span>
+      </label>
+      <p class="form-text">
+        With this on, the Quick-add Save button is greyed out whenever the dupe-check badge shows
+        <strong>red</strong> (you've already worked this callsign on this band during the current
+        activation). Prevents accidental double-logging during a busy net or POTA activation.
+        Leave off if you run contests / DXpeditions where same-band dupes are legitimate.
+      </p>
+    </div>
+
     <div class="d-flex gap-2 mt-3">
       <button class="btn btn-primary">Save profile</button>
     </div>

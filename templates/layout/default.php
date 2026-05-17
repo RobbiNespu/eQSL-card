@@ -42,8 +42,23 @@
        and any future Alpine component that builds URLs needs it).
        Empty string on root deploys ('/' → ''); '/qsl' on subfolder.
        The middleware-injected webroot attribute is the source of truth. */ ?>
+<?php /* M5 T27 — peek at the identity here so the pref can be emitted
+       in the same head-block as EQSL_BASE. The full $identity / $userData
+       / $isAdmin trio is recomputed for the body sections further down. */ ?>
+<?php
+$_headIdent = $this->getRequest()->getAttribute('identity');
+$_headUser = $_headIdent && method_exists($_headIdent, 'getOriginalData')
+    ? $_headIdent->getOriginalData() : null;
+?>
 <script>
   window.EQSL_BASE = <?= json_encode(rtrim((string)$this->getRequest()->getAttribute('webroot', '/'), '/'), JSON_UNESCAPED_SLASHES) ?>;
+  /* M5 T27 — per-user preferences exposed to Alpine.
+     quickAddForm reads EQSL_PREFS.block_dupes_in_activation to decide
+     whether to disable Save when the dupe-check badge is red. False
+     for guests / unauthenticated requests. */
+  window.EQSL_PREFS = <?= json_encode([
+      'block_dupes_in_activation' => (bool)($_headUser?->block_dupes_in_activation ?? false),
+  ], JSON_UNESCAPED_SLASHES) ?>;
 </script>
 <script>
   (function () {

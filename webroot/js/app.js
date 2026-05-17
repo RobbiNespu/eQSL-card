@@ -278,6 +278,22 @@ function quickAddForm(recent) {
             timer: null,       // debounce setTimeout handle
             ctrl: null,        // in-flight fetch AbortController
         },
+        // M5 T27 — per-user safety preference. Read once from the
+        // layout-injected window.EQSL_PREFS; false / absent on
+        // unauthenticated requests + browsers that haven't loaded the
+        // inline script yet.
+        get blockDupesPref() {
+            return (typeof window.EQSL_PREFS === 'object'
+                && window.EQSL_PREFS !== null
+                && window.EQSL_PREFS.block_dupes_in_activation === true);
+        },
+        // T27 — Save-button-disabled trigger. The pref must be on AND
+        // the dupe-check badge must be in the red "duplicate in this
+        // activation" state. Other states (grey/blue/yellow/error)
+        // leave Save enabled.
+        get blockingDuplicate() {
+            return this.blockDupesPref && this.dupeBadge.kind === 'dup';
+        },
         init() {
             // Load user-added chips from localStorage (if any), then
             // concatenate the defaults. Defaults always render last so a
@@ -449,6 +465,14 @@ function quickAddForm(recent) {
             if (this.submitting) return;
             if (!this.form.callsign.trim()) {
                 this.showFlash('error', 'Callsign is required.');
+                return;
+            }
+            // M5 T27 — defence-in-depth: even though the Save button is
+            // disabled while blockingDuplicate is true, an enterprising
+            // user could re-enable it via DevTools. Re-check here so
+            // the network request never fires for a confirmed dupe.
+            if (this.blockingDuplicate) {
+                this.showFlash('error', 'Save blocked — duplicate in this activation. Disable the preference on /profile if intentional.');
                 return;
             }
             this.submitting = true;
