@@ -361,6 +361,116 @@ class QsosController extends AppController
         return $this->redirect('/qsos/quick');
     }
 
+    /**
+     * M5 T25 — Dupe-check API for the quick-add callsign field.
+     *
+     * Endpoint: GET /api/qsos/dupe-check?callsign=W1AW&band=20m
+     *
+     * Returns JSON with four signals the client uses to colour the
+     * inline badge (T26 traffic-light states):
+     *   {
+     *     "callsign": "W1AW",                              echoed for client display
+     *     "total_qsos": 3,                                 total times worked
+     *     "last_worked_at": "2026-05-14T08:21:00+00:00",  ISO 8601 UTC, or null
+     *     "same_band_today": false,                        true → yellow badge
+     *     "same_band_this_activation": false               true → red badge (dup in session)
+     *   }
+     *
+     * Owner-scoped at the SQL layer; another user's QSOs never surface.
+     * Callsign + band are normalised (upper-case callsign, lower-case
+     * band) before the query so client capitalisation doesn't miss
+     * matches. Empty / invalid callsign returns total_qsos: 0 instead
+     * of erroring — the client will be calling this on every keystroke
+     * via debounce, so HTTP 200 with a clean shape simplifies UI.
+     *
+     * Active-activation lookup is the same path as quick() (T16 uses
+     * findActiveForUser); `same_band_this_activation` is true iff there
+     * IS an active activation AND a QSO matching (call, band) is
+     * already tagged with it.
+     */
+    public function dupeCheck(): \Cake\Http\Response
+    {
+        $this->request->allowMethod('get');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+
+        $callsign = strtoupper(trim((string)$this->request->getQuery('callsign', '')));
+        $band     = strtolower(trim((string)$this->request->getQuery('band', '')));
+
+        $payload = [
+            'callsign'                  => $callsign,
+            'total_qsos'                => 0,
+            'last_worked_at'            => null,
+            'same_band_today'           => false,
+            'same_band_this_activation' => false,
+        ];
+
+        // Empty / nonsense callsign → return the zero shape. Client
+        // calls per-keystroke so HTTP error responses would noise the
+        // network tab.
+        if ($callsign === '' || !preg_match('/^[A-Z0-9\\/]{2,15}$/', $callsign)) {
+            return $this->jsonResponse($payload);
+        }
+
+        $qsos = $this->fetchTable('Qsos');
+
+        // total_qsos + last_worked_at — across all bands, all time.
+        $row = $qsos->find()
+            ->select(['n' => 'COUNT(*)', 'last_at' => 'MAX(qso_datetime_utc)'])
+            ->where(['user_id' => $userId, 'call_worked' => $callsign])
+            ->disableHydration()
+            ->first();
+        if ($row !== null) {
+            $payload['total_qsos']     = (int)$row['n'];
+            $payload['last_worked_at'] = $row['last_at']
+                ? (new \Cake\I18n\DateTime($row['last_at']))->format('c')
+                : null;
+        }
+
+        // same_band_today — any QSO with this callsign on this band
+        // dated >= 00:00 UTC today? Only meaningful if a band was
+        // provided AND we've already worked the callsign at least once.
+        if ($band !== '' && $payload['total_qsos'] > 0) {
+            $startOfDayUtc = (new \DateTimeImmutable('today', new \DateTimeZone('UTC')))
+                ->format('Y-m-d H:i:s');
+            $sameBandToday = $qsos->find()
+                ->where([
+                    'user_id'              => $userId,
+                    'call_worked'          => $callsign,
+                    'band'                 => $band,
+                    'qso_datetime_utc >='  => $startOfDayUtc,
+                ])
+                ->count();
+            $payload['same_band_today'] = $sameBandToday > 0;
+        }
+
+        // same_band_this_activation — match callsign+band tagged with
+        // the operator's CURRENTLY ACTIVE activation (if any).
+        if ($band !== '' && $payload['total_qsos'] > 0) {
+            $active = $this->fetchTable('Activations')->findActiveForUser($userId);
+            if ($active !== null) {
+                $sameInActivation = $qsos->find()
+                    ->where([
+                        'user_id'       => $userId,
+                        'call_worked'   => $callsign,
+                        'band'          => $band,
+                        'activation_id' => $active->id,
+                    ])
+                    ->count();
+                $payload['same_band_this_activation'] = $sameInActivation > 0;
+            }
+        }
+
+        return $this->jsonResponse($payload);
+    }
+
+    /** Small helper: wrap a payload in a JSON HTTP response. */
+    private function jsonResponse(array $payload): \Cake\Http\Response
+    {
+        return $this->response
+            ->withType('application/json')
+            ->withStringBody(json_encode($payload, JSON_THROW_ON_ERROR));
+    }
+
     public function add(): ?\Cake\Http\Response
     {
         $qsos = $this->fetchTable('Qsos');
