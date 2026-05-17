@@ -122,8 +122,17 @@ $recentJson = json_encode(array_map(static function ($r): array {
       <input type="text" id="quick-callsign" name="call_worked"
              class="form-control form-control-lg"
              x-ref="callsign" x-model="form.callsign"
+             @input="_scheduleDupeCheck()"
              autofocus autocomplete="off" autocapitalize="characters" spellcheck="false"
              placeholder="e.g. 9M2RDX" required>
+      <?php /* M5 T26 — Dupe-check traffic-light badge. Shown only when
+             the operator has typed ≥2 chars. The .quick-add__dupe-badge--{kind}
+             class drives the colour (CSS in theme.css). */ ?>
+      <p class="quick-add__dupe-badge"
+         x-show="dupeBadge.kind !== 'hidden'" x-cloak
+         :class="`quick-add__dupe-badge--${dupeBadge.kind}`"
+         role="status" aria-live="polite"
+         x-text="dupeBadge.label"></p>
     </div>
 
     <div class="row g-2 mt-2">
@@ -132,6 +141,7 @@ $recentJson = json_encode(array_map(static function ($r): array {
           <label class="form-label" for="quick-freq">Frequency (MHz)</label>
           <input type="text" id="quick-freq" name="frequency_mhz" class="form-control"
                  x-model="form.frequency"
+                 @input="_scheduleDupeCheck()"
                  placeholder="e.g. 14.20000" inputmode="decimal" autocomplete="off">
           <p class="form-text small mb-0">Band fills in for you on save.</p>
         </div>

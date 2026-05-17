@@ -270,6 +270,14 @@ function quickAddForm(recent) {
             rstRecv: '',
             notes: '',
         },
+        // M5 T26 — dupe-check state. The badge component reads
+        // `dupeBadge` (derived) below.
+        dupe: {
+            state: 'idle',     // 'idle' | 'checking' | 'done' | 'error'
+            result: null,      // {total_qsos, last_worked_at, same_band_today, same_band_this_activation}
+            timer: null,       // debounce setTimeout handle
+            ctrl: null,        // in-flight fetch AbortController
+        },
         init() {
             // Load user-added chips from localStorage (if any), then
             // concatenate the defaults. Defaults always render last so a
@@ -344,9 +352,97 @@ function quickAddForm(recent) {
             this.form.callsign = '';
             this.form.rstSent  = '';
             this.form.rstRecv  = '';
+            // Clone changed freq/band but cleared callsign — re-check
+            // the dupe-state so the badge reflects the new context.
+            this._scheduleDupeCheck();
             this.$nextTick(() => {
                 if (this.$refs.callsign) this.$refs.callsign.focus();
             });
+        },
+        /**
+         * M5 T26 — debounced dupe-check trigger. Called from x-on:input
+         * on callsign + frequency inputs. 200ms debounce, AbortController
+         * cancels any in-flight fetch when the user keeps typing.
+         */
+        _scheduleDupeCheck() {
+            if (this.dupe.timer) clearTimeout(this.dupe.timer);
+            if (this.dupe.ctrl)  this.dupe.ctrl.abort();
+
+            const call = (this.form.callsign || '').trim().toUpperCase();
+            if (call.length < 2) {
+                this.dupe.state = 'idle';
+                this.dupe.result = null;
+                return;
+            }
+
+            this.dupe.timer = setTimeout(async () => {
+                const ctrl = new AbortController();
+                this.dupe.ctrl = ctrl;
+                this.dupe.state = 'checking';
+
+                const base = (typeof window.EQSL_BASE === 'string') ? window.EQSL_BASE : '';
+                // Derive band client-side from frequency input so the
+                // per-band signals (same_band_today, _this_activation)
+                // can fire. Empty freq → empty band → server returns
+                // total_qsos-only signal (still useful, just no
+                // yellow/red badge).
+                const band = (typeof window.bandForFrequencyMhz === 'function')
+                    ? (window.bandForFrequencyMhz(this.form.frequency) || '')
+                    : '';
+                const url = base + '/api/qsos/dupe-check'
+                    + '?callsign=' + encodeURIComponent(call)
+                    + '&band=' + encodeURIComponent(band);
+
+                try {
+                    const resp = await fetch(url, {
+                        signal: ctrl.signal,
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                    this.dupe.result = await resp.json();
+                    this.dupe.state = 'done';
+                } catch (e) {
+                    if (e.name === 'AbortError') return;  // newer query in flight; silent
+                    this.dupe.state = 'error';
+                }
+            }, 200);
+        },
+        /**
+         * Derived dupe-check badge. Returned shape:
+         *   { kind, label } where kind ∈ {checking, first, before, today, dup, error, hidden}
+         * The template uses `kind` for the CSS variant class.
+         */
+        get dupeBadge() {
+            if (this.dupe.state === 'checking') return { kind: 'checking', label: 'Checking…' };
+            if (this.dupe.state === 'error')    return { kind: 'error',    label: 'Dupe-check unavailable' };
+            const r = this.dupe.result;
+            if (!r || (this.form.callsign || '').trim().length < 2) {
+                return { kind: 'hidden', label: '' };  // no callsign yet → no badge
+            }
+            if (r.total_qsos === 0) {
+                return { kind: 'first', label: 'First contact' };
+            }
+            if (r.same_band_this_activation) {
+                return { kind: 'dup', label: 'Duplicate — already worked on this band this activation' };
+            }
+            if (r.same_band_today) {
+                return { kind: 'today', label: 'Worked today on this band' };
+            }
+            // Worked before (different band/mode/day) — show count + relative time.
+            const when = r.last_worked_at ? this._relativeWhen(r.last_worked_at) : '';
+            const plural = r.total_qsos === 1 ? '' : '×';
+            return { kind: 'before', label: `Worked ${r.total_qsos}${plural}${when ? ' · last ' + when : ''}` };
+        },
+        _relativeWhen(iso) {
+            try {
+                const d = new Date(iso);
+                const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+                if (diffDays === 0)  return 'today';
+                if (diffDays === 1)  return 'yesterday';
+                if (diffDays < 7)    return diffDays + ' days ago';
+                if (diffDays < 30)   return Math.floor(diffDays / 7) + ' weeks ago';
+                return d.toISOString().slice(0, 10);
+            } catch (e) { return ''; }
         },
         async submit($event) {
             $event.preventDefault();
@@ -454,6 +550,12 @@ function quickAddForm(recent) {
             this.form.rstSent  = '';
             this.form.rstRecv  = '';
             // freq/mode/notes preserved for net rotations (T8 behaviour).
+            // T26 — clear the dupe-check badge state too. The next
+            // callsign typed will trigger a fresh check; otherwise a
+            // stale "Worked before" / "First contact" pill would
+            // linger pointing at the previous contact's callsign.
+            this.dupe.state = 'idle';
+            this.dupe.result = null;
         },
         showFlash(kind, message) {
             this.flashKind = kind;

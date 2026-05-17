@@ -2438,3 +2438,61 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   border-bottom: 1px solid var(--border-soft, #f1f5f9);
 }
 .sync-pill__row:last-child { border-bottom: 0; }
+
+/* ============================================================
+   M5 T26 — Dupe-check traffic-light badge
+   Renders under the callsign input on /qsos/quick. Four colour
+   variants driven by the API response shape.
+     first   — grey  → never worked
+     before  — blue  → worked before (different band/day)
+     today   — amber → worked today on same band
+     dup     — red   → already in this activation (likely true dup)
+   Plus two transient states: checking (muted), error (red).
+   ============================================================ */
+.quick-add__dupe-badge {
+  display: inline-block;
+  margin-top: var(--s-1, 4px);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8em;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.quick-add__dupe-badge--checking {
+  background: var(--bs-tertiary-bg, #f1f5f9);
+  color: var(--text-muted, var(--bs-secondary-color));
+}
+.quick-add__dupe-badge--first {
+  background: var(--bs-tertiary-bg, #f1f5f9);
+  color: var(--text-muted, var(--bs-secondary-color));
+}
+.quick-add__dupe-badge--before {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.quick-add__dupe-badge--today {
+  background: var(--warning-soft, #fef3c7);
+  color: #92400e;
+}
+.quick-add__dupe-badge--dup {
+  background: var(--danger-soft, #fee2e2);
+  color: #991b1b;
+  font-weight: 600;
+}
+.quick-add__dupe-badge--error {
+  background: var(--danger-soft, #fee2e2);
+  color: #7f1d1d;
+  font-style: italic;
+}
+[data-theme="eqsl-dark"] .quick-add__dupe-badge--before {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+[data-theme="eqsl-dark"] .quick-add__dupe-badge--today {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+}
+[data-theme="eqsl-dark"] .quick-add__dupe-badge--dup {
+  background: rgba(239, 68, 68, 0.20);
+  color: #fca5a5;
+}
