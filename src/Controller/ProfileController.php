@@ -73,6 +73,9 @@ class ProfileController extends AppController
                 // a hidden 0-input so unchecked POSTs send '0' explicitly;
                 // patchEntity coerces to the boolean column.
                 'block_dupes_in_activation' => true,
+                // M5 T29 — opt-in NATO-phonetic mic on /qsos/quick.
+                // Same hidden-0 + checkbox pattern as block_dupes.
+                'voice_input_callsign' => true,
             ];
             $patch = array_intersect_key($data, $allowed);
             $users->patchEntity($user, $patch);

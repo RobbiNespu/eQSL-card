@@ -140,10 +140,40 @@
 
 <p>There's no preference to disable haptics — if your device supports vibration, you get it. If this turns out to be a real annoyance for some users, a profile toggle can be added in a later release.</p>
 
-<h2>What ships later in M5</h2>
+<h2 id="voice-input">Voice input on the callsign field (opt-in)</h2>
+<p>An opt-in preference on your <a href="/profile">profile page</a> ("Show a microphone button on the Quick-add callsign field") adds a small mic button next to the callsign input. Tap it, say the callsign in NATO phonetic — <em>"nine mike two romeo delta x-ray"</em> — and the decoded letters land in the input. The dupe-check fires automatically as if you'd typed them.</p>
+
+<p>The decoder is forgiving. It accepts:</p>
 <ul>
-  <li><strong>T29</strong> — Voice input on the callsign field via the Web Speech API (NATO phonetic → letters). Feature-flagged.</li>
+  <li><strong>Standard NATO/ITU words</strong> — alpha, bravo, charlie, … zulu; zero, one, two, … nine.</li>
+  <li><strong>ITU variants</strong> — alfa (for alpha), juliett (double-t), whisky (no e).</li>
+  <li><strong>Military / maritime variants</strong> — niner (9), tree (3), fife (5), fower (4).</li>
+  <li><strong>X-ray variants</strong> — "x-ray", "x ray", "xray", or "exray" all decode to X.</li>
+  <li><strong>Filler words</strong> — "this is", "over", "out", "calling cq", articles — silently dropped, so <em>"this is whiskey one alpha whiskey over"</em> decodes to <code>W1AW</code>.</li>
+  <li><strong>Glued chunks</strong> — if the recogniser returns "9m2rdx" as a single token instead of phonetic spelling, that passes through as <code>9M2RDX</code>.</li>
 </ul>
+
+<p>Two things deliberately <em>not</em> mapped: the English words "for" and "to" are dropped rather than turned into 4 and 2. They're far too common in everyday speech to safely treat as digits; say "four" or "fower" if you mean the digit.</p>
+
+<h3>Browser support</h3>
+<ul>
+  <li><strong>Android Chrome / Edge</strong> — works. Recognition routes through Google's cloud — if that's a privacy concern, leave the preference OFF.</li>
+  <li><strong>Desktop Chrome / Edge</strong> — works the same way.</li>
+  <li><strong>iOS Safari (16+)</strong> — partial support; works in most cases but requires explicit microphone permission per page.</li>
+  <li><strong>Firefox</strong> — no Web Speech API. The mic button stays hidden even if the preference is ON.</li>
+</ul>
+
+<p>The mic button only renders when both conditions are true: (a) the preference is ON in your profile, AND (b) the browser actually exposes the API. If either is false, the input looks exactly as it does today.</p>
+
+<h3>What you'll see while it listens</h3>
+<p>Tap the mic and it turns red with a record-style icon. A status line under the input says <em>"Listening… say the callsign."</em> When you finish speaking, the recogniser returns within a second or two, the input fills, and the status line briefly shows <em>"Heard 'nine mike two romeo delta x-ray' → 9M2RDX"</em> so you can sanity-check the decode before tapping Save.</p>
+
+<p>If the recogniser couldn't extract any letters or digits (background noise, mumbling, an off-script phrase), you get a red error explaining what was heard — tap the mic again to retry. Microphone permission denied shows a different error pointing you at the browser's permission settings.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'tip',
+    'body' => 'During a busy net, the fastest pattern is: tap mic → say "this is [callsign] over" → glance at the input → tap Save. The filler-word dropper means you don\'t have to chop your phrasing — the operator-feel is the same as calling on the radio.',
+]) ?>
 
 <?= $this->element('ui/callout', [
     'variant' => 'tip',

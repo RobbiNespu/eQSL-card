@@ -287,6 +287,29 @@ function quickAddForm(recent) {
                 && window.EQSL_PREFS !== null
                 && window.EQSL_PREFS.block_dupes_in_activation === true);
         },
+        // M5 T29 — Web Speech recogniser state for the mic button.
+        // `recogniser` is lazy-created on first toggleVoiceInput() call;
+        // the constructor reference comes from voiceConstructor() below.
+        voice: {
+            listening: false,
+            message: '',          // user-facing transcript or error string
+            error: false,         // toggles red vs muted styling on message
+            recogniser: null,     // SpeechRecognition instance (cached across taps)
+        },
+        // T29 — opt-in flag for the mic. EQSL_PREFS.voice_input_callsign
+        // is set by /profile; defaults to false for guests + opted-out users.
+        get voicePref() {
+            return (typeof window.EQSL_PREFS === 'object'
+                && window.EQSL_PREFS !== null
+                && window.EQSL_PREFS.voice_input_callsign === true);
+        },
+        // T29 — gate the mic button visibility on BOTH the user's opt-in
+        // AND the browser actually exposing the API. The constructor lives
+        // under `webkitSpeechRecognition` on Chromium + Safari and
+        // `SpeechRecognition` (unprefixed) on standards-compliant browsers.
+        get voiceAvailable() {
+            return this.voicePref && this._voiceConstructor() !== null;
+        },
         // T27 — Save-button-disabled trigger. The pref must be on AND
         // the dupe-check badge must be in the red "duplicate in this
         // activation" state. Other states (grey/blue/yellow/error)
@@ -609,6 +632,128 @@ function quickAddForm(recent) {
                     navigator.vibrate(durationMs);
                 }
             } catch (_) { /* swallow — non-essential feedback */ }
+        },
+        /**
+         * M5 T29 — Resolve the SpeechRecognition constructor. Returns
+         * the prefixed `webkitSpeechRecognition` (Chromium, Safari) OR
+         * the unprefixed `SpeechRecognition` (standards), whichever
+         * exists. Returns null on browsers without either — that's the
+         * signal `voiceAvailable` uses to hide the mic button entirely.
+         */
+        _voiceConstructor() {
+            if (typeof window === 'undefined') return null;
+            return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+        },
+        /**
+         * M5 T29 — Mic-button click handler. Two states:
+         *  - idle → start a fresh single-shot recogniser (the API does
+         *    NOT continuously listen; each tap captures one phrase).
+         *  - listening → user is cancelling; call .abort() and reset.
+         *
+         * Recogniser is cached on `this.voice.recogniser` so repeated taps
+         * don't re-bind handlers, but Chrome's implementation is fussy
+         * about re-using an instance after an error — we discard + recreate
+         * if the previous run produced an error event.
+         */
+        toggleVoiceInput() {
+            if (this.voice.listening && this.voice.recogniser) {
+                // User-initiated cancellation. Chromium fires onerror with
+                // event.error === 'aborted' after this — the onerror handler
+                // recognises that code and bails without flagging an error,
+                // but we also clear `error` here so the previous run's red
+                // state doesn't linger if the user cancels mid-message.
+                try { this.voice.recogniser.abort(); } catch (_) { /* ignore */ }
+                this.voice.listening = false;
+                this.voice.error = false;
+                this.voice.message = '';
+                return;
+            }
+            const Ctor = this._voiceConstructor();
+            if (!Ctor) {
+                this.voice.message = 'Voice input not supported in this browser.';
+                this.voice.error = true;
+                return;
+            }
+            // Always rebuild — cheap, sidesteps re-use bugs in Chrome.
+            const r = new Ctor();
+            r.lang = 'en-US';            // NATO phonetic is English-only
+            r.continuous = false;        // single phrase per tap
+            r.interimResults = false;    // only deliver final transcript
+            r.maxAlternatives = 1;
+            r.onstart = () => {
+                this.voice.listening = true;
+                this.voice.error = false;
+                this.voice.message = 'Listening… say the callsign.';
+            };
+            r.onresult = (event) => {
+                // The Web Speech API returns a SpeechRecognitionResultList.
+                // We only asked for one phrase + one alternative, so index 0/0
+                // is the entire transcript.
+                let transcript = '';
+                try { transcript = event.results[0][0].transcript || ''; }
+                catch (_) { transcript = ''; }
+                const decoder = (typeof window !== 'undefined' && window.decodeNatoCallsign) || null;
+                if (!decoder) {
+                    this.voice.message = 'Decoder unavailable — try refreshing.';
+                    this.voice.error = true;
+                    return;
+                }
+                const decoded = decoder(transcript);
+                if (!decoded) {
+                    this.voice.message = `Heard "${transcript}" — couldn't decode any letters or digits.`;
+                    this.voice.error = true;
+                    return;
+                }
+                this.form.callsign = decoded;
+                this.voice.message = `Heard "${transcript}" → ${decoded}`;
+                this.voice.error = false;
+                this._scheduleDupeCheck();
+                // Briefly highlight + focus the input so the operator can
+                // immediately fix any mis-decode.
+                this.$nextTick(() => {
+                    if (this.$refs.callsign) {
+                        this.$refs.callsign.focus();
+                        const len = this.$refs.callsign.value.length;
+                        this.$refs.callsign.setSelectionRange(len, len);
+                    }
+                });
+            };
+            r.onerror = (event) => {
+                const code = event && event.error ? event.error : 'unknown';
+                // 'aborted' fires when toggleVoiceInput() calls abort() on a
+                // user cancellation. Per the Web Speech API spec this is the
+                // expected outcome of a cancellation flow, not a failure —
+                // bail without surfacing a red error toast.
+                if (code === 'aborted') return;
+                this.voice.error = true;
+                // Common cases: 'not-allowed' (mic permission denied),
+                // 'no-speech' (silence), 'network' (Google cloud unreachable).
+                this.voice.message = code === 'not-allowed'
+                    ? 'Microphone permission denied — enable it in your browser settings.'
+                    : code === 'no-speech'
+                        ? 'Didn\'t catch that — tap and try again.'
+                        : `Voice input error: ${code}`;
+            };
+            r.onend = () => {
+                this.voice.listening = false;
+                // Clear the transient transcript after a few seconds so
+                // it doesn't linger over the next field.
+                if (!this.voice.error) {
+                    setTimeout(() => {
+                        if (!this.voice.listening) this.voice.message = '';
+                    }, 4000);
+                }
+            };
+            this.voice.recogniser = r;
+            try {
+                r.start();
+            } catch (e) {
+                // Chrome throws InvalidStateError if start() is called twice
+                // back-to-back without an end event in between.
+                this.voice.listening = false;
+                this.voice.message = 'Could not start voice input — please try again.';
+                this.voice.error = true;
+            }
         },
     };
 }

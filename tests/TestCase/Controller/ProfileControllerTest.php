@@ -104,6 +104,34 @@ final class ProfileControllerTest extends TestCase
         $this->assertFalse((bool)$row->block_dupes_in_activation);
     }
 
+    /**
+     * M5 T29 — voice_input_callsign preference round-trips through the
+     * profile form using the same hidden-0 + checkbox pattern as T27.
+     */
+    public function testVoiceInputCallsignPrefSavesAndClears(): void
+    {
+        $userId = $this->loginAs();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+
+        $this->post('/profile', [
+            'name' => 'OP', 'callsign' => 'AA1AA',
+            'voice_input_callsign' => '1',
+        ]);
+        $this->assertRedirect('/profile');
+        $row = $this->getTableLocator()->get('Users')->get($userId);
+        $this->assertTrue((bool)$row->voice_input_callsign);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/profile', [
+            'name' => 'OP', 'callsign' => 'AA1AA',
+            'voice_input_callsign' => '0',
+        ]);
+        $row = $this->getTableLocator()->get('Users')->get($userId);
+        $this->assertFalse((bool)$row->voice_input_callsign);
+    }
+
     public function testCannotEscalateRole(): void
     {
         $userId = $this->loginAs();
