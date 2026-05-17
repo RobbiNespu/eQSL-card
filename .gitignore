@@ -46,6 +46,12 @@ logs/*
 tmp/debug_kit.sqlite
 tmp/installed.lock
 
+# Ad-hoc PHP scripts dropped in tmp/ for one-shot debugging / recovery
+# (e.g. tmp/admin-debug.php during the M5 install recovery). Should
+# never be committed — they typically bypass auth and have to be
+# deleted from the live server immediately after use.
+tmp/*.php
+
 # User-generated files (live on the host, not in the repo)
 webroot/files/uploads/*
 webroot/files/cards/*
