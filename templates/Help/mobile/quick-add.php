@@ -85,10 +85,31 @@
     'body' => 'The recents panel is reactive — after each save it refreshes with the latest row at the top. Cloning from a row in the middle still works, but the most-recent is almost always the one you want, so the top row is closest to your thumb.',
 ]) ?>
 
+<h2>Dupe-check badge</h2>
+<p>As you type a callsign (≥ 2 characters), a small coloured pill appears under the input telling you whether you've worked this station before. The badge is the fastest way to spot a duplicate before you log it — especially valuable during nets and contests where the same operator may check in twice by accident.</p>
+
+<table>
+  <thead><tr><th>Colour</th><th>Meaning</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td><span class="callout-note">Grey "First contact"</span></td><td>Never worked this callsign on your log.</td><td>Log normally.</td></tr>
+    <tr><td><span class="callout-tip">Blue "Worked Nx · last yesterday"</span></td><td>Worked before, but a different day OR a different band.</td><td>Log normally — different day/band counts as a new QSO for awards.</td></tr>
+    <tr><td><span class="callout-warning">Amber "Worked today on this band"</span></td><td>You've already worked this callsign today on the band you're typing into the freq input. Most awards programs would treat this as a dupe.</td><td>Double-check the frequency / your previous log — likely an accidental rebound.</td></tr>
+    <tr><td><strong>Red "Duplicate — already worked on this band this activation"</strong></td><td>Confirmed dupe within the current activation: the same operator is already in your logbook tagged with the active activation on this band. Logging again would create a true duplicate that POTA/SOTA would reject.</td><td>Don't log. Move on or change band.</td></tr>
+  </tbody>
+</table>
+
+<p>The badge auto-detects band from the frequency input. If you haven't typed a freq yet, the per-band signals (amber, red) can't fire — only "first contact" (grey) or "worked before" (blue) will appear.</p>
+
+<p>The check runs asynchronously with a 200ms debounce — you won't see network requests fire on every keystroke. If you keep typing, the in-flight check is cancelled and a fresh one starts after you pause. After a successful save, the badge resets so the next callsign starts from scratch.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'note',
+    'body' => 'The backing endpoint is GET /api/qsos/dupe-check?callsign=X&band=Y — owner-scoped at the SQL layer, so another operator\'s QSOs never surface in your check. If you build any third-party tooling on top of the API, the response shape is {callsign, total_qsos, last_worked_at, same_band_today, same_band_this_activation}.',
+]) ?>
+
 <h2>What ships later in M5</h2>
 <ul>
-  <li><strong>T26</strong> — Real-time dupe-check badge under the callsign input (traffic-light: grey first contact / blue worked-before / yellow worked-today / red duplicate-in-activation). The backing API is already live at <code>GET /api/qsos/dupe-check?callsign=X&amp;band=Y</code> — Phase E T25 shipped the endpoint; T26 wires it to the form.</li>
-  <li><strong>T27</strong> — Optional "block dupes in activation" user preference: when enabled, the red state disables Save.</li>
+  <li><strong>T27</strong> — Optional "block dupes in activation" user preference: when enabled, the red state disables Save to prevent committing a true duplicate.</li>
   <li><strong>T28</strong> — Haptic feedback on save (<code>navigator.vibrate(30)</code>) for non-visual confirmation during portable ops.</li>
   <li><strong>T29</strong> — Voice input on the callsign field via the Web Speech API (NATO phonetic → letters). Feature-flagged.</li>
 </ul>
