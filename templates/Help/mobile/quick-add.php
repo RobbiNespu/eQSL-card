@@ -126,9 +126,22 @@
 
 <p>The preference is per-user, server-stored. Applies to every device you log in from — no need to toggle on each phone/tablet/laptop.</p>
 
+<h2 id="haptic-feedback">Haptic feedback on save</h2>
+<p>After a successful save, the phone gives a short 30 ms buzz (one tactile pulse — barely noticeable while typing, unmistakable while watching the radio). The intent is non-visual confirmation: during a fast net or contest run you can keep your eyes on the band scope and just feel the QSO land.</p>
+
+<p>Support is best-effort and platform-dependent:</p>
+<ul>
+  <li><strong>Android Chrome / Edge / Firefox</strong> — buzzes as expected.</li>
+  <li><strong>iOS Safari</strong> — silently does nothing. Apple hasn't shipped the Vibration API; this is out of our control. The green flash banner is your only confirmation on iPhone/iPad.</li>
+  <li><strong>Desktop browsers</strong> — silently do nothing (no vibration motor).</li>
+</ul>
+
+<p>The buzz fires <strong>only on confirmed online save</strong> — the moment the server returns 200 OK. It does <em>not</em> fire on the offline-queue path (where the QSO is parked in IndexedDB awaiting sync) because queued ≠ saved on the server, and a buzz there would conflate two distinct states. For offline-queued contacts, the orange "Queued offline" flash banner is the only signal.</p>
+
+<p>There's no preference to disable haptics — if your device supports vibration, you get it. If this turns out to be a real annoyance for some users, a profile toggle can be added in a later release.</p>
+
 <h2>What ships later in M5</h2>
 <ul>
-  <li><strong>T28</strong> — Haptic feedback on save (<code>navigator.vibrate(30)</code>) for non-visual confirmation during portable ops.</li>
   <li><strong>T29</strong> — Voice input on the callsign field via the Web Speech API (NATO phonetic → letters). Feature-flagged.</li>
 </ul>
 

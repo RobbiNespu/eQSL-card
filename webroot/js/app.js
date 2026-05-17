@@ -523,6 +523,11 @@ function quickAddForm(recent) {
                 this.recent = [respData.qso, ...this.recent].slice(0, 5);
                 this._clearPerContactFields();
                 this.showFlash('success', `Logged ${respData.qso.callsign}.`);
+                // M5 T28 — non-visual save confirmation for portable ops.
+                // Deliberately NOT fired on the offline-queue path
+                // (`_queueOffline`) because queued ≠ saved-on-server, and
+                // a buzz there would conflate two distinct states.
+                this._haptic(30);
                 this.$nextTick(() => {
                     if (this.$refs.callsign) this.$refs.callsign.focus();
                 });
@@ -589,6 +594,21 @@ function quickAddForm(recent) {
                 this.flashKind = '';
                 this.flashMessage = '';
             }, 3000);
+        },
+        /**
+         * M5 T28 — best-effort haptic confirmation. Feature-detect so
+         * unsupported browsers (iOS Safari today, all desktop browsers)
+         * silently no-op. Wrapped in try/catch because some browsers
+         * (Firefox without user-gesture, embedded WebViews) throw rather
+         * than return false. A failed buzz must never break the save flow.
+         */
+        _haptic(durationMs) {
+            try {
+                if (typeof navigator !== 'undefined'
+                    && typeof navigator.vibrate === 'function') {
+                    navigator.vibrate(durationMs);
+                }
+            } catch (_) { /* swallow — non-essential feedback */ }
         },
     };
 }
