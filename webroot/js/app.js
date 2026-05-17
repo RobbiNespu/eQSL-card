@@ -657,8 +657,14 @@ function quickAddForm(recent) {
          */
         toggleVoiceInput() {
             if (this.voice.listening && this.voice.recogniser) {
+                // User-initiated cancellation. Chromium fires onerror with
+                // event.error === 'aborted' after this — the onerror handler
+                // recognises that code and bails without flagging an error,
+                // but we also clear `error` here so the previous run's red
+                // state doesn't linger if the user cancels mid-message.
                 try { this.voice.recogniser.abort(); } catch (_) { /* ignore */ }
                 this.voice.listening = false;
+                this.voice.error = false;
                 this.voice.message = '';
                 return;
             }
@@ -713,10 +719,15 @@ function quickAddForm(recent) {
                 });
             };
             r.onerror = (event) => {
+                const code = event && event.error ? event.error : 'unknown';
+                // 'aborted' fires when toggleVoiceInput() calls abort() on a
+                // user cancellation. Per the Web Speech API spec this is the
+                // expected outcome of a cancellation flow, not a failure —
+                // bail without surfacing a red error toast.
+                if (code === 'aborted') return;
                 this.voice.error = true;
                 // Common cases: 'not-allowed' (mic permission denied),
                 // 'no-speech' (silence), 'network' (Google cloud unreachable).
-                const code = event && event.error ? event.error : 'unknown';
                 this.voice.message = code === 'not-allowed'
                     ? 'Microphone permission denied — enable it in your browser settings.'
                     : code === 'no-speech'

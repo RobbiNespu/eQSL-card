@@ -110,8 +110,9 @@
       <p class="form-text">
         Tap the mic, say the callsign in NATO phonetic (<em>"nine mike two romeo delta x-ray"</em>),
         and the letters land in the input. Useful when both hands are busy.
-        <strong>Chromium browsers only</strong> (Chrome / Edge on desktop and Android) — the
-        button stays hidden on Firefox, iOS Safari, and any other browser without the Web Speech API.
+        The mic button shows only when the browser exposes the Web Speech API — <strong>best support
+        on Chromium</strong> (Chrome / Edge on desktop and Android); iOS Safari has partial support
+        that varies by version; Firefox has none, so the button stays hidden there.
         On Android Chrome the recognition routes through Google's cloud; opt out if that's a concern.
       </p>
     </div>
