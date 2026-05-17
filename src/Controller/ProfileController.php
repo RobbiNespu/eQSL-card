@@ -69,6 +69,10 @@ class ProfileController extends AppController
                 'qth' => true,
                 'grid_square' => true,
                 'bio' => true,
+                // M5 T27 — opt-in quick-add safety toggle. The form has
+                // a hidden 0-input so unchecked POSTs send '0' explicitly;
+                // patchEntity coerces to the boolean column.
+                'block_dupes_in_activation' => true,
             ];
             $patch = array_intersect_key($data, $allowed);
             $users->patchEntity($user, $patch);

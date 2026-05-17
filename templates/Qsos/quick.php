@@ -122,8 +122,17 @@ $recentJson = json_encode(array_map(static function ($r): array {
       <input type="text" id="quick-callsign" name="call_worked"
              class="form-control form-control-lg"
              x-ref="callsign" x-model="form.callsign"
+             @input="_scheduleDupeCheck()"
              autofocus autocomplete="off" autocapitalize="characters" spellcheck="false"
              placeholder="e.g. 9M2RDX" required>
+      <?php /* M5 T26 — Dupe-check traffic-light badge. Shown only when
+             the operator has typed ≥2 chars. The .quick-add__dupe-badge--{kind}
+             class drives the colour (CSS in theme.css). */ ?>
+      <p class="quick-add__dupe-badge"
+         x-show="dupeBadge.kind !== 'hidden'" x-cloak
+         :class="`quick-add__dupe-badge--${dupeBadge.kind}`"
+         role="status" aria-live="polite"
+         x-text="dupeBadge.label"></p>
     </div>
 
     <div class="row g-2 mt-2">
@@ -132,6 +141,7 @@ $recentJson = json_encode(array_map(static function ($r): array {
           <label class="form-label" for="quick-freq">Frequency (MHz)</label>
           <input type="text" id="quick-freq" name="frequency_mhz" class="form-control"
                  x-model="form.frequency"
+                 @input="_scheduleDupeCheck()"
                  placeholder="e.g. 14.20000" inputmode="decimal" autocomplete="off">
           <p class="form-text small mb-0">Band fills in for you on save.</p>
         </div>
@@ -204,8 +214,24 @@ $recentJson = json_encode(array_map(static function ($r): array {
       </div>
     </div>
 
+    <?php /* M5 T27 — block-dupe inline alert + Save disable.
+           Visible only when blockingDuplicate (computed in Alpine) is
+           true: pref enabled AND dupe-check badge is red. Explains
+           why the button is disabled + offers the toggle-off link. */ ?>
+    <div class="alert alert-danger mt-3" x-show="blockingDuplicate" x-cloak role="alert">
+      <strong>Save blocked.</strong> You've already worked this callsign on this band
+      during the current activation. Logging again would create a duplicate POTA/SOTA
+      would reject.
+      <a href="/profile" class="alert-link">Disable this safety</a> on your profile if you're
+      running a contest or DXpedition where same-band dupes are allowed.
+    </div>
+
     <div class="quick-add__actions form-actions-mobile mt-4">
-      <button type="submit" class="btn btn-primary btn-lg">Log contact</button>
+      <button type="submit" class="btn btn-primary btn-lg"
+              :disabled="blockingDuplicate"
+              :title="blockingDuplicate ? 'Duplicate detected — save blocked by your profile preference' : ''">
+        Log contact
+      </button>
       <a class="btn btn-secondary" href="/qsos">Cancel</a>
     </div>
 

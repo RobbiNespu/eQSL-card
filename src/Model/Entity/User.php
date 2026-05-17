@@ -23,6 +23,10 @@ class User extends Entity
         'cards' => true,
         'templates' => true,
         'uploads' => true,
+        // M5 T27 — per-user safety toggle for quick-add. When true,
+        // /qsos/quick disables Save while the dupe-check badge shows
+        // the red duplicate-in-activation state.
+        'block_dupes_in_activation' => true,
     ];
 
     protected array $_hidden = ['password_hash', 'password'];
