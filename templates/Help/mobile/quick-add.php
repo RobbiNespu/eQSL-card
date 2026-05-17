@@ -87,13 +87,10 @@
 
 <h2>What ships later in M5</h2>
 <ul>
-  <li><strong>T8</strong> — Tappable "Last 5 QSOs" rows that clone band/mode/notes into the form (useful when a net is rotating check-ins on one freq).</li>
-  <li><strong>T9</strong> — XHR submit with no page reload; immediate refocus on the callsign input for zero-tap next-contact logging.</li>
-  <li><strong>T10</strong> — Notes quick-fill chips (Net / POTA / SOTA / Contest / Ragchew, user-configurable).</li>
-  <li><strong>T11</strong> — Sticky full-width submit button anchored above the virtual keyboard.</li>
-  <li><strong>T12-T17</strong> — Activations entity: start an activation, get GPS-derived grid square, every QSO auto-tags with the active activation, ADIF export per-activation for POTA/SOTA upload.</li>
-  <li><strong>T18-T24</strong> — PWA install + offline queue: log without cell signal, syncs when reconnected.</li>
-  <li><strong>T25-T29</strong> — Real-time dupe-check on callsign type.</li>
+  <li><strong>T26</strong> — Real-time dupe-check badge under the callsign input (traffic-light: grey first contact / blue worked-before / yellow worked-today / red duplicate-in-activation). The backing API is already live at <code>GET /api/qsos/dupe-check?callsign=X&amp;band=Y</code> — Phase E T25 shipped the endpoint; T26 wires it to the form.</li>
+  <li><strong>T27</strong> — Optional "block dupes in activation" user preference: when enabled, the red state disables Save.</li>
+  <li><strong>T28</strong> — Haptic feedback on save (<code>navigator.vibrate(30)</code>) for non-visual confirmation during portable ops.</li>
+  <li><strong>T29</strong> — Voice input on the callsign field via the Web Speech API (NATO phonetic → letters). Feature-flagged.</li>
 </ul>
 
 <?= $this->element('ui/callout', [

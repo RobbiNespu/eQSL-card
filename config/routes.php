@@ -168,6 +168,12 @@ return function (RouteBuilder $routes): void {
             ->setPatterns(['callsign' => '[A-Za-z0-9\/]{3,15}'])
             ->setMethods(['GET']);
 
+        // M5 T25 — Dupe-check API for the quick-add callsign field.
+        // Called per-keystroke (debounced 200 ms client-side) to colour
+        // the inline traffic-light badge. Owner-scoped at SQL layer.
+        $builder->connect('/api/qsos/dupe-check', ['controller' => 'Qsos', 'action' => 'dupeCheck'])
+            ->setMethods(['GET']);
+
         $builder->connect('/qsos/{id}/edit', ['controller' => 'Qsos', 'action' => 'edit'])
             ->setPass(['id'])
             ->setPatterns(['id' => '\d+'])
