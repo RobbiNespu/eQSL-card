@@ -119,12 +119,39 @@ $recentJson = json_encode(array_map(static function ($r): array {
       <label class="form-label" for="quick-callsign">
         Their callsign <span class="req">*</span>
       </label>
-      <input type="text" id="quick-callsign" name="call_worked"
-             class="form-control form-control-lg"
-             x-ref="callsign" x-model="form.callsign"
-             @input="_scheduleDupeCheck()"
-             autofocus autocomplete="off" autocapitalize="characters" spellcheck="false"
-             placeholder="e.g. 9M2RDX" required>
+      <?php /* M5 T29 — Callsign input + opt-in mic button. The button
+             is wrapped in an input-group so the mic sits flush against
+             the right edge of the input. Hidden unless BOTH conditions
+             hold: (a) user opted in via /profile, (b) the browser
+             actually exposes the Web Speech API. The `voiceAvailable`
+             getter on quickAddForm checks both. */ ?>
+      <div class="input-group">
+        <input type="text" id="quick-callsign" name="call_worked"
+               class="form-control form-control-lg"
+               x-ref="callsign" x-model="form.callsign"
+               @input="_scheduleDupeCheck()"
+               autofocus autocomplete="off" autocapitalize="characters" spellcheck="false"
+               placeholder="e.g. 9M2RDX" required>
+        <button type="button" class="btn btn-outline-secondary"
+                x-show="voiceAvailable" x-cloak
+                @click="toggleVoiceInput()"
+                :class="{ 'btn-danger text-white': voice.listening }"
+                :title="voice.listening
+                    ? 'Listening… tap to stop'
+                    : 'Tap then say the callsign in NATO phonetic (e.g. nine mike two romeo delta x-ray)'"
+                :aria-label="voice.listening
+                    ? 'Stop voice input'
+                    : 'Start voice input — say the callsign in NATO phonetic'"
+                :aria-pressed="voice.listening">
+          <span aria-hidden="true" x-text="voice.listening ? '⏺' : '🎙️'"></span>
+        </button>
+      </div>
+      <?php /* M5 T29 — voice transcript / error preview. Only visible
+             while the recogniser is in flight or just returned. */ ?>
+      <p class="form-text small mb-0" x-show="voice.message" x-cloak
+         :class="voice.error ? 'text-danger' : 'text-muted'"
+         role="status" aria-live="polite"
+         x-text="voice.message"></p>
       <?php /* M5 T26 — Dupe-check traffic-light badge. Shown only when
              the operator has typed ≥2 chars. The .quick-add__dupe-badge--{kind}
              class drives the colour (CSS in theme.css). */ ?>

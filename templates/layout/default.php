@@ -52,12 +52,16 @@ $_headUser = $_headIdent && method_exists($_headIdent, 'getOriginalData')
 ?>
 <script>
   window.EQSL_BASE = <?= json_encode(rtrim((string)$this->getRequest()->getAttribute('webroot', '/'), '/'), JSON_UNESCAPED_SLASHES) ?>;
-  /* M5 T27 — per-user preferences exposed to Alpine.
-     quickAddForm reads EQSL_PREFS.block_dupes_in_activation to decide
-     whether to disable Save when the dupe-check badge is red. False
-     for guests / unauthenticated requests. */
+  /* M5 T27 + T29 — per-user preferences exposed to Alpine.
+     quickAddForm reads:
+       - EQSL_PREFS.block_dupes_in_activation — disables Save when
+         the dupe-check badge is red (T27).
+       - EQSL_PREFS.voice_input_callsign — gates the NATO-phonetic
+         mic button on the callsign field (T29).
+     False for guests / unauthenticated requests. */
   window.EQSL_PREFS = <?= json_encode([
       'block_dupes_in_activation' => (bool)($_headUser?->block_dupes_in_activation ?? false),
+      'voice_input_callsign' => (bool)($_headUser?->voice_input_callsign ?? false),
   ], JSON_UNESCAPED_SLASHES) ?>;
 </script>
 <script>
@@ -329,6 +333,7 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
 <script src="<?= $this->Url->build('/js/focus-trap.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/maidenhead.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/bands.js') ?>" defer></script>
+<script src="<?= $this->Url->build('/js/nato.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/offline-queue.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/offline-sync.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/app.js') ?>" defer></script>

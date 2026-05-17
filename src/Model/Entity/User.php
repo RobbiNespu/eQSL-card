@@ -27,6 +27,11 @@ class User extends Entity
         // /qsos/quick disables Save while the dupe-check badge shows
         // the red duplicate-in-activation state.
         'block_dupes_in_activation' => true,
+        // M5 T29 — opt-in feature flag for the NATO-phonetic mic
+        // button on /qsos/quick. Default OFF because the Web Speech
+        // API has uneven cross-browser support (Chromium-only) and
+        // routes through Google's cloud on Android Chrome.
+        'voice_input_callsign' => true,
     ];
 
     protected array $_hidden = ['password_hash', 'password'];

@@ -95,6 +95,27 @@
       </p>
     </div>
 
+    <?php /* M5 T29 — opt-in NATO-phonetic mic on the quick-add callsign
+           field. Default OFF: requires Chromium-based browser, routes
+           through Google's cloud on Android Chrome, and accuracy varies. */ ?>
+    <h2 class="h5 mt-4">Quick-add voice input</h2>
+    <div class="field">
+      <label class="form-check form-switch d-flex align-items-center gap-2">
+        <input type="hidden" name="voice_input_callsign" value="0">
+        <input type="checkbox" name="voice_input_callsign" value="1"
+               class="form-check-input"
+               <?= $user->voice_input_callsign ? 'checked' : '' ?>>
+        <span>Show a microphone button on the Quick-add callsign field</span>
+      </label>
+      <p class="form-text">
+        Tap the mic, say the callsign in NATO phonetic (<em>"nine mike two romeo delta x-ray"</em>),
+        and the letters land in the input. Useful when both hands are busy.
+        <strong>Chromium browsers only</strong> (Chrome / Edge on desktop and Android) — the
+        button stays hidden on Firefox, iOS Safari, and any other browser without the Web Speech API.
+        On Android Chrome the recognition routes through Google's cloud; opt out if that's a concern.
+      </p>
+    </div>
+
     <div class="d-flex gap-2 mt-3">
       <button class="btn btn-primary">Save profile</button>
     </div>
