@@ -1,7 +1,8 @@
 # eQSL Card Generator
 
 [![CI](https://github.com/RobbiNespu/eQSL-card/actions/workflows/ci.yml/badge.svg)](https://github.com/RobbiNespu/eQSL-card/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/PHPUnit-389%20tests-brightgreen)
+![PHPUnit](https://img.shields.io/badge/PHPUnit-482%20tests-brightgreen)
+![Vitest](https://img.shields.io/badge/Vitest-113%20tests-brightgreen)
 ![PHP](https://img.shields.io/badge/PHP-8.1-blue)
 ![CakePHP](https://img.shields.io/badge/CakePHP-5.2-D33C43)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -12,7 +13,7 @@ hosting (PHP + MariaDB) with no external services required.
 
 ## Status
 
-**Status:** v1.0.0 — Foundation through Admin & polish. Production-ready for shared-hosting deployment.
+**Status:** v1.1.0 — Mobile & portable ops. Production-ready for shared-hosting deployment, now usable one-thumb from a phone during POTA / SOTA / field-day activations.
 
 ## Quickstart
 
@@ -28,9 +29,10 @@ The chmod is dev-only — PHP-FPM in the container runs as `www-data` (uid 33) b
 
 Open http://localhost:8080/install in your browser, walk through the wizard, then sign in with the admin account you created.
 
-To run the test suite:
+To run the test suites:
 ```bash
-docker compose run --rm --no-deps php vendor/bin/phpunit
+docker compose run --rm --no-deps php vendor/bin/phpunit   # 482 PHPUnit tests
+npm test                                                    # 113 Vitest tests (offline queue, NATO decoder, band tables)
 ```
 
 ## Tech stack
@@ -101,7 +103,7 @@ Shared-hosting deployment (cPanel / DirectAdmin / similar) is documented in
 - ✅ **M2 Logged-in features** (`v0.2.0`) — QSO library, ADIF/CSV import, share links, render-from-QSO
 - ✅ **M3 Template designer** (`v0.3.0`) — Fabric.js drag-and-drop, public template gallery, admin moderation
 - ✅ **M4 Admin & polish** (`v1.0.0`) — audit logs, admin tools, email verification, profile, CI
-- 🚧 **M5 Mobile & portable ops** (`v1.1.0`, planned) — one-thumb QSO entry, PWA + offline-first, activation grouping for POTA/SOTA, dupe checking
+- ✅ **M5 Mobile & portable ops** (`v1.1.0`) — one-thumb QSO entry at `/qsos/quick`, sticky-above-keyboard save, notes quick-fill chips, callsign dupe-check traffic-light badge, opt-in block-on-dupe safety, haptic save confirmation, opt-in NATO-phonetic voice input on the callsign field, PWA manifest + service worker with offline IndexedDB queue + auto-sync, activation grouping for POTA / SOTA / field-day with one-tap ADIF export, bottom-tab nav, subfolder deploy support
 
 Per-milestone implementation plans live under [`docs/superpowers/plans/`](docs/superpowers/plans/).
 
