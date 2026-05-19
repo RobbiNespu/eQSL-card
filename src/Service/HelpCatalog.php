@@ -70,10 +70,14 @@ final class HelpCatalog
         'mobile' => [
             'label' => 'Mobile & portable ops',
             'pages' => [
-                'navigation'  => 'Bottom-tab navigation',
-                'quick-add'   => 'Quick-add for portable ops',
-                'activations' => 'Activations (POTA, SOTA, field day)',
-                'install-pwa' => 'Install as an app (PWA)',
+                'index'         => 'Mobile & portable ops',
+                'navigation'    => 'Bottom-tab navigation',
+                'quick-add'     => 'Quick-add for portable ops',
+                'activations'   => 'Activations (POTA, SOTA, field day)',
+                'install-pwa'   => 'Install as an app (PWA)',
+                'offline'       => 'Logging offline',
+                'dupe-checking' => 'Dupe-check traffic-light badge',
+                'voice-input'   => 'Voice input on the callsign field',
             ],
         ],
         'reference' => [
