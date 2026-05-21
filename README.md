@@ -27,7 +27,7 @@ docker compose run --rm --no-deps -u root php \
 
 The chmod is dev-only — PHP-FPM in the container runs as `www-data` (uid 33) but the bind-mounted files are owned by your host uid, so `0775` doesn't grant write access to "others". On real shared hosting, `0775` works because cPanel runs PHP under your own account. See `docs/DEPLOYMENT.md` for production permissions.
 
-Open http://localhost:8080/install in your browser, walk through the wizard, then sign in with the admin account you created.
+Open http://localhost:8090/install in your browser, walk through the wizard, then sign in with the admin account you created.
 
 To run the test suites:
 ```bash
