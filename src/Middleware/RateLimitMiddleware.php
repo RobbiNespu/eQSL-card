@@ -80,6 +80,13 @@ final class RateLimitMiddleware implements MiddlewareInterface
                 'pattern' => '#^/qsl/([A-Za-z0-9_\-]{43})/unlock$#',
                 'limit' => 5, 'window' => 900, 'method' => 'POST',
             ],
+            // M6 T16 — public net feed. Keyed by IP hash to throttle scrapers.
+            // 60 GETs / minute is generous for a 4-second polling interval but
+            // blocks bulk scrapers hitting the endpoint without the JS poller.
+            'net_live_feed' => [
+                'pattern' => '#^/net/[A-Za-z0-9_\-]+/live(?:\.json)?$#',
+                'limit' => 60, 'window' => 60, 'method' => 'GET',
+            ],
         ];
         foreach ($regexRules as $action => $rule) {
             if ($method === $rule['method'] && preg_match($rule['pattern'], $path, $m)) {

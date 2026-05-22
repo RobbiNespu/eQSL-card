@@ -357,6 +357,14 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/profile/avatar', ['controller' => 'Profile', 'action' => 'uploadAvatar'])
             ->setMethods(['POST']);
 
+        // M6 T16 — public read-only live net view (no auth).
+        // Feed route declared BEFORE the bare slug route so the literal
+        // '/live' suffix isn't swallowed by the {slug} param.
+        $builder->connect('/net/{slug}/live', ['controller' => 'Net', 'action' => 'feed'])
+            ->setPass(['slug'])->setMethods(['GET']);
+        $builder->connect('/net/{slug}', ['controller' => 'Net', 'action' => 'live'])
+            ->setPass(['slug'])->setMethods(['GET']);
+
         // M6 — NCS dashboard (owner/co-logger; auth enforced in controller).
         // Static segments (/new) MUST be declared BEFORE parametrised /{id}
         // routes so they aren't shadowed. id patterns constrained to digits
