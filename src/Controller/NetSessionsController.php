@@ -187,6 +187,35 @@ class NetSessionsController extends AppController
         return $tbl->get($id);
     }
 
+    /**
+     * M6 T21 — ADIF export per net session.
+     *
+     * GET /net-sessions/{id}/export.adi returns an ADIF 3.1.4 text/plain
+     * document with every check-in QSO tagged to this session. The adapter
+     * maps the net session to the shape AdifExporter::export() expects
+     * without modifying the exporter itself.
+     *
+     * Logger-scoped (owner + co-loggers): trying to export a session you
+     * cannot log for returns 404.
+     */
+    public function exportAdif(int $id): \Cake\Http\Response
+    {
+        $session = $this->loggerSessionOrFail($id);
+        $qsos = $this->fetchTable('Qsos')->find()
+            ->where(['net_session_id' => $id])
+            ->orderBy(['qso_datetime_utc' => 'ASC'])->all();
+        $owner = $this->fetchTable('Users')->get($session->owner_id);
+        $adif = (new \App\Service\AdifExporter())->export(
+            new \App\Service\NetAdifAdapter($session),
+            $qsos,
+            (string)$owner->callsign
+        );
+        return $this->response
+            ->withType('text/plain')
+            ->withDownload('net-' . $session->id . '.adi')
+            ->withStringBody($adif);
+    }
+
     public function analytics(int $id): void
     {
         $session = $this->ownedOrFail($id);

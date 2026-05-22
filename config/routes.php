@@ -394,6 +394,11 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id', 'userId'])->setPatterns(['id' => '\d+', 'userId' => '\d+'])->setMethods(['POST', 'DELETE']);
         $builder->connect('/net-sessions/{id}/loggers', ['controller' => 'NetSessions', 'action' => 'addLogger'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        // M6 T21 — ADIF export per net session. Mirrors the activation export
+        // pattern; .adi extension is handled the same way CakePHP handles it
+        // for /activations/{id}/export.adi (proven pattern, no special ext parsing).
+        $builder->connect('/net-sessions/{id}/export.adi', ['controller' => 'NetSessions', 'action' => 'exportAdif'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
         $builder->connect('/net-sessions/{id}/analytics', ['controller' => 'NetSessions', 'action' => 'analytics'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
         $builder->connect('/net-sessions/{id}/cockpit', ['controller' => 'NetSessions', 'action' => 'cockpit'])

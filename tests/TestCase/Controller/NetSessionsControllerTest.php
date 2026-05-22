@@ -393,6 +393,45 @@ final class NetSessionsControllerTest extends TestCase
     // M6 T18 — analytics page
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // M6 T21 — ADIF export per net session
+    // -------------------------------------------------------------------------
+
+    public function testAdifExportScopedToSession(): void
+    {
+        $uid = $this->login();  // callsign '9W2NSP'
+        $sessionId = $this->seedNetSession($uid, [
+            'status'           => 'ended',
+            'net_title'        => 'ADIF Test Net',
+            'net_organisation' => 'TESTORG',
+            'started_at'       => '2026-05-22 12:00:00',
+            'ended_at'         => '2026-05-22 13:00:00',
+        ]);
+        $this->seedCheckinRow($sessionId, $uid, '9W2EXP');
+
+        $this->get('/net-sessions/' . $sessionId . '/export.adi');
+
+        $this->assertResponseOk();
+        $this->assertContentType('text/plain');
+
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString('<EOH>', $body, 'ADIF header terminator must be present');
+        $this->assertStringContainsString('9W2EXP', $body, 'checked-in callsign must appear in the ADIF body');
+    }
+
+    public function testAdifExportRequiresLogger(): void
+    {
+        // Create an owner and seed a session owned by them.
+        $ownerId = $this->createUser('adif-owner@x.com', '9W2ADO');
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'ended']);
+
+        // Login as a stranger with no membership in the session.
+        $this->login('adif-stranger@x.com');
+
+        $this->get('/net-sessions/' . $sessionId . '/export.adi');
+        $this->assertResponseCode(404);
+    }
+
     public function testAnalyticsRendersForOwner(): void
     {
         $uid = $this->login();
