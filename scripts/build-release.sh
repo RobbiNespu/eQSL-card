@@ -15,6 +15,8 @@ rsync -a --delete \
   --exclude='.git/' \
   --exclude='.docker/' \
   --exclude='.superpowers/' \
+  --exclude='.claude/' \
+  --exclude='.playwright-mcp/' \
   --exclude='docker-compose.yml' \
   --exclude='dist/' \
   --exclude='node_modules/' \
