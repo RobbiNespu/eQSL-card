@@ -306,4 +306,86 @@ final class NetSessionsControllerTest extends TestCase
         $body = json_decode((string)$this->_response->getBody(), true);
         $this->assertCount(1, $body['checkins'], 'malformed since should fall back to returning all rows');
     }
+
+    // -------------------------------------------------------------------------
+    // M6 T15 — live polling client + co-logger management
+    // -------------------------------------------------------------------------
+
+    public function testInviteJoinAddsCoLogger(): void
+    {
+        // Create the session owner (different from the joining user).
+        $ownerId = $this->createUser('owner-join@x.com', '9W2OWJ');
+        $sessionId = $this->seedNetSession($ownerId, ['logger_token' => 'tok-join-1', 'status' => 'live']);
+
+        // Login as a fresh user who will be joining via the invite link.
+        $joiningId = $this->login('joiner@x.com');
+
+        $this->get('/net-sessions/join/tok-join-1');
+
+        $this->assertRedirectContains('/net-sessions/' . $sessionId . '/cockpit');
+
+        $loggers = $this->getTableLocator()->get('NetSessionLoggers');
+        $this->assertTrue(
+            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $joiningId, 'added_via' => 'invite']),
+            'NetSessionLoggers must have a row for the joining user with added_via=invite'
+        );
+    }
+
+    public function testJoinInvalidTokenIs404(): void
+    {
+        $this->login();
+        $this->get('/net-sessions/join/bogus-token-that-does-not-exist');
+        $this->assertResponseCode(404);
+    }
+
+    public function testOwnerCanAddAndRemoveCoLogger(): void
+    {
+        $ownerId = $this->login('owner-mgmt@x.com');
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'live']);
+        $coId = $this->createUser('co-mgmt@x.com', '9W2CMG');
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+
+        // Add co-logger.
+        $this->post('/net-sessions/' . $sessionId . '/loggers', ['user_id' => $coId]);
+        $this->assertResponseSuccess();
+
+        $loggers = $this->getTableLocator()->get('NetSessionLoggers');
+        $this->assertTrue(
+            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $coId]),
+            'co-logger row must exist after add'
+        );
+
+        // Remove co-logger.
+        $this->post('/net-sessions/' . $sessionId . '/loggers/' . $coId);
+        $this->assertResponseSuccess();
+
+        $this->assertFalse(
+            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $coId]),
+            'co-logger row must be gone after remove'
+        );
+    }
+
+    public function testNonOwnerCannotAddLogger(): void
+    {
+        // Session owned by user B.
+        $ownerBId = $this->createUser('owner-b@x.com', '9W2OWB');
+        $sessionId = $this->seedNetSession($ownerBId, ['status' => 'live']);
+
+        // Login as user A (not the owner).
+        $this->login('user-a@x.com');
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/net-sessions/' . $sessionId . '/loggers', ['user_id' => $ownerBId]);
+
+        $this->assertResponseCode(404);
+
+        $loggers = $this->getTableLocator()->get('NetSessionLoggers');
+        $this->assertFalse(
+            $loggers->exists(['net_session_id' => $sessionId]),
+            'no logger row must be added when non-owner attempts addLogger'
+        );
+    }
 }

@@ -113,7 +113,59 @@ class NetSessionsController extends AppController
     public function view(int $id): void
     {
         $session = $this->ownedOrFail($id);
-        $this->set(['session' => $session, 'title' => $session->net_title]);
+        $loggers = $this->fetchTable('NetSessionLoggers')
+            ->find()
+            ->where(['net_session_id' => $id])
+            ->contain(['Users'])
+            ->all();
+        $this->set(['session' => $session, 'loggers' => $loggers, 'title' => $session->net_title]);
+    }
+
+    public function addLogger(int $id): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+        $this->ownedOrFail($id);
+        $userId = (int)$this->request->getData('user_id');
+        $loggers = $this->fetchTable('NetSessionLoggers');
+        if ($userId > 0 && !$loggers->exists(['net_session_id' => $id, 'user_id' => $userId])) {
+            $loggers->saveOrFail($loggers->newEntity(
+                ['net_session_id' => $id, 'user_id' => $userId, 'added_via' => 'owner'],
+                ['accessibleFields' => ['net_session_id' => true, 'user_id' => true, 'added_via' => true]]
+            ));
+        }
+        $this->Flash->success('Co-logger added.');
+        return $this->redirect(['action' => 'view', $id]);
+    }
+
+    public function removeLogger(int $id, int $userId): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post', 'delete');
+        $this->ownedOrFail($id);
+        $loggers = $this->fetchTable('NetSessionLoggers');
+        $row = $loggers->find()->where(['net_session_id' => $id, 'user_id' => $userId])->first();
+        if ($row) {
+            $loggers->deleteOrFail($row);
+        }
+        $this->Flash->success('Co-logger removed.');
+        return $this->redirect(['action' => 'view', $id]);
+    }
+
+    public function join(string $token): \Cake\Http\Response
+    {
+        $uid = $this->Authentication->getIdentity()->getIdentifier();
+        $session = $this->fetchTable('NetSessions')->find()->where(['logger_token' => $token])->first();
+        if ($session === null) {
+            throw new NotFoundException('Invalid invite link.');
+        }
+        $loggers = $this->fetchTable('NetSessionLoggers');
+        if ($session->owner_id !== $uid && !$loggers->exists(['net_session_id' => $session->id, 'user_id' => $uid])) {
+            $loggers->saveOrFail($loggers->newEntity(
+                ['net_session_id' => $session->id, 'user_id' => $uid, 'added_via' => 'invite'],
+                ['accessibleFields' => ['net_session_id' => true, 'user_id' => true, 'added_via' => true]]
+            ));
+        }
+        $this->Flash->success('You can now log check-ins for this net.');
+        return $this->redirect(['action' => 'cockpit', $session->id]);
     }
 
     private function uniqueSlug(): string

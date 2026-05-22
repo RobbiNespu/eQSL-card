@@ -4,6 +4,11 @@
  *
  * Shows session metadata, status badge, and action buttons.
  * Cockpit / Analytics / Export are stubs for later tasks (T11/T17/T21/T22).
+ *
+ * @var \App\View\AppView $this
+ * @var \App\Model\Entity\NetSession $session
+ * @var iterable<\App\Model\Entity\NetSessionLogger> $loggers
+ * @var string $title
  */
 $this->assign('title', $title);
 ?>
@@ -96,3 +101,52 @@ $this->assign('title', $title);
 
   <a class="btn btn-secondary" href="/net-sessions">Back to list</a>
 </div>
+
+<!-- ============================================================
+     Co-logger management (T15)
+     Invite link lets another operator join as a co-logger.
+     Owner can also add by user ID directly, or remove existing ones.
+     ============================================================ -->
+<?php if ($session->logger_token): ?>
+<div class="card mt-4">
+  <div class="card-header">Co-logger management</div>
+  <div class="card-body">
+
+    <p class="mb-2"><strong>Invite link</strong> — share this URL to let someone join as a co-logger:</p>
+    <div class="input-group mb-3">
+      <input type="text" class="form-control form-control-sm"
+             value="<?= h($this->Url->build('/net-sessions/join/' . $session->logger_token, ['fullBase' => true])) ?>"
+             readonly aria-label="Co-logger invite link">
+    </div>
+
+    <?php if (!empty($loggers) && count($loggers) > 0): ?>
+      <p class="mb-2"><strong>Current co-loggers</strong></p>
+      <ul class="list-group mb-3">
+        <?php foreach ($loggers as $logger): ?>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <?= h($logger->user->callsign ?? $logger->user->name ?? ('User #' . $logger->user_id)) ?>
+            <small class="text-muted"><?= h($logger->added_via) ?></small>
+            <?= $this->Form->postLink(
+                'Remove',
+                '/net-sessions/' . (int)$session->id . '/loggers/' . (int)$logger->user_id,
+                ['class' => 'btn btn-sm btn-outline-danger', 'confirm' => 'Remove this co-logger?']
+            ) ?>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php else: ?>
+      <p class="text-muted">No co-loggers yet.</p>
+    <?php endif; ?>
+
+    <p class="mb-2"><strong>Add co-logger by user ID</strong></p>
+    <?= $this->Form->create(null, ['url' => '/net-sessions/' . (int)$session->id . '/loggers', 'class' => 'd-flex gap-2 align-items-end']) ?>
+      <div>
+        <label for="co-logger-uid" class="form-label form-label-sm">User ID</label>
+        <input type="number" id="co-logger-uid" name="user_id" class="form-control form-control-sm" min="1" required>
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary">Add</button>
+    <?= $this->Form->end() ?>
+
+  </div>
+</div>
+<?php endif; ?>

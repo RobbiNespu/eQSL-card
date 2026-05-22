@@ -59,5 +59,13 @@ import { RosterStore } from './net-merge.js';
 
   render();
   window.__netStore = store; // shared with net-poll.js (Task 15)
-  document.addEventListener('net:updated', render); // Task 15 dispatches this
+  document.addEventListener('net:updated', (e) => {
+    render();
+    const s = e.detail && e.detail.stats;
+    if (s) {
+      const set = (k, v) => { const el = document.querySelector(`[data-stat="${k}"] [data-stat-value]`); if (el && v != null) el.textContent = v; };
+      set('checkins', s.checkins);
+      set('unique', s.unique);
+    }
+  });
 })();
