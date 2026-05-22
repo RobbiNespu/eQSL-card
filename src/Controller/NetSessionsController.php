@@ -187,6 +187,19 @@ class NetSessionsController extends AppController
         return $tbl->get($id);
     }
 
+    public function analytics(int $id): void
+    {
+        $session = $this->ownedOrFail($id);
+        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'));
+        $this->set([
+            'session'   => $session,
+            'stats'     => $metrics->sessionStats($id),
+            'mapPoints' => $metrics->mapPoints($id),
+            'retention' => $metrics->retention($session->owner_id, $session->net_title),
+            'title'     => $session->net_title . ' — analytics',
+        ]);
+    }
+
     public function cockpit(int $id): void
     {
         $session = $this->loggerSessionOrFail($id);

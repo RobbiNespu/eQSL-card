@@ -394,6 +394,8 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id', 'userId'])->setPatterns(['id' => '\d+', 'userId' => '\d+'])->setMethods(['POST', 'DELETE']);
         $builder->connect('/net-sessions/{id}/loggers', ['controller' => 'NetSessions', 'action' => 'addLogger'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        $builder->connect('/net-sessions/{id}/analytics', ['controller' => 'NetSessions', 'action' => 'analytics'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
         $builder->connect('/net-sessions/{id}/cockpit', ['controller' => 'NetSessions', 'action' => 'cockpit'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
         $builder->connect('/net-sessions/{id}/checkins', ['controller' => 'NetSessions', 'action' => 'checkins'])

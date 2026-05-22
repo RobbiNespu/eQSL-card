@@ -388,4 +388,38 @@ final class NetSessionsControllerTest extends TestCase
             'no logger row must be added when non-owner attempts addLogger'
         );
     }
+
+    // -------------------------------------------------------------------------
+    // M6 T18 — analytics page
+    // -------------------------------------------------------------------------
+
+    public function testAnalyticsRendersForOwner(): void
+    {
+        $uid = $this->login();
+        $sessionId = $this->seedNetSession($uid, [
+            'status'    => 'ended',
+            'net_title' => 'MARTS Daily Net',
+        ]);
+        // Seed a check-in so stats are non-zero.
+        $this->seedCheckinRow($sessionId, $uid, '9W2ABC');
+
+        $this->get('/net-sessions/' . $sessionId . '/analytics');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('MARTS Daily Net');
+        $this->assertResponseContains('Signal distribution');
+    }
+
+    public function testAnalyticsOwnerScoped(): void
+    {
+        // Login as user A.
+        $this->login('analytics-a@x.com');
+
+        // Create user B and seed a session owned by B.
+        $userBId = $this->createUser('analytics-b@x.com', '9W2ANB');
+        $sessionId = $this->seedNetSession($userBId, ['status' => 'ended', 'net_title' => 'B Net']);
+
+        $this->get('/net-sessions/' . $sessionId . '/analytics');
+        $this->assertResponseCode(404);
+    }
 }

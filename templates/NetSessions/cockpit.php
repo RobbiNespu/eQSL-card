@@ -123,4 +123,5 @@ $isLive = $session->status === 'live';
 <script src="<?= $this->Url->build('/js/net-merge.js') ?>" type="module" defer></script>
 <script src="<?= $this->Url->build('/js/net-cockpit.js') ?>" type="module" defer></script>
 <script src="<?= $this->Url->build('/js/net-poll.js') ?>" type="module" defer></script>
+<script src="<?= $this->Url->build('/js/net-charts.js') ?>" type="module" defer></script>
 <?php $this->end(); ?>
