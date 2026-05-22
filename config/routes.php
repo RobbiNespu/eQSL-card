@@ -399,6 +399,10 @@ return function (RouteBuilder $routes): void {
         // for /activations/{id}/export.adi (proven pattern, no special ext parsing).
         $builder->connect('/net-sessions/{id}/export.adi', ['controller' => 'NetSessions', 'action' => 'exportAdif'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+        // M6 T22 — PDF net report. Logger-scoped; .pdf extension handled the
+        // same way as .adi above.
+        $builder->connect('/net-sessions/{id}/export.pdf', ['controller' => 'NetSessions', 'action' => 'exportPdf'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
         $builder->connect('/net-sessions/{id}/analytics', ['controller' => 'NetSessions', 'action' => 'analytics'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
         $builder->connect('/net-sessions/{id}/cockpit', ['controller' => 'NetSessions', 'action' => 'cockpit'])

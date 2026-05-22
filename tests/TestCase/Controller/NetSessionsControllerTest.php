@@ -432,6 +432,41 @@ final class NetSessionsControllerTest extends TestCase
         $this->assertResponseCode(404);
     }
 
+    // -------------------------------------------------------------------------
+    // M6 T22 — PDF net report export
+    // -------------------------------------------------------------------------
+
+    public function testPdfExportReturnsPdf(): void
+    {
+        $uid = $this->login();  // callsign '9W2NSP'
+        $sessionId = $this->seedNetSession($uid, [
+            'status'           => 'ended',
+            'net_title'        => 'PDF Test Net',
+            'net_organisation' => 'TESTORG',
+            'started_at'       => '2026-05-22 12:00:00',
+            'ended_at'         => '2026-05-22 13:00:00',
+        ]);
+        $this->seedCheckinRow($sessionId, $uid, '9W2PDF');
+
+        $this->get('/net-sessions/' . $sessionId . '/export.pdf');
+
+        $this->assertResponseOk();
+        $this->assertContentType('application/pdf');
+        $this->assertStringStartsWith('%PDF', (string)$this->_response->getBody());
+    }
+
+    public function testPdfExportRequiresLogger(): void
+    {
+        // Session owned by another user — stranger must get 404.
+        $ownerId = $this->createUser('pdf-owner@x.com', '9W2PDO');
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'ended']);
+
+        $this->login('pdf-stranger@x.com');
+
+        $this->get('/net-sessions/' . $sessionId . '/export.pdf');
+        $this->assertResponseCode(404);
+    }
+
     public function testAnalyticsRendersForOwner(): void
     {
         $uid = $this->login();

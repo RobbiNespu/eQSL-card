@@ -216,6 +216,35 @@ class NetSessionsController extends AppController
             ->withStringBody($adif);
     }
 
+    /**
+     * M6 T22 — PDF net report export.
+     *
+     * GET /net-sessions/{id}/export.pdf renders the full check-in roster and
+     * signal stats as an A4 PDF via dompdf. Logger-scoped (owner + co-loggers):
+     * a stranger gets 404.
+     */
+    public function exportPdf(int $id): \Cake\Http\Response
+    {
+        $session = $this->loggerSessionOrFail($id);
+        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'));
+        $checkins = $this->fetchTable('Qsos')->find()
+            ->where(['net_session_id' => $id])
+            ->orderBy(['qso_datetime_utc' => 'ASC'])->all();
+        $this->set([
+            'session'  => $session,
+            'stats'    => $metrics->sessionStats($id),
+            'checkins' => $checkins,
+        ]);
+        $html = $this->createView()
+            ->setTemplatePath('pdf')
+            ->render('net_report', false);
+        $pdf = (new \App\Service\NetReportPdf())->fromHtml($html);
+        return $this->response
+            ->withType('application/pdf')
+            ->withDownload('net-' . $session->id . '-report.pdf')
+            ->withStringBody($pdf);
+    }
+
     public function analytics(int $id): void
     {
         $session = $this->ownedOrFail($id);
