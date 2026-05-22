@@ -1,0 +1,136 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Test\TestCase\Controller;
+
+use Authentication\PasswordHasher\DefaultPasswordHasher;
+use Cake\TestSuite\IntegrationTestTrait;
+use Cake\TestSuite\TestCase;
+
+/**
+ * NetSessionsController — M6 T9 integration tests.
+ *
+ * Covers:
+ *  - GET /net-sessions redirects anon to /login
+ *  - GET /net-sessions lists owned sessions
+ *  - POST /net-sessions/new creates a scheduled session (server stamps owner_id / status / slug)
+ *  - POST /net-sessions/{id}/start transitions status to live, stamps started_at
+ *  - Stranger cannot start another user's session (404)
+ */
+final class NetSessionsControllerTest extends TestCase
+{
+    use IntegrationTestTrait;
+
+    protected array $fixtures = ['app.Users', 'app.NetSessions', 'app.NetSessionLoggers', 'app.Qsos'];
+
+    private function login(string $email = 'ncs@x.com'): int
+    {
+        $users = $this->getTableLocator()->get('Users');
+        $u = $users->saveOrFail($users->newEntity([
+            'name' => 'NCS', 'email' => $email, 'role' => 'user', 'callsign' => '9W2NSP',
+            'password_hash' => (new DefaultPasswordHasher(['hashType' => PASSWORD_ARGON2ID]))->hash('pw'),
+        ], ['accessibleFields' => ['*' => true]]));
+        $this->session(['Auth' => ['id' => $u->id, 'email' => $email]]);
+        return (int)$u->id;
+    }
+
+    private function seedNetSession(int $ownerId, array $extras = []): int
+    {
+        $tbl = $this->getTableLocator()->get('NetSessions');
+        $row = $tbl->saveOrFail($tbl->newEntity(array_merge([
+            'net_title' => 'Test Net', 'owner_id' => $ownerId, 'status' => 'scheduled',
+            'public_slug' => 'slug-' . uniqid(),
+        ], $extras), ['accessibleFields' => ['*' => true]]));
+        return (int)$row->id;
+    }
+
+    public function testIndexRequiresAuth(): void
+    {
+        $this->get('/net-sessions');
+        $this->assertRedirectContains('/login');
+    }
+
+    public function testIndexListsForOwner(): void
+    {
+        $uid = $this->login();
+        $this->seedNetSession($uid, [
+            'status'     => 'live',
+            'net_title'  => 'MARTS Daily Net',
+            'started_at' => '2026-05-22 12:00:00',
+        ]);
+
+        $this->get('/net-sessions');
+        $this->assertResponseOk();
+        $this->assertResponseContains('MARTS Daily Net');
+    }
+
+    public function testCreateSchedulesSession(): void
+    {
+        $uid = $this->login();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/net-sessions/new', [
+            'net_title'        => 'My Test Net',
+            'net_organisation' => 'TEST',
+            'frequency_mhz'    => '14.225',
+            'band'             => '20m',
+            'mode'             => 'SSB',
+            'is_public'        => '1',
+            'notes'            => 'Integration test net',
+            // Attempt to spoof — server must override.
+            'owner_id'    => 9999,
+            'status'      => 'live',
+            'public_slug' => 'hacked-slug',
+        ]);
+        $this->assertResponseSuccess();
+
+        $tbl = $this->getTableLocator()->get('NetSessions');
+        $row = $tbl->find()->where(['net_title' => 'My Test Net'])->firstOrFail();
+        $this->assertSame('scheduled', $row->status, 'status must be server-forced to scheduled');
+        $this->assertNotEmpty($row->public_slug, 'public_slug must be generated server-side');
+        $this->assertNotSame('hacked-slug', $row->public_slug, 'spoofed slug must be ignored');
+        $this->assertSame($uid, (int)$row->owner_id, 'owner_id must come from session');
+    }
+
+    public function testStartTransitionsToLive(): void
+    {
+        $uid = $this->login();
+        $id  = $this->seedNetSession($uid, ['status' => 'scheduled']);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/net-sessions/' . $id . '/start');
+
+        // Do NOT follow the redirect — assert DB state.
+        $this->assertResponseSuccess();
+        $this->assertRedirect();
+
+        $row = $this->getTableLocator()->get('NetSessions')->get($id);
+        $this->assertSame('live', $row->status, 'status must transition to live');
+        $this->assertNotNull($row->started_at, 'started_at must be stamped');
+    }
+
+    public function testStrangerCannotStart(): void
+    {
+        // Login as user A.
+        $this->login('a@x.com');
+
+        // Create user B and seed a session owned by B.
+        $users = $this->getTableLocator()->get('Users');
+        $userB = $users->saveOrFail($users->newEntity([
+            'name' => 'B', 'email' => 'b@x.com', 'role' => 'user',
+            'callsign' => 'BB1BB',
+            'password_hash' => 'h',
+        ], ['accessibleFields' => ['*' => true]]));
+        $bsSessionId = $this->seedNetSession((int)$userB->id);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/net-sessions/' . $bsSessionId . '/start');
+        $this->assertResponseCode(404);
+
+        // B's session must still be scheduled.
+        $row = $this->getTableLocator()->get('NetSessions')->get($bsSessionId);
+        $this->assertSame('scheduled', $row->status);
+    }
+}

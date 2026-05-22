@@ -357,6 +357,24 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/profile/avatar', ['controller' => 'Profile', 'action' => 'uploadAvatar'])
             ->setMethods(['POST']);
 
+        // M6 — NCS dashboard (owner/co-logger; auth enforced in controller).
+        // Static segments (/new) MUST be declared BEFORE parametrised /{id}
+        // routes so they aren't shadowed. id patterns constrained to digits
+        // for the same reason as all other CRUD resources here.
+        $builder->connect('/net-sessions', ['controller' => 'NetSessions', 'action' => 'index']);
+        $builder->connect('/net-sessions/new', ['controller' => 'NetSessions', 'action' => 'add'])
+            ->setMethods(['GET', 'POST']);
+        $builder->connect('/net-sessions/{id}/edit', ['controller' => 'NetSessions', 'action' => 'edit'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+']);
+        $builder->connect('/net-sessions/{id}/start', ['controller' => 'NetSessions', 'action' => 'start'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        $builder->connect('/net-sessions/{id}/end', ['controller' => 'NetSessions', 'action' => 'end'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        $builder->connect('/net-sessions/{id}/delete', ['controller' => 'NetSessions', 'action' => 'delete'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        $builder->connect('/net-sessions/{id}', ['controller' => 'NetSessions', 'action' => 'view'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+
         /*
          * Connect catchall routes for all controllers.
          *
