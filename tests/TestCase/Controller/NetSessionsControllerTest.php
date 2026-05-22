@@ -210,4 +210,23 @@ final class NetSessionsControllerTest extends TestCase
 
         $this->assertResponseCode(404);
     }
+
+    // -------------------------------------------------------------------------
+    // M6 T11 — cockpit shell renders for the session owner
+    // -------------------------------------------------------------------------
+
+    public function testCockpitRendersForLogger(): void
+    {
+        $uid = $this->login();
+        $id  = $this->seedNetSession($uid, [
+            'status'     => 'live',
+            'net_title'  => 'T11 Cockpit Net',
+            'started_at' => '2026-05-22 12:00:00',
+        ]);
+
+        $this->get('/net-sessions/' . $id . '/cockpit');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('T11 Cockpit Net');
+    }
 }

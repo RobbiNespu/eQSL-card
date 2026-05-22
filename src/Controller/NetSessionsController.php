@@ -138,7 +138,15 @@ class NetSessionsController extends AppController
     public function cockpit(int $id): void
     {
         $session = $this->loggerSessionOrFail($id);
-        $this->set(['session' => $session, 'title' => $session->net_title . ' — cockpit']);
+        $qsos = $this->fetchTable('Qsos')->find()
+            ->where(['net_session_id' => $id])
+            ->orderBy(['qso_datetime_utc' => 'DESC', 'id' => 'DESC'])
+            ->all();
+        $this->set([
+            'session'  => $session,
+            'checkins' => $qsos,
+            'title'    => $session->net_title . ' — cockpit',
+        ]);
     }
 
     public function checkins(int $id): \Cake\Http\Response
