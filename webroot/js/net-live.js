@@ -30,7 +30,7 @@ import { RosterStore } from './net-merge.js';
   async function tick() {
     if (document.hidden) return;
     try {
-      const res = await fetch(cfg.feedUrl + '.json' + (since ? ('?since=' + encodeURIComponent(since)) : ''), { headers: { 'Accept': 'application/json' } });
+      const res = await fetch(cfg.feedUrl + (since ? ('?since=' + encodeURIComponent(since)) : ''), { headers: { 'Accept': 'application/json' } });
       const json = await res.json();
       since = json.server_time || since;
       (json.checkins || []).forEach(r => store.upsert(r));

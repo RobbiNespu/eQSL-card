@@ -44,7 +44,7 @@ import { RosterStore } from './net-merge.js';
       const rstField = form.querySelector('[name="rst_received"]'); if (rstField && !rstField.value) rstField.value = '59';
       form.querySelector('[name="call_worked"]')?.focus();
       try {
-        const res = await fetch(cfg.postUrl + '.json', {
+        const res = await fetch(cfg.postUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf() },
           body: JSON.stringify(data),
