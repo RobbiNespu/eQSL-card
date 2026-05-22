@@ -133,4 +133,81 @@ final class NetSessionsControllerTest extends TestCase
         $row = $this->getTableLocator()->get('NetSessions')->get($bsSessionId);
         $this->assertSame('scheduled', $row->status);
     }
+
+    // -------------------------------------------------------------------------
+    // M6 T10 — check-in write/edit/delete JSON actions
+    // -------------------------------------------------------------------------
+
+    private function createUser(string $email, string $callsign = 'AA1AA'): int
+    {
+        $users = $this->getTableLocator()->get('Users');
+        $u = $users->saveOrFail($users->newEntity([
+            'name' => 'U', 'email' => $email, 'role' => 'user', 'callsign' => $callsign,
+            'password_hash' => (new DefaultPasswordHasher(['hashType' => PASSWORD_ARGON2ID]))->hash('pw'),
+        ], ['accessibleFields' => ['*' => true]]));
+        return (int)$u->id;
+    }
+
+    private function addCoLogger(int $sessionId, int $userId): void
+    {
+        $t = $this->getTableLocator()->get('NetSessionLoggers');
+        $t->saveOrFail($t->newEntity(['net_session_id' => $sessionId, 'user_id' => $userId, 'added_via' => 'owner'], ['accessibleFields' => ['*' => true]]));
+    }
+
+    public function testCoLoggerCanLogCheckin(): void
+    {
+        // Create owner and live session.
+        $ownerId = $this->login('owner@x.com');
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'live']);
+
+        // Create co-logger and add to session.
+        $coId = $this->createUser('cologger@x.com', '9W2COL');
+        $this->addCoLogger($sessionId, $coId);
+
+        // Switch auth session to co-logger.
+        $this->session(['Auth' => ['id' => $coId, 'email' => 'cologger@x.com']]);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/net-sessions/' . $sessionId . '/checkins', [
+            'call_worked'   => '9W2ABC',
+            'operator_name' => 'Test Station',
+            'grid_square'   => 'OJ02',
+            'rst_received'  => '59',
+            'net_role'      => 'Check-in',
+        ]);
+
+        $this->assertResponseOk();
+
+        // Verify DB record.
+        $qso = $this->getTableLocator()->get('Qsos')->find()
+            ->where(['call_worked' => '9W2ABC', 'net_session_id' => $sessionId])
+            ->firstOrFail();
+
+        $this->assertSame('net', $qso->qso_type, 'qso_type must be net');
+        $this->assertSame($ownerId, (int)$qso->user_id, 'user_id must be the session owner');
+        $this->assertSame($coId, (int)$qso->logged_by_user_id, 'logged_by_user_id must be the co-logger');
+    }
+
+    public function testStrangerCannotLogCheckin(): void
+    {
+        // Create owner and live session.
+        $ownerId = $this->createUser('owner2@x.com', '9W2OWN');
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'live']);
+
+        // Login as a stranger with no membership.
+        $this->login('stranger@x.com');
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/net-sessions/' . $sessionId . '/checkins', [
+            'call_worked'  => '9W2ZZZ',
+            'rst_received' => '59',
+            'net_role'     => 'Check-in',
+        ]);
+
+        $this->assertResponseCode(404);
+    }
 }

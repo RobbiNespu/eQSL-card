@@ -375,6 +375,12 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
         $builder->connect('/net-sessions/{id}', ['controller' => 'NetSessions', 'action' => 'view'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+        $builder->connect('/net-sessions/{id}/cockpit', ['controller' => 'NetSessions', 'action' => 'cockpit'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+        $builder->connect('/net-sessions/{id}/checkins', ['controller' => 'NetSessions', 'action' => 'checkins'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET', 'POST']);
+        $builder->connect('/net-sessions/{id}/checkins/{qsoId}', ['controller' => 'NetSessions', 'action' => 'checkin'])
+            ->setPass(['id', 'qsoId'])->setPatterns(['id' => '\d+', 'qsoId' => '\d+'])->setMethods(['PUT', 'DELETE']);
 
         /*
          * Connect catchall routes for all controllers.
