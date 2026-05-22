@@ -221,21 +221,39 @@ class NetSessionsController extends AppController
         return $row;
     }
 
-    // TODO(T13): replace with ?since delta + NetMetrics stats
     private function checkinsFeed(int $id): \Cake\Http\Response
     {
         $session = $this->loggerSessionOrFail($id);
-        $qsos = $this->fetchTable('Qsos')->find()
-            ->where(['net_session_id' => $id])
-            ->orderBy(['qso_datetime_utc' => 'ASC', 'id' => 'ASC'])->all();
+        $since = (string)$this->request->getQuery('since', '');
+        $qsos = $this->fetchTable('Qsos');
+
+        $q = $qsos->find()->where(['net_session_id' => $id]);
+        if ($since !== '') {
+            try {
+                // URL query-string parsing converts '+' → ' ' (form encoding).
+                // ISO-8601 offsets never contain spaces, so restore them before
+                // parsing (e.g. "2026-05-22T12:00:00 00:00" → "+00:00").
+                $cursor = new DateTime(str_replace(' ', '+', $since));
+                $q->where(['updated_at >' => $cursor]);
+            } catch (\Exception $e) {
+                // Malformed cursor — treat as no cursor and return all rows.
+            }
+        }
+        $q->orderBy(['qso_datetime_utc' => 'ASC', 'id' => 'ASC']);
+
         $checkins = [];
-        foreach ($qsos as $row) { $checkins[] = $this->presentCheckin($row, true); }
+        foreach ($q->all() as $row) {
+            $checkins[] = $this->presentCheckin($row, true);
+        }
+
         return $this->jsonResponse([
-            'server_time' => \Cake\I18n\DateTime::now()->format('c'),
-            'status' => $session->status,
-            'stats' => [],
-            'checkins' => $checkins,
-            'removed' => [],
+            'server_time' => DateTime::now()->format('c'),
+            'status'      => $session->status,
+            'stats'       => (new \App\Service\NetMetrics($qsos))->sessionStats($id),
+            'checkins'    => $checkins,
+            // Hard-deletes are reflected by absence on a full refresh (no cursor).
+            // Soft-delete tracking (tombstone list) is deferred to future work.
+            'removed'     => [],
         ]);
     }
 }

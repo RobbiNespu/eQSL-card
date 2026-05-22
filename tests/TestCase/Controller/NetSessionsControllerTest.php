@@ -229,4 +229,81 @@ final class NetSessionsControllerTest extends TestCase
         $this->assertResponseOk();
         $this->assertResponseContains('T11 Cockpit Net');
     }
+
+    // -------------------------------------------------------------------------
+    // M6 T13 — delta feed (?since cursor) + live stats
+    // -------------------------------------------------------------------------
+
+    private function seedCheckinRow(int $sessionId, int $ownerId, string $call): int
+    {
+        $q = $this->getTableLocator()->get('Qsos');
+        $row = $q->saveOrFail($q->newEntity([
+            'user_id'           => $ownerId,
+            'call_worked'       => $call,
+            'qso_type'          => 'net',
+            'net_session_id'    => $sessionId,
+            'ncs_callsign'      => '9W2NSP',
+            'net_title'         => 'Test Net',
+            'rst_received'      => '59',
+            'grid_square'       => 'OJ02',
+            'qso_datetime_utc'  => '2026-05-22 12:00:00',
+        ], ['accessibleFields' => ['*' => true]]));
+        return (int)$row->id;
+    }
+
+    public function testDeltaFeedReturnsShapeAndRows(): void
+    {
+        $uid = $this->login();
+        $sessionId = $this->seedNetSession($uid, ['status' => 'live']);
+        $this->seedCheckinRow($sessionId, $uid, '9M2RDX');
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->get('/net-sessions/' . $sessionId . '/checkins?since=2000-01-01T00:00:00+00:00');
+
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true);
+
+        $this->assertArrayHasKey('server_time', $body);
+        $this->assertArrayHasKey('status', $body);
+        $this->assertArrayHasKey('stats', $body);
+        $this->assertArrayHasKey('checkins', $body);
+        $this->assertArrayHasKey('removed', $body);
+
+        $this->assertCount(1, $body['checkins'], 'should have exactly 1 check-in row');
+        $this->assertSame('9M2RDX', $body['checkins'][0]['callsign']);
+        $this->assertSame(1, $body['stats']['checkins']);
+    }
+
+    public function testDeltaFeedSinceFutureReturnsEmpty(): void
+    {
+        $uid = $this->login();
+        $sessionId = $this->seedNetSession($uid, ['status' => 'live']);
+        $this->seedCheckinRow($sessionId, $uid, '9M2RDX');
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->get('/net-sessions/' . $sessionId . '/checkins?since=2099-01-01T00:00:00+00:00');
+
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true);
+
+        // Delta window is in the future — no rows updated after that.
+        $this->assertSame([], $body['checkins'], 'checkins delta should be empty for future cursor');
+        // Stats always reflect ALL rows, not just the delta window.
+        $this->assertSame(1, $body['stats']['checkins'], 'stats should count all rows regardless of cursor');
+    }
+
+    public function testDeltaFeedMalformedSinceDoesNotError(): void
+    {
+        $uid = $this->login();
+        $sessionId = $this->seedNetSession($uid, ['status' => 'live']);
+        $this->seedCheckinRow($sessionId, $uid, '9M2RDX');
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->get('/net-sessions/' . $sessionId . '/checkins?since=not-a-date');
+
+        // Defensive parse: malformed cursor is treated as no cursor → all rows returned.
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertCount(1, $body['checkins'], 'malformed since should fall back to returning all rows');
+    }
 }
