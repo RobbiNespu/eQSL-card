@@ -2804,14 +2804,39 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   border: 1px solid var(--border);
   border-radius: var(--r-md);
 }
-.net-map-placeholder,
-[data-net-map] {
+.net-map-placeholder {
   min-height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--r-sm);
   background: var(--surface-2);
+}
+/* analytics map — Leaflet requires an explicit height */
+.net-map-wrap [data-net-map] {
+  height: 280px;
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.net-map-fallback {
+  list-style: none;
+  padding: 0.75rem 1rem;
+  margin: 0;
+}
+.net-map-fallback li {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.net-map-fallback li:last-child {
+  border-bottom: none;
+}
+.net-map-empty {
+  padding: 1rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
 }
 
 /* ---- Responsive: stack on mobile (< 992px) ------------------- */

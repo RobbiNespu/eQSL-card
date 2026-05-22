@@ -135,6 +135,12 @@ $this->assign('title', $title);
   <a class="btn btn-outline-secondary" href="/net-sessions/<?= (int)$session->id ?>">Back to session</a>
 </div>
 
+<?php $this->append('meta'); ?>
+<link rel="stylesheet" href="<?= $this->Url->build('/js/vendor/leaflet/leaflet.css') ?>">
+<?php $this->end(); ?>
+
 <?php $this->append('script'); ?>
 <script src="<?= $this->Url->build('/js/net-charts.js') ?>" type="module" defer></script>
+<script src="<?= $this->Url->build('/js/vendor/leaflet/leaflet.js') ?>" defer></script>
+<script src="<?= $this->Url->build('/js/net-map.js') ?>" defer></script>
 <?php $this->end(); ?>
