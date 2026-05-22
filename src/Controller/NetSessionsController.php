@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AuditLogger;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime;
 use Cake\Utility\Security;
@@ -86,6 +87,16 @@ class NetSessionsController extends AppController
         $session->set('status', 'live', ['guard' => false]);
         $session->set('started_at', DateTime::now(), ['guard' => false]);
         $this->fetchTable('NetSessions')->saveOrFail($session);
+        $uid = $this->Authentication->getIdentity()->getIdentifier();
+        try {
+            (new AuditLogger())->log(
+                event: 'net.start',
+                actorUserId: $uid,
+                target: ['type' => 'NetSessions', 'id' => $id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
         $this->Flash->success('Net is live.');
         return $this->redirect(['action' => 'cockpit', $id]);
     }
@@ -97,6 +108,16 @@ class NetSessionsController extends AppController
         $session->set('status', 'ended', ['guard' => false]);
         $session->set('ended_at', DateTime::now(), ['guard' => false]);
         $this->fetchTable('NetSessions')->saveOrFail($session);
+        $uid = $this->Authentication->getIdentity()->getIdentifier();
+        try {
+            (new AuditLogger())->log(
+                event: 'net.end',
+                actorUserId: $uid,
+                target: ['type' => 'NetSessions', 'id' => $id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
         $this->Flash->success('Net ended.');
         return $this->redirect(['action' => 'view', $id]);
     }
@@ -106,6 +127,16 @@ class NetSessionsController extends AppController
         $this->request->allowMethod('post');
         $session = $this->ownedOrFail($id);
         $this->fetchTable('NetSessions')->deleteOrFail($session);
+        $uid = $this->Authentication->getIdentity()->getIdentifier();
+        try {
+            (new AuditLogger())->log(
+                event: 'net.delete',
+                actorUserId: $uid,
+                target: ['type' => 'NetSessions', 'id' => $id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
         $this->Flash->success('Net session deleted.');
         return $this->redirect(['action' => 'index']);
     }
@@ -276,6 +307,9 @@ class NetSessionsController extends AppController
     {
         if ($this->request->is('post')) {
             $session = $this->loggerSessionOrFail($id);
+            if ($session->status !== 'live') {
+                return $this->jsonResponse(['ok' => false, 'error' => 'Net is not live.'], 409);
+            }
             $uid = $this->Authentication->getIdentity()->getIdentifier();
             $qsos = $this->fetchTable('Qsos');
             $qso = $qsos->newEntity($this->request->getData());
@@ -293,6 +327,16 @@ class NetSessionsController extends AppController
             if (!$qsos->save($qso)) {
                 return $this->jsonResponse(['ok' => false, 'errors' => $qso->getErrors()], 422);
             }
+            try {
+                (new AuditLogger())->log(
+                    event: 'net.checkin.create',
+                    actorUserId: $uid,
+                    target: ['type' => 'NetSessions', 'id' => $id],
+                    metadata: ['qso_id' => $qso->id, 'callsign' => $qso->call_worked],
+                );
+            } catch (\Throwable $e) {
+                error_log('audit: ' . $e->getMessage());
+            }
             return $this->jsonResponse(['ok' => true, 'checkin' => $this->presentCheckin($qso)]);
         }
         return $this->checkinsFeed($id);
@@ -300,7 +344,11 @@ class NetSessionsController extends AppController
 
     public function checkin(int $id, int $qsoId): \Cake\Http\Response
     {
-        $this->loggerSessionOrFail($id);
+        $session = $this->loggerSessionOrFail($id);
+        if ($session->status !== 'live') {
+            return $this->jsonResponse(['ok' => false, 'error' => 'Net is not live.'], 409);
+        }
+        $uid = $this->Authentication->getIdentity()->getIdentifier();
         $qsos = $this->fetchTable('Qsos');
         $qso = $qsos->find()->where(['id' => $qsoId, 'net_session_id' => $id])->first();
         if ($qso === null) {
@@ -308,6 +356,16 @@ class NetSessionsController extends AppController
         }
         if ($this->request->is('delete')) {
             $qsos->deleteOrFail($qso);
+            try {
+                (new AuditLogger())->log(
+                    event: 'net.checkin.delete',
+                    actorUserId: $uid,
+                    target: ['type' => 'NetSessions', 'id' => $id],
+                    metadata: ['qso_id' => $qsoId, 'callsign' => $qso->call_worked],
+                );
+            } catch (\Throwable $e) {
+                error_log('audit: ' . $e->getMessage());
+            }
             return $this->jsonResponse(['ok' => true, 'removed' => $qsoId]);
         }
         $qso = $qsos->patchEntity($qso, $this->request->getData(), [

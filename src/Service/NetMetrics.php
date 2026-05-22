@@ -25,9 +25,68 @@ final class NetMetrics
             ->disableHydration()->all()->toList();
 
         $calls = array_filter(array_column($rows, 'call_worked'));
+        $checkins = count($rows);
+        $unique   = count(array_unique($calls));
+
+        // Fetch the session entity (with hydration) so date fields are proper
+        // DateTimeInterface instances and we can compute "new" and "rate".
+        $netSessions = TableRegistry::getTableLocator()->get('NetSessions');
+        /** @var \App\Model\Entity\NetSession|null $session */
+        $session = $netSessions->find()
+            ->where(['id' => $sessionId])
+            ->select(['id', 'owner_id', 'started_at', 'ended_at'])
+            ->first();
+
+        $new  = 0;
+        $rate = 0.0;
+
+        if ($session !== null) {
+            $ownerId = (int)$session->owner_id;
+
+            // "New tonight": distinct callsigns in THIS session that do NOT
+            // appear in any OTHER session owned by the same operator.
+            $siblingIds = $netSessions->find()
+                ->where(['owner_id' => $ownerId, 'id !=' => $sessionId])
+                ->select(['id'])->disableHydration()->all()->extract('id')->toList();
+
+            $callsInSession = array_values(array_unique($calls));
+
+            if (count($callsInSession) > 0 && count($siblingIds) > 0) {
+                $seenElsewhere = $this->qsos->find()
+                    ->where(['net_session_id IN' => $siblingIds, 'call_worked IN' => $callsInSession])
+                    ->select(['call_worked'])->distinct(['call_worked'])
+                    ->disableHydration()->all()->extract('call_worked')->toList();
+                $seenSet = array_flip($seenElsewhere);
+                $new = count(array_filter($callsInSession, fn ($c) => !isset($seenSet[$c])));
+            } else {
+                // No siblings → every callsign is new to this owner's nets.
+                $new = count($callsInSession);
+            }
+
+            // "Rate": check-ins per minute since started_at.
+            $startedAt = $session->started_at;
+            if ($startedAt !== null) {
+                $startTs = $startedAt instanceof \DateTimeInterface
+                    ? $startedAt->getTimestamp()
+                    : (new \DateTime((string)$startedAt))->getTimestamp();
+                $endedAt = $session->ended_at;
+                if ($endedAt !== null) {
+                    $endTs = $endedAt instanceof \DateTimeInterface
+                        ? $endedAt->getTimestamp()
+                        : (new \DateTime((string)$endedAt))->getTimestamp();
+                } else {
+                    $endTs = time();
+                }
+                $elapsedMinutes = max(($endTs - $startTs) / 60.0, 1);
+                $rate = round($checkins / $elapsedMinutes, 1);
+            }
+        }
+
         return [
-            'checkins' => count($rows),
-            'unique'   => count(array_unique($calls)),
+            'checkins' => $checkins,
+            'unique'   => $unique,
+            'new'      => $new,
+            'rate'     => $rate,
             'signal'   => SignalReport::distribution(array_column($rows, 'rst_received')),
         ];
     }

@@ -21,7 +21,7 @@ final class NetSessionsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.NetSessions', 'app.NetSessionLoggers', 'app.Qsos'];
+    protected array $fixtures = ['app.Users', 'app.NetSessions', 'app.NetSessionLoggers', 'app.Qsos', 'app.AuditLogs'];
 
     private function login(string $email = 'ncs@x.com'): int
     {
@@ -209,6 +209,57 @@ final class NetSessionsControllerTest extends TestCase
         ]);
 
         $this->assertResponseCode(404);
+    }
+
+    public function testCannotLogCheckinToEndedNet(): void
+    {
+        $uid = $this->login();
+        $sessionId = $this->seedNetSession($uid, [
+            'status'     => 'ended',
+            'started_at' => '2026-05-22 12:00:00',
+            'ended_at'   => '2026-05-22 13:00:00',
+        ]);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/net-sessions/' . $sessionId . '/checkins', [
+            'call_worked'  => '9W2ZZZ',
+            'rst_received' => '59',
+            'net_role'     => 'Check-in',
+        ]);
+
+        $this->assertResponseCode(409);
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($body['ok']);
+        $this->assertSame('Net is not live.', $body['error']);
+
+        // No QSO row must have been created.
+        $this->assertSame(0, $this->getTableLocator()->get('Qsos')
+            ->find()->where(['net_session_id' => $sessionId])->count());
+    }
+
+    public function testCannotLogToScheduledNet(): void
+    {
+        $uid = $this->login();
+        $sessionId = $this->seedNetSession($uid, ['status' => 'scheduled']);
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/net-sessions/' . $sessionId . '/checkins', [
+            'call_worked'  => '9W2YYY',
+            'rst_received' => '59',
+            'net_role'     => 'Check-in',
+        ]);
+
+        $this->assertResponseCode(409);
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertFalse($body['ok']);
+
+        // No QSO row must have been created.
+        $this->assertSame(0, $this->getTableLocator()->get('Qsos')
+            ->find()->where(['net_session_id' => $sessionId])->count());
     }
 
     // -------------------------------------------------------------------------

@@ -66,6 +66,8 @@ import { RosterStore } from './net-merge.js';
       const set = (k, v) => { const el = document.querySelector(`[data-stat="${k}"] [data-stat-value]`); if (el && v != null) el.textContent = v; };
       set('checkins', s.checkins);
       set('unique', s.unique);
+      set('new', s.new);
+      set('rate', s.rate);
     }
   });
 })();
