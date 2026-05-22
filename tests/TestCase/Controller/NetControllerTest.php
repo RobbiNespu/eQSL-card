@@ -20,9 +20,41 @@ final class NetControllerTest extends TestCase
 
     public function testPublicFeedHidesLoggedBy(): void
     {
+        // Seed a real check-in so the feed returns a non-empty checkins array.
+        // Without a row the assertion passes vacuously (nothing to strip).
+        // Users fixture is empty, so create the owner row first (needed by
+        // the existsIn FK rule on Qsos.user_id).
+        $u = $this->getTableLocator()->get('Users');
+        $owner = $u->newEmptyEntity();
+        $owner->set('id', 1, ['guard' => false]);
+        $owner->set('name', 'Net Stn', ['guard' => false]);
+        $owner->set('callsign', '9W2NSP', ['guard' => false]);
+        $owner->set('email', 'nsp@example.com', ['guard' => false]);
+        $owner->set('password', 'irrelevant', ['guard' => false]);
+        $u->saveOrFail($owner, ['checkRules' => false]);
+
+        $q = $this->getTableLocator()->get('Qsos');
+        $q->saveOrFail($q->newEntity([
+            'user_id'          => 1,
+            'call_worked'      => '9M2PUB',
+            'qso_type'         => 'net',
+            'net_session_id'   => 1,
+            'ncs_callsign'     => '9W2NSP',
+            'net_title'        => 'MARTS Daily Net',
+            'rst_received'     => '59',
+            'qso_datetime_utc' => '2026-05-22 12:30:00',
+        ], ['accessibleFields' => ['*' => true]]));
+        // logged_by_user_id is locked from mass assignment — set it explicitly.
+        $row = $q->find()->where(['call_worked' => '9M2PUB'])->firstOrFail();
+        $row->set('logged_by_user_id', 2, ['guard' => false]);
+        $q->saveOrFail($row);
+
         $this->configRequest(['headers' => ['Accept' => 'application/json']]);
         $this->get('/net/live-net-slug/live');
         $this->assertResponseOk();
+        // Row is present in the payload — confirms seeding worked.
+        $this->assertResponseContains('9M2PUB');
+        // logged_by_user_id must be absent — confirms the whitelist strips it.
         $this->assertResponseNotContains('logged_by_user_id');
     }
 
