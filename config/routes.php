@@ -357,6 +357,61 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/profile/avatar', ['controller' => 'Profile', 'action' => 'uploadAvatar'])
             ->setMethods(['POST']);
 
+        // M6 T16 — public read-only live net view (no auth).
+        // Feed route declared BEFORE the bare slug route so the literal
+        // '/live' suffix isn't swallowed by the {slug} param.
+        $builder->connect('/net/{slug}/live', ['controller' => 'Net', 'action' => 'feed'])
+            ->setPass(['slug'])->setMethods(['GET']);
+        $builder->connect('/net/{slug}', ['controller' => 'Net', 'action' => 'live'])
+            ->setPass(['slug'])->setMethods(['GET']);
+
+        // M6 — NCS dashboard (owner/co-logger; auth enforced in controller).
+        // Static segments (/new) MUST be declared BEFORE parametrised /{id}
+        // routes so they aren't shadowed. id patterns constrained to digits
+        // for the same reason as all other CRUD resources here.
+        $builder->connect('/net-sessions', ['controller' => 'NetSessions', 'action' => 'index'])
+            ->setMethods(['GET']);
+        $builder->connect('/net-sessions/new', ['controller' => 'NetSessions', 'action' => 'add'])
+            ->setMethods(['GET', 'POST']);
+        // Static invite-join route MUST be declared BEFORE the parametrized
+        // /{id} routes. "join" is not digits so the \d+ id pattern would never
+        // match it anyway, but static-before-parametric is the codebase convention.
+        $builder->connect('/net-sessions/join/{token}', ['controller' => 'NetSessions', 'action' => 'join'])
+            ->setPass(['token'])->setMethods(['GET']);
+        $builder->connect('/net-sessions/{id}/edit', ['controller' => 'NetSessions', 'action' => 'edit'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
+        $builder->connect('/net-sessions/{id}/start', ['controller' => 'NetSessions', 'action' => 'start'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        $builder->connect('/net-sessions/{id}/end', ['controller' => 'NetSessions', 'action' => 'end'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        $builder->connect('/net-sessions/{id}/delete', ['controller' => 'NetSessions', 'action' => 'delete'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        $builder->connect('/net-sessions/{id}', ['controller' => 'NetSessions', 'action' => 'view'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+        // Co-logger management routes. loggers/{userId} MUST be declared BEFORE
+        // loggers (bare) so the userId segment is not ambiguously shadowed.
+        $builder->connect('/net-sessions/{id}/loggers/{userId}', ['controller' => 'NetSessions', 'action' => 'removeLogger'])
+            ->setPass(['id', 'userId'])->setPatterns(['id' => '\d+', 'userId' => '\d+'])->setMethods(['POST', 'DELETE']);
+        $builder->connect('/net-sessions/{id}/loggers', ['controller' => 'NetSessions', 'action' => 'addLogger'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        // M6 T21 — ADIF export per net session. Mirrors the activation export
+        // pattern; .adi extension is handled the same way CakePHP handles it
+        // for /activations/{id}/export.adi (proven pattern, no special ext parsing).
+        $builder->connect('/net-sessions/{id}/export.adi', ['controller' => 'NetSessions', 'action' => 'exportAdif'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+        // M6 T22 — PDF net report. Logger-scoped; .pdf extension handled the
+        // same way as .adi above.
+        $builder->connect('/net-sessions/{id}/export.pdf', ['controller' => 'NetSessions', 'action' => 'exportPdf'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+        $builder->connect('/net-sessions/{id}/analytics', ['controller' => 'NetSessions', 'action' => 'analytics'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+        $builder->connect('/net-sessions/{id}/cockpit', ['controller' => 'NetSessions', 'action' => 'cockpit'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET']);
+        $builder->connect('/net-sessions/{id}/checkins', ['controller' => 'NetSessions', 'action' => 'checkins'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET', 'POST']);
+        $builder->connect('/net-sessions/{id}/checkins/{qsoId}', ['controller' => 'NetSessions', 'action' => 'checkin'])
+            ->setPass(['id', 'qsoId'])->setPatterns(['id' => '\d+', 'qsoId' => '\d+'])->setMethods(['PUT', 'DELETE']);
+
         /*
          * Connect catchall routes for all controllers.
          *

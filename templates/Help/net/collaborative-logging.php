@@ -1,0 +1,65 @@
+<?php $this->extend('/Help/view'); ?>
+<?php $this->assign('title', 'Collaborative logging — eQSL Card Help'); ?>
+<?php $this->start('meta'); ?>
+<meta name="description" content="How to add co-loggers to a net session — direct add by user, invite link, and how all check-ins merge live in the roster.">
+<?php $this->end(); ?>
+
+<?= $this->element('ui/page_header', [
+    'title' => $title,
+    'lede'  => 'Run a busy net? A co-logger takes the keyboard while you operate the radio. Both of you log check-ins to the same session and the roster merges everything in real time.',
+]) ?>
+
+<h2>Roles: owner and co-logger</h2>
+<p>Every net session has exactly one <strong>owner</strong> — the user who created it. The owner controls the lifecycle (Start, End, Delete) and manages co-loggers. <strong>Co-loggers</strong> are additional operators who can log and edit check-ins while the net is live, but they cannot start, end, or delete the session.</p>
+
+<p>Both owner and co-loggers see the same cockpit and the same live roster. When a co-logger adds a check-in it appears on the owner's screen within a few seconds (the polling interval), and vice versa.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'note',
+    'body' => 'Co-loggers must have an eQSL Card account. The feature is not available for unauthenticated users.',
+]) ?>
+
+<h2>Adding a co-logger: direct add (by user ID)</h2>
+<p>On the session detail page (<code>/net-sessions/{id}</code>), scroll to the <strong>Co-logger management</strong> section. There is a small form labeled "Add co-logger by user ID". Enter the user's numeric ID and click Add. The co-logger is added immediately and can open the cockpit straight away.</p>
+
+<p>To find a user's ID, the site administrator can look it up in the Users admin panel. This method is best when you already know the other operator's account details.</p>
+
+<h2>Adding a co-logger: invite link</h2>
+<p>A more convenient method for most nets is the <strong>invite link</strong>, also in the Co-logger management section. It looks like:</p>
+
+<p><code>https://your-site.example/net-sessions/join/{token}</code></p>
+
+<p>Share this URL with the operator you want to add — by chat, email, or voice ("go to that link"). When a logged-in user opens the link they are automatically added as a co-logger and redirected to the cockpit. No owner action is required; the join happens in a single click on their end.</p>
+
+<p>The token is a unique 20-character random string generated when the session is created. It does not change while the session exists, so you can share it in advance (e.g. in a net announcement) and anyone who clicks it while the net is running will join as a co-logger.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'tip',
+    'body' => 'Put the invite link in your net preamble script. If your relay needs to start logging when the main logger drops off briefly, they can join with one tap.',
+]) ?>
+
+<h2>Removing a co-logger</h2>
+<p>On the session detail page, the Co-logger management section lists all current co-loggers with a <strong>Remove</strong> button next to each. Removing a co-logger is immediate — on their next cockpit load they will see a 404 (session not found) because the access check is per-request. Any check-ins they already logged remain in the roster.</p>
+
+<h2>How entries merge in the roster</h2>
+<p>Each cockpit polls the check-in feed endpoint every few seconds using a timestamp cursor. When a co-logger submits a check-in, the server stores it immediately. The next poll by the owner (or any other co-logger) picks up the new row and inserts it into the roster without a page reload.</p>
+
+<p>This means there is a short latency (up to the polling interval, typically a few seconds) before a co-logger's check-in appears on other screens. During a very busy net where multiple operators are logging simultaneously, the roster will converge to the full set within one or two polling cycles.</p>
+
+<p>There is no merge conflict to worry about: each check-in is a separate QSO row identified by its database ID. Two operators cannot accidentally overwrite each other's entries by logging at the same time — both check-ins will be saved and both will appear in the roster.</p>
+
+<h2>What co-loggers can and cannot do</h2>
+
+<table>
+  <thead><tr><th>Action</th><th>Owner</th><th>Co-logger</th></tr></thead>
+  <tbody>
+    <tr><td>Log a check-in</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Edit any check-in</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Delete a check-in</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Start / End the net</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Edit session details</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Add / remove co-loggers</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Export ADIF / PDF</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>View analytics</td><td>Yes</td><td>No (owner-only page)</td></tr>
+  </tbody>
+</table>

@@ -42,6 +42,15 @@ class Qso extends Entity
         // controller missed the dedup branch, the DB would reject the
         // duplicate.
         'client_uuid' => true,
+        // M6 — Net session columns. net_session_id and logged_by_user_id are
+        // assigned server-side by NetSessionsController (guard => false), so
+        // they are LOCKED from mass assignment — same rationale as
+        // activation_id above (a hostile POST must not tag a check-in to
+        // another user's session or forge who logged it). net_role IS
+        // client-supplied (the check-in form's role select), so it stays open.
+        'net_session_id'    => false,
+        'logged_by_user_id' => false,
+        'net_role'          => true,
     ];
 
     protected function _setNcsCallsign(?string $value): ?string

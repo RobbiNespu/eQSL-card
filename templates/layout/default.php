@@ -145,6 +145,10 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
         <li class="nav-item"><a class="nav-link" href="/activations">Activations</a></li>
         <li class="nav-item"><a class="nav-link" href="/card-backgrounds">Backgrounds</a></li>
         <li class="nav-item"><a class="nav-link" href="/templates">Templates</a></li>
+        <li class="nav-item">
+          <a class="nav-link" href="/net-sessions">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align: -2px; margin-right: 3px;"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>Net control</a>
+        </li>
         <li class="nav-item"><a class="nav-link" href="/help">Help</a></li>
         <?php if ($isAdmin): ?>
           <li class="nav-item">
@@ -276,6 +280,7 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
       <a class="mobile-sheet__item" href="/activations" @click="moreOpen = false">Activations</a>
       <a class="mobile-sheet__item" href="/card-backgrounds" @click="moreOpen = false">Backgrounds</a>
       <a class="mobile-sheet__item" href="/templates" @click="moreOpen = false">Templates</a>
+      <a class="mobile-sheet__item" href="/net-sessions" @click="moreOpen = false">Net control</a>
       <a class="mobile-sheet__item" href="/help" @click="moreOpen = false">Help</a>
 
       <?php if ($isAdmin): ?>
