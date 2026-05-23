@@ -191,16 +191,18 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
             'password' => 'password_hash',
         ];
 
-        // Authentication 3.3+ wants identifier config passed directly to the
-        // authenticator that needs it; the old loadIdentifier() pathway is
-        // deprecated. Session reads the already-stored identity from the
-        // session and needs no identifier of its own.
+        // Authentication 4.x wants the identifier config passed directly to
+        // the authenticator that needs it, in the flattened form
+        // ['className' => '...', ...options]. (3.x nested the options under
+        // the class name key; that format was removed in 4.0.) Session
+        // reads the already-stored identity and needs no identifier.
         $service->loadAuthenticator('Authentication.Session');
         $service->loadAuthenticator('Authentication.Form', [
             'fields' => $formFields,
             'loginUrl' => $loginUrl,
             'identifier' => [
-                'Authentication.Password' => ['fields' => $identifierFields],
+                'className' => 'Authentication.Password',
+                'fields' => $identifierFields,
             ],
         ]);
 
