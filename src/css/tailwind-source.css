@@ -1,20 +1,82 @@
 /*
- * Tailwind CLI entry point.
+ * Tailwind CSS v4 + daisyUI v5 entry point.
  *
- * Order matters:
- *   1. Tailwind base / components / utilities (set up resets + utility
- *      classes).
- *   2. DaisyUI is injected by the plugin (registered in tailwind.config.js).
- *   3. theme.css (our brand layer + Bootstrap-compat shim) is appended
- *      to dist.css by the `build:css` npm script (shell `cat` wrapper)
- *      so its overrides win the cascade.
+ * Build command (see package.json build:css):
+ *   @tailwindcss/cli -i src/css/tailwind-source.css -o webroot/css/dist.css --minify
+ *   then theme.css is concatenated onto dist.css by the shell wrapper so
+ *   its brand/Bootstrap-compat overrides win the cascade.
  *
- * Why not `@import '../../webroot/css/theme.css'` here?
- *   Tailwind CLI's built-in PostCSS pipeline does not run postcss-import,
- *   so any @import statement in this file is silently dropped from the
- *   output. Rather than add another devDependency, we keep theme.css as
- *   a plain file the shell wrapper concatenates after Tailwind runs.
+ * Tailwind v4 is CSS-first: there is no tailwind.config.js. Content
+ * sources are declared with @source; the daisyUI plugin and the two
+ * custom themes (eqsl / eqsl-dark) are configured inline below — the
+ * v4/v5 replacement for the old JS `daisyui.themes` block. Theme
+ * variables were renamed in daisyUI v5: --rounded-box -> --radius-box,
+ * --rounded-btn -> --radius-field, --rounded-badge -> --radius-selector,
+ * --border-btn -> --border, and colors are --color-*.
  */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Scan our markup + JS for utility classes (PHP templates + vanilla JS). */
+@source "../../templates/**/*.php";
+@source "../../webroot/js/**/*.js";
+
+/* Safelist classes that only appear dynamically (composed at runtime in
+ * JS or interpolated in PHP, e.g. class="alert alert-<?= $type ?>"), so
+ * the content scan can't see them as literals. Mirrors the old
+ * tailwind.config.js `safelist`. */
+@source inline("show is-active btn-active hidden");
+@source inline("{alert,btn,badge,nav-link}-{primary,secondary,success,info,warning,danger,light,dark}");
+
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+  name: "eqsl";
+  default: true;
+  color-scheme: light;
+  --color-primary: #18181b;
+  --color-primary-content: #ffffff;
+  --color-secondary: #e4e4e7;
+  --color-secondary-content: #18181b;
+  --color-accent: #059669;
+  --color-accent-content: #ffffff;
+  --color-neutral: #52525b;
+  --color-neutral-content: #fafafa;
+  --color-base-100: #ffffff;
+  --color-base-200: #f4f4f5;
+  --color-base-300: #e4e4e7;
+  --color-base-content: #09090b;
+  --color-info: #0284c7;
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --radius-box: 0.75rem;
+  --radius-field: 0.5rem;
+  --radius-selector: 999px;
+  --border: 1px;
+}
+
+@plugin "daisyui/theme" {
+  name: "eqsl-dark";
+  prefersdark: true;
+  color-scheme: dark;
+  --color-primary: #fafafa;
+  --color-primary-content: #18181b;
+  --color-secondary: #3f3f46;
+  --color-secondary-content: #fafafa;
+  --color-accent: #10b981;
+  --color-accent-content: #ffffff;
+  --color-neutral: #a1a1aa;
+  --color-neutral-content: #18181b;
+  --color-base-100: #18181b;
+  --color-base-200: #27272a;
+  --color-base-300: #3f3f46;
+  --color-base-content: #fafafa;
+  --color-info: #38bdf8;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --radius-box: 0.75rem;
+  --radius-field: 0.5rem;
+  --radius-selector: 999px;
+  --border: 1px;
+}
