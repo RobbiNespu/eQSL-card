@@ -2837,14 +2837,6 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   border: 1px solid var(--border);
   border-radius: var(--r-md);
 }
-.net-map-placeholder {
-  min-height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-sm);
-  background: var(--surface-2);
-}
 /* analytics map — Leaflet requires an explicit height */
 .net-map-wrap [data-net-map] {
   height: 280px;

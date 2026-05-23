@@ -36,6 +36,7 @@ import { RosterStore } from './net-merge.js';
       (json.checkins || []).forEach(r => store.upsert(r));
       (json.removed || []).forEach(id => store.remove(id));
       render(); setStats(json.stats);
+      document.dispatchEvent(new CustomEvent('net:updated', { detail: json }));
     } catch (_) {}
   }
 

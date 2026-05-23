@@ -41,17 +41,8 @@
   <div class="net-signal-chart-wrap card">
     <div class="card-body p-2">
       <p class="form-label small text-muted mb-1">Signal distribution (from RST)</p>
-      <div data-signal-chart aria-label="Signal distribution chart — populated by Task 19 JS">
+      <div data-signal-chart aria-label="Signal distribution chart">
         <p class="form-text text-center text-muted small py-2 mb-0">Loading signal chart&hellip;</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="net-map-wrap card">
-    <div class="card-body p-2">
-      <p class="form-label small text-muted mb-1">Participant map (grid squares)</p>
-      <div data-net-map aria-label="Participant map — populated by Task 20 JS" class="net-map-placeholder">
-        <p class="form-text text-center text-muted small py-2 mb-0">Map loads when grid squares are available.</p>
       </div>
     </div>
   </div>
