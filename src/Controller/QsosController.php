@@ -21,6 +21,8 @@ namespace App\Controller;
  */
 class QsosController extends AppController
 {
+    /** Number of cards rendered per HTTP chunk in the bulk-render flow. */
+    private const BULK_CHUNK_SIZE = 5;
     /**
      * Initialize hook.
      *
@@ -845,13 +847,14 @@ class QsosController extends AppController
      * Bulk-render entry point (M2-T11).
      *
      * Accepts a list of `qso_ids`, one `template_id`, and one `upload_id`,
-     * mints a session-scoped job token, kicks off the FIRST chunk (up to 5
-     * cards) synchronously, and returns a JSON `{job_token, done, total,
-     * finished, card_ids}` payload. The frontend is expected to poll the
-     * `bulkRenderNext` endpoint until `finished === true`.
+     * mints a session-scoped job token, kicks off the FIRST chunk (up to
+     * BULK_CHUNK_SIZE cards) synchronously, and returns a JSON
+     * `{job_token, done, total, finished, card_ids}` payload. The frontend is
+     * expected to poll the `bulkRenderNext` endpoint until `finished === true`.
      *
      * Why chunking at all: shared hosts cap individual PHP requests at ~30s,
-     * and rendering is GD-bound. Slicing the job into 5-card chunks keeps each
+     * and rendering is GD-bound. Slicing the job into BULK_CHUNK_SIZE-card
+     * chunks keeps each
      * HTTP call comfortably under the limit without depending on a worker
      * queue we cannot deploy on shared hosting.
      *
@@ -1036,7 +1039,7 @@ class QsosController extends AppController
             return null;
         }
 
-        $chunk = array_slice($job['qso_ids'], $job['cursor'], 5);
+        $chunk = array_slice($job['qso_ids'], $job['cursor'], self::BULK_CHUNK_SIZE);
         foreach ($chunk as $qsoId) {
             try {
                 $cardId = $this->renderQsoCard($userId, (int)$qsoId, $job['template_id'], $job['upload_id']);

@@ -184,7 +184,7 @@ small, .small { font-size: var(--t-sm); }
 /* Tabular numerals for data-shaped content */
 table, .table, code, kbd, samp, pre,
 input[type="number"], input[type="date"], input[type="datetime-local"],
-.tabular, .display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
+.tabular, .display-6 {
   font-variant-numeric: tabular-nums;
 }
 .table td strong, .callsign {
@@ -411,6 +411,7 @@ main.container { padding-top: var(--s-7); padding-bottom: var(--s-9); }
 .text-end           { text-align: right !important; }
 .text-decoration-none { text-decoration: none !important; }
 .text-uppercase     { text-transform: uppercase !important; }
+.list-unstyled      { list-style: none; padding-left: 0; margin: 0; }
 
 .fw-bold     { font-weight: 700 !important; }
 .fw-semibold { font-weight: 600 !important; }
@@ -917,15 +918,15 @@ input[type="color"].form-control-color {
 .page-item.disabled .page-link { color: var(--fg-subtle); cursor: not-allowed; }
 
 /* ---------- Display headings ---------- */
-.display-1, .display-2, .display-3,
-.display-4, .display-5, .display-6 {
+.display-6 {
   font-family: var(--font-sans);
   font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1;
   color: var(--fg);
+  font-size: var(--t-5xl);
+  margin: var(--s-2) 0;
 }
-.display-6 { font-size: var(--t-5xl); margin: var(--s-2) 0; }
 
 /* ---------- Navbar ---------- */
 .navbar {
@@ -1076,8 +1077,10 @@ input[type="color"].form-control-color {
   list-style: none;
   font-family: var(--font-sans);
 }
-.dropdown-menu.show { display: block; }
+.dropdown-menu.show,
+details[open] > .dropdown-menu { display: block; }
 .dropdown-menu-end { right: 0; left: auto; }
+.dropdown-menu--raised { z-index: 1010; }
 .dropdown-item {
   display: block;
   width: 100%;
@@ -2059,25 +2062,10 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   text-transform: uppercase;
   min-height: 52px;
 }
-.quick-add__recent {
-  border-top: 1px solid var(--border, #e2e8f0);
-  padding-top: var(--s-3, 12px);
-}
 .quick-add__recent-list {
   list-style: none;
   padding: 0;
   margin: 0;
-}
-.quick-add__recent-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: var(--s-2, 8px) 0;
-  border-bottom: 1px solid var(--border-soft, #f1f5f9);
-  font-size: 0.95em;
-}
-.quick-add__recent-item:last-child {
-  border-bottom: 0;
 }
 .quick-add__recent-call {
   font-weight: 700;

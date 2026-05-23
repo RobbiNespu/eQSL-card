@@ -17,7 +17,7 @@ export class RosterStore {
     this._byId.set(serverRow.id, clean);
   }
 
-  remove(id) { this._byId.delete(id); }
+  remove(id) { this._byId.delete(id); this._byTemp.delete(id); }
 
   rows() {
     const all = [...this._byId.values(), ...this._byTemp.values()];

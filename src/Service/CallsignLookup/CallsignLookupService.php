@@ -99,19 +99,6 @@ final class CallsignLookupService
         return (bool)$this->settings->get('callsign_lookup_enabled', false);
     }
 
-    /**
-     * Drop a cached row. Used by the admin "Clear callsign cache" tool and
-     * by tests that want a clean slate.
-     */
-    public function forget(string $callsign): void
-    {
-        $table = TableRegistry::getTableLocator()->get('CallsignLookups');
-        $row = $table->find()->where(['callsign' => $this->normalise($callsign)])->first();
-        if ($row) {
-            $table->delete($row);
-        }
-    }
-
     public function clearCache(): int
     {
         $table = TableRegistry::getTableLocator()->get('CallsignLookups');
