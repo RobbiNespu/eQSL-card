@@ -37,9 +37,4 @@ class NetSession extends Entity
         'is_public'        => true,
         'notes'            => true,
     ];
-
-    public function isLive(): bool
-    {
-        return $this->status === 'live';
-    }
 }

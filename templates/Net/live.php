@@ -53,4 +53,5 @@ $isLive = $session->status === 'live';
 <script>window.NET = { feedUrl: '/net/<?= h($session->public_slug) ?>/live', status: <?= json_encode($session->status) ?> };</script>
 <script src="<?= $this->Url->build('/js/net-merge.js') ?>" type="module" defer></script>
 <script src="<?= $this->Url->build('/js/net-live.js') ?>" type="module" defer></script>
+<script src="<?= $this->Url->build('/js/net-charts.js') ?>" type="module" defer></script>
 <?php $this->end(); ?>

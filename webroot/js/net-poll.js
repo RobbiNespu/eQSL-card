@@ -13,7 +13,6 @@ import { RosterStore } from './net-merge.js';
       const res = await fetch(cfg.feedUrl + (since ? ('?since=' + encodeURIComponent(since)) : ''), {
         headers: { 'Accept': 'application/json' },
       });
-      if (res.status === 304) return;
       const json = await res.json();
       since = json.server_time || since;
       (json.checkins || []).forEach(r => store.upsert(r));
