@@ -151,7 +151,7 @@ async function getAll() {
             };
             req.onerror = () => reject(req.error);
         });
-    }).then((maybePromise) => maybePromise);
+    });
 }
 
 async function count() {
@@ -161,7 +161,7 @@ async function count() {
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
         });
-    }).then((maybePromise) => maybePromise);
+    });
 }
 
 async function remove(uuid) {

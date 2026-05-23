@@ -23,8 +23,7 @@
     <div class="net-entry-bar__field">
       <label class="form-label" for="ne-callsign">Callsign <span class="req">*</span></label>
       <input type="text" id="ne-callsign" name="call_worked"
-             class="form-control"
-             style="text-transform:uppercase"
+             class="form-control text-uppercase"
              placeholder="9W2ABC"
              autocapitalize="characters"
              spellcheck="false"

@@ -992,7 +992,7 @@ if ('serviceWorker' in navigator) {
         // with other apps on the same host on subfolder deploys).
         const base = (typeof window.EQSL_BASE === 'string') ? window.EQSL_BASE : '';
         navigator.serviceWorker.register(base + '/sw.js', { scope: base + '/' })
-            .catch((err) => {
+            .catch((_err) => {
                 // No console.error — failed registration is usually a
                 // dev-environment HTTP issue and isn't actionable for the
                 // operator. Silent fallback is fine.

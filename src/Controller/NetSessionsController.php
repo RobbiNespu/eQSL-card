@@ -383,23 +383,20 @@ class NetSessionsController extends AppController
         return (string)$owner->callsign;
     }
 
-    private function presentCheckin(\App\Model\Entity\Qso $q, bool $includePrivate = true): array
+    private function presentCheckin(\App\Model\Entity\Qso $q): array
     {
-        $row = [
-            'id'        => $q->id,
-            'callsign'  => $q->call_worked,
-            'name'      => $q->operator_name,
-            'grid'      => $q->grid_square,
-            'signal'    => \App\Service\SignalReport::strength($q->rst_received),
-            'rst'       => $q->rst_received,
-            'role'      => $q->net_role,
-            'at'        => $q->qso_datetime_utc?->format('c'),
-            'updated'   => $q->updated_at?->format('c'),
+        return [
+            'id'                 => $q->id,
+            'callsign'           => $q->call_worked,
+            'name'               => $q->operator_name,
+            'grid'               => $q->grid_square,
+            'signal'             => \App\Service\SignalReport::strength($q->rst_received),
+            'rst'                => $q->rst_received,
+            'role'               => $q->net_role,
+            'at'                 => $q->qso_datetime_utc?->format('c'),
+            'updated'            => $q->updated_at?->format('c'),
+            'logged_by_user_id'  => $q->logged_by_user_id,
         ];
-        if ($includePrivate) {
-            $row['logged_by_user_id'] = $q->logged_by_user_id;
-        }
-        return $row;
     }
 
     private function checkinsFeed(int $id): \Cake\Http\Response
@@ -424,7 +421,7 @@ class NetSessionsController extends AppController
 
         $checkins = [];
         foreach ($q->all() as $row) {
-            $checkins[] = $this->presentCheckin($row, true);
+            $checkins[] = $this->presentCheckin($row);
         }
 
         return $this->jsonResponse([

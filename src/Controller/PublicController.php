@@ -30,7 +30,6 @@ class PublicController extends AppController
      */
     public function index(): void
     {
-        $this->Authentication?->allowUnauthenticated(['index', 'generate', 'share', 'unlock']);
         $templates = $this->fetchTable('Templates')->find()
             ->where(['OR' => [
                 ['Templates.is_system' => true],
@@ -223,7 +222,6 @@ class PublicController extends AppController
      */
     public function generate()
     {
-        $this->Authentication->allowUnauthenticated(['index', 'generate']);
         $this->request->allowMethod(['post']);
 
         $data = $this->request->getData();

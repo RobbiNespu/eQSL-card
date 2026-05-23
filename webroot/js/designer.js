@@ -145,19 +145,9 @@ function designer(initial) {
             const w = Math.floor(this.canvasWidth * ratio);
             const h = Math.floor(this.canvasHeight * ratio);
             this.fabricCanvas.setZoom(ratio);
-            // Fabric v6 prefers setDimensions over the legacy setWidth/setHeight
-            // pair: it resizes the lower-canvas, upper-canvas, AND the wrapper
-            // .canvas-container element in one atomic call. Without this the
-            // canvas-container can keep its old (900x600) inline size while
-            // the canvases themselves shrink, leaving a clipped-looking
-            // viewport. Both v5 and v6 expose setDimensions; the inline
-            // fallback covers any pre-5.3 build we might ever pin to.
-            if (typeof this.fabricCanvas.setDimensions === 'function') {
-                this.fabricCanvas.setDimensions({ width: w, height: h });
-            } else {
-                this.fabricCanvas.setWidth(w);
-                this.fabricCanvas.setHeight(h);
-            }
+            // setDimensions resizes the lower-canvas, upper-canvas, AND the
+            // wrapper .canvas-container element in one atomic call.
+            this.fabricCanvas.setDimensions({ width: w, height: h });
         },
 
         renderFieldOnCanvas(field, idx) {
@@ -448,12 +438,7 @@ function designer(initial) {
                 this.previewFabric.clear();
             }
             this.previewFabric.setZoom(ratio);
-            if (typeof this.previewFabric.setDimensions === 'function') {
-                this.previewFabric.setDimensions({ width: w, height: h });
-            } else {
-                this.previewFabric.setWidth(w);
-                this.previewFabric.setHeight(h);
-            }
+            this.previewFabric.setDimensions({ width: w, height: h });
             // Reuse the background URL (not the Fabric image object — sharing
             // Fabric objects between two canvases causes double-free artefacts).
             this.applyBackground(this.previewFabric);
@@ -524,13 +509,9 @@ function designer(initial) {
         applyBackground(targetCanvas) {
             const canvas = targetCanvas || this.fabricCanvas;
             if (!this.backgroundUrl || !canvas) return;
-            // Fabric v5 exposes `fabric.Image.fromURL(url, cb)`; the v6 UMD
-            // build we vendored returns a Promise. Tolerating both keeps the
-            // upgrade path open (same shape as initFabric's namespace probe).
             const FabricNS = fabric.fabric || fabric;
             const Image = FabricNS.Image || FabricNS.FabricImage;
-            const promise = Image.fromURL ? Image.fromURL(this.backgroundUrl) : null;
-            const set = (img) => {
+            Image.fromURL(this.backgroundUrl).then((img) => {
                 // Scale background to fit the design space (canvasWidth ×
                 // canvasHeight). The viewport zoom applied in
                 // applyViewportScale() handles the on-screen shrink, so we
@@ -543,12 +524,7 @@ function designer(initial) {
                     canvas.backgroundImage = img;
                     canvas.requestRenderAll();
                 }
-            };
-            if (promise && typeof promise.then === 'function') {
-                promise.then(set);
-            } else {
-                Image.fromURL(this.backgroundUrl, set);
-            }
+            });
         },
 
         // M3-T9 — opt-in "Make public" toggle. When checked, save() POSTs

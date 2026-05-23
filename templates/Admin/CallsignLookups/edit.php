@@ -8,8 +8,8 @@
 <div class="row g-3" style="max-width: 720px;">
   <div class="col-md-6">
     <div class="field">
-      <label class="form-label">Callsign</label>
-      <input type="text" class="form-control" value="<?= h($entity->callsign) ?>" disabled>
+      <label class="form-label" for="callsign">Callsign</label>
+      <input type="text" id="callsign" class="form-control" value="<?= h($entity->callsign) ?>" disabled>
       <p class="form-text small mb-0">
         The natural key — immutable. Delete + re-fetch if a callsign needs renaming.
       </p>
@@ -17,8 +17,8 @@
   </div>
   <div class="col-md-6">
     <div class="field">
-      <label class="form-label">Source</label>
-      <input type="text" class="form-control" value="<?= h($entity->source) ?>" disabled>
+      <label class="form-label" for="source">Source</label>
+      <input type="text" id="source" class="form-control" value="<?= h($entity->source) ?>" disabled>
     </div>
   </div>
 

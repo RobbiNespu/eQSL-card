@@ -18,7 +18,7 @@
     <div class="col-md-6 col-lg-4">
       <div class="card h-100 card-body">
         <h2 class="h5 mb-2"><?= h($data['label']) ?></h2>
-        <ul class="list-unstyled mb-0" style="padding: 0; list-style: none;">
+        <ul class="list-unstyled mb-0">
           <?php foreach ($data['pages'] as $slug => $label): ?>
             <li style="padding: 2px 0;">
               <a href="/help/<?= h($category) ?>/<?= h($slug) ?>"><?= h($label) ?></a>
