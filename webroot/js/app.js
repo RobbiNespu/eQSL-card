@@ -45,6 +45,19 @@
         trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
         return;
       }
+
+      if (kind === 'password') {
+        e.preventDefault();
+        const sel = trigger.getAttribute('data-target');
+        const input = sel ? document.querySelector(sel) : null;
+        if (!input) return;
+        const reveal = input.type === 'password';
+        input.type = reveal ? 'text' : 'password';
+        trigger.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+        trigger.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+        trigger.setAttribute('title', reveal ? 'Hide password' : 'Show password');
+        return;
+      }
     }
 
     /* Clicking outside any open dropdown closes them all. */

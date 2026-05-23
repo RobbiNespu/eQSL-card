@@ -601,6 +601,39 @@ textarea.form-control { min-height: 96px; line-height: 1.55; resize: vertical; }
 }
 
 .form-control-sm, .form-select-sm { font-size: var(--t-sm); padding: 0.38rem 0.6rem; min-height: 34px; border-radius: var(--r); }
+
+/* Password field with a show/hide eye toggle. The button overlays the
+   right edge of the input; the input gets extra right padding so typed
+   text never runs under the icon. */
+.password-field { position: relative; }
+.password-field .form-control { padding-right: 2.75rem; }
+.password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 2.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-md);
+  color: var(--fg-subtle);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.password-toggle:hover { color: var(--fg); }
+.password-toggle:focus-visible {
+  outline: 0;
+  color: var(--fg);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.password-toggle .pw-icon { display: block; }
+.password-toggle .pw-icon--hide { display: none; }
+.password-toggle[aria-pressed="true"] .pw-icon--show { display: none; }
+.password-toggle[aria-pressed="true"] .pw-icon--hide { display: block; }
 .form-control-lg { font-size: var(--t-lg); padding: 0.7rem 0.95rem; min-height: 48px; }
 
 .form-label, form .input > label, form label.col-form-label {
