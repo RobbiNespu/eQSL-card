@@ -2529,3 +2529,378 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   background: rgba(239, 68, 68, 0.20);
   color: #fca5a5;
 }
+
+/* ============================================================
+   M6 T12 — NCS Live Cockpit
+   Styles for: cockpit top bar, LIVE badge, entry bar (responsive
+   grid), roster table, stat tiles, signal chart + map placeholders.
+   All colours use --fg/--surface/--accent/--border tokens so both
+   light and dark themes work without extra overrides.
+   ============================================================ */
+
+/* ---- Top bar ------------------------------------------------ */
+.net-cockpit-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  margin-bottom: 0;
+}
+.net-cockpit-bar__left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.net-cockpit-bar__right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+.net-cockpit-bar__title {
+  font-size: var(--t-base);
+  font-weight: 600;
+  color: var(--fg-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.net-cockpit-bar__meta {
+  font-size: var(--t-sm);
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.net-cockpit-bar__elapsed {
+  font-size: var(--t-sm);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- LIVE badge + pulsing dot ------------------------------- */
+.net-status-live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+}
+.net-status-live__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: net-live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes net-live-pulse {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0   var(--accent-ring); }
+  50%       { opacity: 0.8; box-shadow: 0 0 0 5px transparent; }
+}
+
+/* ---- Two-column cockpit body -------------------------------- */
+.net-cockpit-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  background: var(--bg);
+}
+.net-cockpit-main {
+  flex: 1 1 64%;
+  min-width: 0;
+  padding: var(--s-4);
+  border-right: 1px solid var(--border);
+}
+.net-cockpit-ended-note {
+  margin-bottom: var(--s-4);
+}
+
+/* ---- Entry bar ---------------------------------------------- */
+.net-entry-bar {
+  margin-bottom: var(--s-4);
+}
+.net-entry-bar__fields {
+  display: grid;
+  grid-template-columns: 1.4fr 1.4fr 0.85fr 0.65fr 0.9fr auto;
+  gap: var(--s-2);
+  align-items: end;
+}
+/* Collapse to single column on narrower than 992px */
+@media (max-width: 991.98px) {
+  .net-entry-bar__fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .net-entry-bar__field--grid,
+  .net-entry-bar__field--rst { }
+  .net-entry-bar__submit {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 575.98px) {
+  .net-entry-bar__fields {
+    grid-template-columns: 1fr;
+  }
+}
+.net-entry-bar__field .form-label {
+  margin-bottom: var(--s-1);
+  font-size: var(--t-xs);
+  color: var(--fg-muted);
+}
+.net-entry-bar__submit .form-label {
+  margin-bottom: var(--s-1);
+}
+
+/* ---- Roster table ------------------------------------------- */
+.net-roster-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.net-roster {
+  width: 100%;
+  font-size: var(--t-sm);
+  border-collapse: collapse;
+}
+.net-roster thead th {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: var(--s-2) var(--s-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.net-roster tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.net-roster tbody tr:hover {
+  background: var(--surface-2);
+}
+.net-roster tbody tr:last-child {
+  border-bottom: none;
+}
+.net-roster tbody td {
+  padding: var(--s-2) var(--s-2);
+  vertical-align: middle;
+  line-height: 1.4;
+}
+.net-roster__seq {
+  width: 36px;
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.net-roster__call strong,
+.net-roster .callsign {
+  font-family: var(--font-mono, 'Geist Mono Variable', 'ui-monospace', monospace);
+  font-weight: 600;
+  color: var(--fg-strong);
+}
+.net-roster__grid,
+.net-roster__sig {
+  font-family: var(--font-mono, 'Geist Mono Variable', 'ui-monospace', monospace);
+  font-size: var(--t-xs);
+}
+.net-roster__role {
+  font-size: var(--t-xs);
+  color: var(--fg-muted);
+}
+.net-roster__by {
+  font-size: var(--t-xs);
+  color: var(--fg-subtle);
+}
+/* Signal strength badge */
+.net-sig {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+  font-size: var(--t-xs);
+}
+
+/* ---- Stats right rail --------------------------------------- */
+.net-stats-rail {
+  flex: 0 0 34%;
+  min-width: 220px;
+  max-width: 360px;
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* Stat tiles: 2-up on mobile, 4-up (2×2 grid) on desktop */
+.net-stat-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+}
+.net-stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.net-stat-tile__value {
+  font-size: var(--t-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-strong);
+  line-height: 1.1;
+}
+.net-stat-tile__value--highlight {
+  color: var(--accent-strong);
+}
+.net-stat-tile__label {
+  font-size: var(--t-xs);
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ---- Signal chart placeholder ------------------------------- */
+.net-signal-chart-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+[data-signal-chart] {
+  min-height: 88px;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-1);
+  width: 100%;
+}
+
+/* ---- Signal distribution bar chart (rendered by net-charts.js) ---------- */
+.net-chart {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--s-1);
+  height: 88px;
+  width: 100%;
+  padding: 0 var(--s-2) var(--s-2);
+}
+.net-chart__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 0;
+  height: 100%;
+}
+.net-chart__bar {
+  width: 100%;
+  min-height: 4px;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  /* Colour gradient: low signal (S1–S3) red, mid (S4–S6) amber, high (S7–S9) green */
+  background: var(--accent);
+  transition: height 280ms ease;
+}
+/* Colour-grade bars by signal bucket using :has() + sibling label text */
+.net-chart__col:has(.net-chart__lbl) .net-chart__bar { background: var(--accent); }
+/* Override for low-signal columns via data attribute set by renderSignalChart */
+.net-chart__col[data-signal-low] .net-chart__bar  { background: var(--danger); }
+.net-chart__col[data-signal-mid] .net-chart__bar  { background: var(--warning); }
+.net-chart__col[data-signal-high] .net-chart__bar { background: var(--accent); }
+.net-chart__lbl {
+  font-size: var(--t-xs);
+  color: var(--fg-muted);
+  text-align: center;
+  margin-top: var(--s-1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* ---- Map placeholder ---------------------------------------- */
+.net-map-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.net-map-placeholder {
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+/* analytics map — Leaflet requires an explicit height */
+.net-map-wrap [data-net-map] {
+  height: 280px;
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.net-map-fallback {
+  list-style: none;
+  padding: 0.75rem 1rem;
+  margin: 0;
+}
+.net-map-fallback li {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.net-map-fallback li:last-child {
+  border-bottom: none;
+}
+.net-map-empty {
+  padding: 1rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* ---- Responsive: stack on mobile (< 992px) ------------------- */
+@media (max-width: 991.98px) {
+  .net-cockpit-bar {
+    border-radius: var(--r-md);
+  }
+  .net-cockpit-body {
+    flex-direction: column;
+    border-radius: var(--r-md);
+  }
+  .net-cockpit-main {
+    flex: none;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .net-stats-rail {
+    flex: none;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  /* 2-up stat tiles already the default grid-template-columns */
+}
+
+/* ---- Responsive: 4-up stat tiles on wider rail --------------- */
+@media (min-width: 992px) {
+  /* Rail is beside the main column; 2×2 tiles is fine at any rail width */
+  .net-stat-tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+

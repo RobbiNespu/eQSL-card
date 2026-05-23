@@ -1,6 +1,17 @@
 <h1>Welcome back, <span class="callsign"><?= h($user->callsign) ?></span></h1>
 <p>Your station at a glance. Recent activity below; jump into the logbook or template designer from the quick actions.</p>
 
+<?php if (!empty($liveNet)): ?>
+  <div class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>
+    <span>
+      <span class="fw-semibold">&#9679; LIVE:</span>
+      <?= h($liveNet->net_title) ?> &mdash;
+      <a href="/net-sessions/<?= h($liveNet->id) ?>/cockpit" class="alert-link">Open the cockpit &rarr;</a>
+    </span>
+  </div>
+<?php endif; ?>
+
 <div class="row g-3 mb-4">
   <div class="col-md-3">
     <div class="card card-body text-center">
@@ -27,6 +38,7 @@
         <a href="/qsos/new" class="btn btn-primary btn-sm">+ New QSO</a>
         <a href="/qsos/import" class="btn btn-outline-primary btn-sm">Import ADIF / CSV</a>
         <a href="/templates/new" class="btn btn-outline-secondary btn-sm">Design template</a>
+        <a href="/net-sessions" class="btn btn-outline-secondary btn-sm">Net control</a>
       </div>
     </div>
   </div>

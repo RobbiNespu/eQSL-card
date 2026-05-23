@@ -463,10 +463,18 @@ class QsosController extends AppController
         return $this->jsonResponse($payload);
     }
 
-    /** Small helper: wrap a payload in a JSON HTTP response. */
-    private function jsonResponse(array $payload): \Cake\Http\Response
+    /**
+     * Small helper: wrap a payload in a JSON HTTP response.
+     *
+     * Overrides AppController::jsonResponse with a compatible signature
+     * (PHP forbids narrowing inherited visibility, so this must be
+     * protected, not private). Keeps JSON_THROW_ON_ERROR for this
+     * controller's existing behaviour.
+     */
+    protected function jsonResponse(array $payload, int $status = 200): \Cake\Http\Response
     {
         return $this->response
+            ->withStatus($status)
             ->withType('application/json')
             ->withStringBody(json_encode($payload, JSON_THROW_ON_ERROR));
     }

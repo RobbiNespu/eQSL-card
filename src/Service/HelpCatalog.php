@@ -80,6 +80,16 @@ final class HelpCatalog
                 'voice-input'   => 'Voice input on the callsign field',
             ],
         ],
+        'net' => [
+            'label' => 'Net control (NCS)',
+            'pages' => [
+                'index'                 => 'Net control dashboard',
+                'running-a-net'         => 'Running a net',
+                'collaborative-logging' => 'Collaborative logging',
+                'public-view'           => 'The public live view',
+                'analytics-and-exports' => 'Analytics & exports',
+            ],
+        ],
         'reference' => [
             'label' => 'Reference',
             'pages' => [

@@ -49,4 +49,15 @@ class AppController extends Controller
          */
         //$this->loadComponent('FormProtection');
     }
+
+    /**
+     * Render an array as a JSON response. Shared by the net JSON feeds.
+     */
+    protected function jsonResponse(array $payload, int $status = 200): \Cake\Http\Response
+    {
+        return $this->response
+            ->withStatus($status)
+            ->withType('application/json')
+            ->withStringBody(json_encode($payload, JSON_UNESCAPED_SLASHES));
+    }
 }

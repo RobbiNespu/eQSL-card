@@ -75,17 +75,31 @@ final class RateLimitMiddleware implements MiddlewareInterface
         }
 
         // Regex-match rules. Key is the action name, value is regex + limit.
+        // Each rule carries its own `message` so callers get context-appropriate
+        // 429 text instead of a single hardcoded string for all rules.
+        // `identifier`: share_unlock uses capture group 1 (the token); net_live_feed
+        // has no capture group, so it intentionally falls through to an IP hash —
+        // scraper throttling is per-IP, not per-slug.
         $regexRules = [
             'share_unlock' => [
                 'pattern' => '#^/qsl/([A-Za-z0-9_\-]{43})/unlock$#',
                 'limit' => 5, 'window' => 900, 'method' => 'POST',
+                'message' => 'Too many unlock attempts for this share. Try again in 15 minutes.',
+            ],
+            // M6 T16 — public net feed. Keyed by IP hash to throttle scrapers.
+            // 60 GETs / minute is generous for a 4-second polling interval but
+            // blocks bulk scrapers hitting the endpoint without the JS poller.
+            'net_live_feed' => [
+                'pattern' => '#^/net/[A-Za-z0-9_\-]+/live(?:\.json)?$#',
+                'limit' => 60, 'window' => 60, 'method' => 'GET',
+                'message' => 'Too many requests. Please slow down.',
             ],
         ];
         foreach ($regexRules as $action => $rule) {
             if ($method === $rule['method'] && preg_match($rule['pattern'], $path, $m)) {
                 $identifier = $m[1] ?? hash('sha256', $ip);
                 if (!$this->limiter->hit($action, $identifier, $rule['limit'], $rule['window'])) {
-                    return (new Response())->withStatus(429)->withStringBody('Too many unlock attempts for this share. Try again in 15 minutes.');
+                    return (new Response())->withStatus(429)->withStringBody($rule['message']);
                 }
             }
         }

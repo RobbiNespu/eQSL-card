@@ -48,12 +48,15 @@ class DashboardController extends AppController
             ])->count(),
         ];
 
+        $liveNet = $this->fetchTable('NetSessions')->findLiveForUser($userId)->first();
+
         $this->set([
             'title' => 'Dashboard',
             'user' => $user,
             'recentCards' => $recentCards,
             'recentQsos' => $recentQsos,
             'stats' => $stats,
+            'liveNet' => $liveNet,
         ]);
     }
 }
