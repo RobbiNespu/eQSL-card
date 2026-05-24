@@ -34,6 +34,15 @@ class CallsignController extends AppController
         $this->viewBuilder()->setClassName('Json');
     }
 
+    /**
+     * Resolve a callsign via the configured provider chain and return JSON.
+     *
+     * Returns 200 with `{result: {...}}` on a hit, 204 No Content on a
+     * confirmed miss, or 404 if lookup is disabled globally.
+     *
+     * @param string $callsign The callsign to look up (route-bound, URL segment).
+     * @return \Cake\Http\Response|null JSON response, or null when using the Json view.
+     */
     public function lookup(string $callsign)
     {
         // Build the provider chain. Keyed by code() so the orchestrator can

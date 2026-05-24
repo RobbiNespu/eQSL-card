@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Controller\AppController;
+use App\Service\OperationLog;
 use Cake\I18n\DateTime;
 
 /**
@@ -29,19 +30,27 @@ use Cake\I18n\DateTime;
  */
 class CleanupController extends AppController
 {
+    /** Load the Authentication component required by all Admin controllers. */
     public function initialize(): void
     {
         parent::initialize();
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Gate access to admin-only actions.
+     *
+     * Anonymous requests are handled by AuthenticationComponent (redirects to
+     * /login). Only authenticated-but-not-admin users need the explicit 403.
+     *
+     * @param \Cake\Event\EventInterface $event The before-filter event.
+     * @return void
+     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
+     */
     public function beforeFilter(\Cake\Event\EventInterface $event): void
     {
         parent::beforeFilter($event);
 
-        // Anonymous: AuthenticationComponent::startup() (runs after
-        // beforeFilter) throws UnauthenticatedException → middleware redirect
-        // to /login. We only gate authenticated-but-not-admin users here.
         $identity = $this->Authentication->getIdentity();
         if (!$identity) {
             return;
@@ -186,8 +195,11 @@ class CleanupController extends AppController
     }
 
     /**
-     * @param string[] $dirs
-     * @param string[]|null $extensionsAllow
+     * Delete every file yielded by {@see self::walkFiles()} and return the count.
+     *
+     * @param string[] $dirs Absolute directory paths to sweep.
+     * @param string[]|null $extensionsAllow When supplied, only delete files with these extensions.
+     * @return int Number of files successfully deleted.
      */
     private function deleteFilesUnder(array $dirs, ?array $extensionsAllow = null): int
     {
@@ -246,6 +258,12 @@ class CleanupController extends AppController
             error_log('audit: ' . $e->getMessage());
         }
 
+        OperationLog::event('admin.cleanup.guest_cards_purged', [
+            'actor_user_id' => $userId,
+            'days'          => $days,
+            'count'         => $deleted,
+        ]);
+
         $this->Flash->success("Purged {$deleted} guest cards older than {$days} days.");
 
         return $this->redirect('/admin/cleanup');
@@ -291,6 +309,12 @@ class CleanupController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.cleanup.orphan_uploads_pruned', [
+            'actor_user_id' => $userId,
+            'days'          => $days,
+            'count'         => $deleted,
+        ]);
 
         $this->Flash->success("Pruned {$deleted} orphaned uploads older than {$days} days.");
 
@@ -345,6 +369,12 @@ class CleanupController extends AppController
             error_log('audit: ' . $e->getMessage());
         }
 
+        OperationLog::event('admin.cleanup.cards_expired', [
+            'actor_user_id'  => $userId,
+            'retention_days' => $retention,
+            'count'          => $soft,
+        ]);
+
         $this->Flash->success("Soft-deleted {$soft} cards older than {$retention} days. Run 'Prune orphans' next to reclaim disk.");
         return $this->redirect('/admin/cleanup');
     }
@@ -374,6 +404,11 @@ class CleanupController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.cleanup.callsign_cache_cleared', [
+            'actor_user_id' => $userId,
+            'rows_deleted'  => $count,
+        ]);
 
         $this->Flash->success("Cleared {$count} cached callsign lookups.");
         return $this->redirect('/admin/cleanup');
@@ -413,6 +448,11 @@ class CleanupController extends AppController
             error_log('audit: ' . $e->getMessage());
         }
 
+        OperationLog::event('admin.cleanup.cache_cleared', [
+            'actor_user_id' => $userId,
+            'files_removed' => $deleted,
+        ]);
+
         $this->Flash->success("Cache cleared ({$deleted} files removed).");
         return $this->redirect('/admin/cleanup');
     }
@@ -437,6 +477,11 @@ class CleanupController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.cleanup.logs_cleared', [
+            'actor_user_id' => $userId,
+            'files_removed' => $deleted,
+        ]);
 
         $this->Flash->success("Logs cleared ({$deleted} files removed).");
         return $this->redirect('/admin/cleanup');
@@ -464,6 +509,11 @@ class CleanupController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.cleanup.sessions_cleared', [
+            'actor_user_id' => $userId,
+            'files_removed' => $deleted,
+        ]);
 
         // Audit row is already persisted; safe to drop our own session next.
         $this->Authentication->logout();

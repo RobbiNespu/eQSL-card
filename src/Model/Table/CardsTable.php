@@ -9,8 +9,31 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
+/**
+ * QSL cards ORM table.
+ *
+ * A card is the rendered artefact (PNG + optional PDF) produced for a single
+ * QSO or net check-in. Cards carry a nullable share_slug for public sharing
+ * and an optional share_password_hash for password-protected shares.
+ *
+ * Soft-delete: the `deleted_at` column is set instead of removing the row.
+ * All user-facing queries must use `find('active')` to exclude deleted cards.
+ *
+ * Associations:
+ *   - belongsTo Users
+ *   - belongsTo GuestVisits
+ *   - belongsTo Templates
+ *   - belongsTo CardBackgrounds (FK upload_id — legacy column name kept for
+ *     backward compatibility with existing rows)
+ */
 class CardsTable extends Table
 {
+    /**
+     * Configure table name, primary key, Timestamp behavior, and associations.
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -31,6 +54,14 @@ class CardsTable extends Table
         $this->belongsTo('CardBackgrounds', ['foreignKey' => 'upload_id']);
     }
 
+    /**
+     * Validation: qso_data_json + png_path required; pdf_path and share
+     * columns are optional (pdf is built on demand; slug may be null until
+     * sharing is enabled).
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -74,6 +105,13 @@ class CardsTable extends Table
         return $query->where([$this->getAlias() . '.deleted_at IS' => null]);
     }
 
+    /**
+     * Application rules: share_slug unique (NULLs allowed); exactly one of
+     * user_id or guest_visit_id must be set (XOR ownership).
+     *
+     * @param \Cake\ORM\RulesChecker $rules Rules checker instance.
+     * @return \Cake\ORM\RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['share_slug'], ['allowMultipleNulls' => true]));

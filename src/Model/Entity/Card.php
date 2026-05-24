@@ -5,6 +5,13 @@ namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
 
+/**
+ * QSL card entity.
+ *
+ * Represents a rendered artefact (PNG path + optional PDF path) tied to a
+ * QSO. The `share_password_hash` column is in $_hidden so it is never
+ * included in JSON serialisations.
+ */
 class Card extends Entity
 {
     protected array $_accessible = [

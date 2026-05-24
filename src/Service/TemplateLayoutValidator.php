@@ -18,7 +18,19 @@ final class TemplateLayoutValidator
         'Cinzel-Regular.ttf',
     ];
 
-    /** @return string[] empty array on success, errors on failure */
+    /**
+     * Validate a JSON layout string against the expected template field schema.
+     *
+     * Checks that the root object contains a `fields` array, that no field
+     * exceeds 50 items, and that every field has valid placeholder / x / y /
+     * size / font / color values within range. Optional outline and shadow
+     * properties are validated only when present.
+     *
+     * @param string $jsonString   Raw JSON from `templates.layout_json`.
+     * @param int    $canvasWidth  Template canvas width in pixels (used for x-bound check).
+     * @param int    $canvasHeight Template canvas height in pixels (used for y-bound check).
+     * @return string[] Empty array on success; list of human-readable error strings on failure.
+     */
     public function validate(string $jsonString, int $canvasWidth, int $canvasHeight): array
     {
         $errors = [];

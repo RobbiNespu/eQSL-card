@@ -41,6 +41,9 @@ final class McmcProvider implements CallsignProviderInterface
 {
     private const ENDPOINT = 'https://www.mcmc.gov.my/en/legal/registers/register-of-apparatus-assignments-search';
 
+    /**
+     * @param \Cake\Http\Client|null $http HTTP client; defaults to a 10-second timeout instance.
+     */
     public function __construct(private ?Client $http = null)
     {
         $this->http ??= new Client(['timeout' => 10, 'redirect' => 3]);
@@ -62,6 +65,13 @@ final class McmcProvider implements CallsignProviderInterface
         return (bool)preg_match('/^9[MW]/', (string)$base);
     }
 
+    /**
+     * Fetch the MCMC registry page for `$callsign` and extract the exact-match row.
+     *
+     * @param string $callsign Normalised uppercase callsign (9M / 9W prefixed).
+     * @return CallsignLookupResult|null Result on exact match, null when not found.
+     * @throws \App\Service\CallsignLookup\CallsignLookupException On HTTP failure or non-200 response.
+     */
     public function lookup(string $callsign): ?CallsignLookupResult
     {
         try {

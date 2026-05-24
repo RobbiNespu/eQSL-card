@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Service\OperationLog;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -39,6 +40,8 @@ final class PasswordResetService
             'expires_at' => DateTime::now()->addSeconds($this->ttlSeconds),
         ]));
 
+        OperationLog::event('password.reset.issued');
+
         return $token;
     }
 
@@ -63,6 +66,8 @@ final class PasswordResetService
         }
         $row->used_at = DateTime::now();
         $resets->saveOrFail($row);
+
+        OperationLog::event('password.reset.consumed');
 
         return (string)$row->email;
     }

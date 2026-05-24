@@ -10,8 +10,23 @@ use Cake\I18n\DateTime;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
+/**
+ * Application settings ORM table.
+ *
+ * Stores key/value pairs that drive runtime behaviour (rate-limit bypass
+ * toggle, mailer settings, etc.). The primary key is the string `key`
+ * column — there is no auto-increment `id`. updated_at is stamped manually
+ * in beforeSave() because the Timestamp behavior only works with integer PKs
+ * when detecting insert vs. update.
+ */
 class AppSettingsTable extends Table
 {
+    /**
+     * Configure table name, composite PK on `key`, and display field.
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -21,6 +36,12 @@ class AppSettingsTable extends Table
         $this->setDisplayField('key');
     }
 
+    /**
+     * Validation: key required (max 80 chars); value is optional scalar.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -34,7 +55,14 @@ class AppSettingsTable extends Table
     }
 
     /**
-     * Manually stamp updated_at since this table only has a single timestamp column.
+     * Stamp updated_at on every save. The Timestamp behavior is not used here
+     * because the table's PK is `key` (not an integer id), which confuses the
+     * behavior's insert-vs-update detection. We stamp the column directly.
+     *
+     * @param \Cake\Event\EventInterface                     $event   ORM save event.
+     * @param \Cake\Datasource\EntityInterface               $entity  Entity being saved.
+     * @param \ArrayObject<string, mixed>                    $options Save options.
+     * @return void
      */
     public function beforeSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
     {

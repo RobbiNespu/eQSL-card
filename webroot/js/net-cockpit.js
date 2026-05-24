@@ -1,3 +1,16 @@
+/**
+ * Net-session cockpit — NCS (Net Control Station) entry and live roster.
+ *
+ * Wires the check-in entry form (`data-net-entry`) to the server check-in
+ * endpoint (`window.NET.postUrl`). Optimistically adds a temp row to the
+ * roster on submit, then reconciles with the server response (or removes
+ * the temp row on failure). Shares `window.__netStore` with net-poll.js
+ * so the polling tick and the form submission both write to the same
+ * RosterStore instance.
+ *
+ * Requires `window.NET = { postUrl, feedUrl, status }` to be set by the
+ * server-rendered page before this module executes.
+ */
 import { RosterStore } from './net-merge.js';
 
 (function () {
@@ -7,11 +20,13 @@ import { RosterStore } from './net-merge.js';
   const form = document.querySelector('[data-net-entry]');
   const tbody = document.querySelector('[data-net-roster] tbody');
 
+  /** @returns {string} current CSRF token from the page meta tag */
   function csrf() {
     const m = document.querySelector('meta[name="csrf-token"]');
     return m ? m.getAttribute('content') : '';
   }
 
+  /** Re-render the roster tbody from the in-memory RosterStore, newest first. */
   function render() {
     if (!tbody) return;
     const rows = store.rows();
@@ -52,7 +67,10 @@ import { RosterStore } from './net-merge.js';
         const json = await res.json();
         if (json.ok) store.reconcile(tempId, json.checkin);
         else store.remove(tempId);
-      } catch (_) { /* offline path is a later task */ }
+      } catch (err) {
+        console.error('[net-cockpit] check-in POST failed', err);
+        store.remove(tempId);
+      }
       render();
     });
   }

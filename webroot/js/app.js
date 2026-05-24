@@ -136,6 +136,18 @@
   });
 })();
 
+/**
+ * Alpine factory for the camera/file-upload widget on the guest QSL
+ * generation form (/generate). Three mutually-exclusive UI modes:
+ *   - 'default'  → show the Upload File / Use Camera choice buttons
+ *   - 'camera'   → live viewfinder, Capture button visible
+ *   - 'upload'   → file-input visible (also the fallback if getUserMedia fails)
+ *
+ * `captured` holds the JPEG data-URL produced by capture(), bound to a
+ * hidden <input> that ships the image data to the server on form submit.
+ *
+ * @returns {object} Alpine component object
+ */
 function cameraForm() {
     return {
         mode: 'default',
@@ -144,7 +156,12 @@ function cameraForm() {
         // qsos/add toggle so the public form can produce net check-in cards
         // too (placeholders like {ncs_callsign}, {net_title} resolve).
         qsoType: 'contact',
+        /** @returns {boolean} true when the selected QSO type is a net check-in */
         isNet() { return this.qsoType === 'net'; },
+        /**
+         * Request the rear-facing camera and start the live preview.
+         * Falls back to the file-upload mode if getUserMedia is denied.
+         */
         async startCamera() {
             this.mode = 'camera';
             try {
@@ -155,6 +172,10 @@ function cameraForm() {
                 this.mode = 'upload';
             }
         },
+        /**
+         * Freeze the current video frame into `captured` as a JPEG data-URL
+         * and stop the camera tracks so the indicator light turns off.
+         */
         capture() {
             const v = this.$refs.video, c = this.$refs.canvas;
             c.width = v.videoWidth; c.height = v.videoHeight;
@@ -166,6 +187,16 @@ function cameraForm() {
 }
 window.cameraForm = cameraForm;
 
+/**
+ * Alpine factory for the bulk-render modal on the QSO list (/qsos).
+ *
+ * Manages checkbox selection of QSO rows, then drives a server-side
+ * streaming job that renders QSL card images one-at-a-time. The server
+ * processes rows in batches and returns incremental {done, total, finished}
+ * progress payloads so the modal progress bar can update live.
+ *
+ * @returns {object} Alpine component object
+ */
 function bulkRenderForm() {
     return {
         selected: [],
@@ -178,6 +209,11 @@ function bulkRenderForm() {
         skipped: 0,
         message: '',
         jobToken: null,
+        /**
+         * Toggle a single QSO id in/out of `selected`.
+         * @param {number|string} id  - QSO row id
+         * @param {boolean}       on  - true to add, false to remove
+         */
         toggleOne(id, on) {
             id = parseInt(id, 10);
             if (on) {
@@ -186,6 +222,10 @@ function bulkRenderForm() {
                 this.selected = this.selected.filter(x => x !== id);
             }
         },
+        /**
+         * Select or deselect every QSO checkbox in the table body.
+         * @param {boolean} on - true to select all, false to deselect all
+         */
         toggleAll(on) {
             const cbs = document.querySelectorAll('tbody input[type="checkbox"]');
             cbs.forEach(cb => {
@@ -195,6 +235,10 @@ function bulkRenderForm() {
         },
         openBulkModal() { this.modalOpen = true; this.started = false; this.finished = false; },
         closeModal() { this.modalOpen = false; },
+        /**
+         * POST the selected QSO ids to /qsos/bulk-render, then drive the
+         * streaming job to completion by calling pollNext().
+         */
         async startBulk() {
             this.started = true;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content
@@ -219,6 +263,11 @@ function bulkRenderForm() {
                 await this.pollNext(csrf);
             }
         },
+        /**
+         * Poll /qsos/bulk-render/:token/next until `finished` is true,
+         * updating the progress counters on each response.
+         * @param {string} csrf - CSRF token value for POST headers
+         */
         async pollNext(csrf) {
             while (!this.finished) {
                 const r = await fetch(`/qsos/bulk-render/${this.jobToken}/next`, {
@@ -351,6 +400,11 @@ function quickAddForm(recent) {
                 ...QUICK_ADD_DEFAULT_CHIPS.map(t => ({ text: t, userAdded: false })),
             ];
         },
+        /**
+         * Paste a quick-fill chip's text into the notes field (with a trailing
+         * space) and move the cursor to the end so the operator can continue typing.
+         * @param {{ text: string, userAdded: boolean }} chip
+         */
         insertChip(chip) {
             if (!chip || !chip.text) return;
             // Replace notes content with the chip + trailing space, so the
@@ -367,6 +421,11 @@ function quickAddForm(recent) {
                 }
             });
         },
+        /**
+         * Promote the current notes field value into a persistent user-added
+         * chip. Shows an error flash if the text is blank or a case-insensitive
+         * duplicate, otherwise prepends to `chips` and persists to localStorage.
+         */
         addChipFromInput() {
             const text = this.form.notes.trim();
             if (!text) return;
@@ -382,12 +441,21 @@ function quickAddForm(recent) {
             this.saveUserChips();
             this.showFlash('success', `Saved "${text}" as a chip.`);
         },
+        /**
+         * Remove a user-added chip by its index in `chips`. No-ops for
+         * out-of-range indices or default (non-userAdded) chips.
+         * @param {number} idx - index into this.chips
+         */
         removeChip(idx) {
             if (idx < 0 || idx >= this.chips.length) return;
             if (!this.chips[idx].userAdded) return;  // can't remove defaults
             this.chips.splice(idx, 1);
             this.saveUserChips();
         },
+        /**
+         * Persist the current user-added chips to localStorage, silently
+         * ignoring quota/private-mode errors.
+         */
         saveUserChips() {
             const userChips = this.chips
                 .filter(c => c.userAdded)
@@ -396,6 +464,12 @@ function quickAddForm(recent) {
                 localStorage.setItem(QUICK_ADD_CHIPS_KEY, JSON.stringify(userChips));
             } catch (e) { /* quota / private mode — best-effort */ }
         },
+        /**
+         * Populate frequency, mode, and notes from a recent QSO row, then
+         * clear the per-contact fields (callsign, RST) and re-focus callsign.
+         * Called when the operator taps a row in the recent-QSOs panel.
+         * @param {{ frequency?: string, mode?: string, notes?: string }} r
+         */
         cloneFromRecent(r) {
             if (!r || typeof r !== 'object') return;
             this.form.frequency = r.frequency || '';
@@ -485,6 +559,13 @@ function quickAddForm(recent) {
             const plural = r.total_qsos === 1 ? '' : '×';
             return { kind: 'before', label: `Worked ${r.total_qsos}${plural}${when ? ' · last ' + when : ''}` };
         },
+        /**
+         * Convert an ISO 8601 timestamp to a human-readable relative label
+         * ("today", "yesterday", "3 days ago", "2 weeks ago", or the date).
+         * Returns '' on any parse error.
+         * @param {string} iso - ISO 8601 date-time string
+         * @returns {string}
+         */
         _relativeWhen(iso) {
             try {
                 const d = new Date(iso);
@@ -496,6 +577,12 @@ function quickAddForm(recent) {
                 return d.toISOString().slice(0, 10);
             } catch (e) { return ''; }
         },
+        /**
+         * Form submit handler. Validates, then POSTs to /qsos/quick (online) or
+         * enqueues via OfflineQueue (offline / network error). Updates `recent`,
+         * shows a flash banner, and triggers haptic feedback on success.
+         * @param {Event} $event - the Alpine $event from x-on:submit
+         */
         async submit($event) {
             $event.preventDefault();
             if (this.submitting) return;
@@ -580,6 +667,11 @@ function quickAddForm(recent) {
                 this.submitting = false;
             }
         },
+        /**
+         * Enqueue a QSO payload in IndexedDB for later sync, add a placeholder
+         * row to `recent`, and show a queued flash banner.
+         * @param {object} data - quick-add form payload (call_worked, frequency_mhz, etc.)
+         */
         async _queueOffline(data) {
             try {
                 const row = await window.OfflineQueue.enqueue(data);
@@ -610,6 +702,11 @@ function quickAddForm(recent) {
                 this.showFlash('error', 'Could not queue offline: ' + e.message);
             }
         },
+        /**
+         * Clear per-contact fields (callsign, RST sent/received) and reset the
+         * dupe-check badge. Frequency, mode, and notes are preserved intentionally
+         * so net-rotation operators don't re-type them between contacts.
+         */
         _clearPerContactFields() {
             this.form.callsign = '';
             this.form.rstSent  = '';
@@ -622,6 +719,11 @@ function quickAddForm(recent) {
             this.dupe.state = 'idle';
             this.dupe.result = null;
         },
+        /**
+         * Show a transient status banner, auto-clearing after 3 seconds.
+         * @param {'success'|'error'} kind    - drives the CSS colour variant
+         * @param {string}            message - human-readable message text
+         */
         showFlash(kind, message) {
             this.flashKind = kind;
             this.flashMessage = message;
@@ -806,6 +908,10 @@ function syncStatusPill() {
             // Initial poll — read the queue count once on mount.
             this._refreshPending();
         },
+        /**
+         * Read the current queued-row count from IndexedDB and store it in
+         * `pending`. Silently no-ops if IndexedDB is unavailable.
+         */
         async _refreshPending() {
             if (!window.OfflineQueue) return;
             try {
@@ -843,18 +949,33 @@ function syncStatusPill() {
             this.expanded = !this.expanded;
             if (this.expanded) await this._loadRows();
         },
+        /**
+         * Fetch all queued rows from IndexedDB into `rows` for the expanded list.
+         * Resets rows to [] on any IndexedDB error.
+         */
         async _loadRows() {
             if (!window.OfflineQueue) return;
             try {
                 this.rows = await window.OfflineQueue.getAll();
             } catch (e) { this.rows = []; }
         },
+        /**
+         * Remove a specific queued row by UUID, then refresh the pending count
+         * and displayed row list.
+         * @param {string} uuid - client-generated UUID of the row to delete
+         */
         async deleteRow(uuid) {
             if (!window.OfflineQueue) return;
             await window.OfflineQueue.remove(uuid);
             await this._refreshPending();
             await this._loadRows();
         },
+        /**
+         * Format an epoch-ms timestamp as HH:MM (24-hour, en-GB locale).
+         * Returns '' on invalid input.
+         * @param {number} timestamp - epoch milliseconds
+         * @returns {string}
+         */
         formatTime(timestamp) {
             try {
                 return new Date(timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });

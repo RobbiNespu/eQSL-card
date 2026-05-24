@@ -72,32 +72,41 @@ final class HamRadio
     ];
 
     /**
-     * Build a key=>label list for a `<select>`, optionally including a
-     * pre-existing `$current` value that's not in the canonical list — so
-     * editing an ADIF-imported QSO with a quirky band/mode still selects
-     * the user's stored value rather than defaulting to blank.
+     * Build a key→label option list for a `<select>`, prepending any non-canonical
+     * `$current` value so editing an ADIF-imported QSO with a quirky band still
+     * keeps the stored value selected.
      *
-     * @return array<string, string>
+     * @param string|null $current Pre-existing value to include even when not in the canonical list.
+     * @return array<string, string> Band code → band code (value and label are the same string).
      */
     public static function bandOptions(?string $current = null): array
     {
         return self::buildOptions(self::BANDS, $current);
     }
 
-    /** @return array<string, string> */
+    /**
+     * Build a key→label option list for mode selection (same pattern as bandOptions).
+     *
+     * @param string|null $current Pre-existing mode to include even when not in the canonical list.
+     * @return array<string, string>
+     */
     public static function modeOptions(?string $current = null): array
     {
         return self::buildOptions(self::MODES, $current);
     }
 
     /**
-     * Resolve the canonical band for an RF frequency, in MHz. Returns
-     * null when the frequency is outside every known amateur band — the
-     * caller should leave the band field alone rather than guess.
+     * Resolve the canonical band name for an RF frequency in MHz.
      *
-     * Use cases: auto-fill the band picker when an operator types a
-     * frequency in the QSO form, and the same logic for ADIF imports
-     * that supply FREQ but no BAND tag.
+     * Looks up `$mhz` in `BAND_RANGES` (Malaysian amateur-service allocations).
+     * Returns null when the frequency is outside every known band — the
+     * caller should leave the band field untouched rather than guess.
+     *
+     * Use cases: auto-fill the band picker when an operator types a frequency
+     * in the QSO form, and for ADIF imports that carry FREQ but no BAND tag.
+     *
+     * @param float|int|string|null $mhz Frequency in MHz (numeric or numeric string).
+     * @return string|null Band name (e.g. "20m"), or null when outside all known ranges.
      */
     public static function bandForFrequency(float|int|string|null $mhz): ?string
     {

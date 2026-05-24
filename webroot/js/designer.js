@@ -1,9 +1,11 @@
 /**
- * Designer Alpine factory (M3-T3 — Fabric.js wiring).
+ * Alpine component factory for the QSL card template designer (M3-T3).
  *
- * Renders each entry of `fields` as a draggable Fabric.Textbox on the canvas,
- * keeps the Alpine `fields` array authoritative for the JSON payload, and
- * mirrors selection / drag / size / colour edits in both directions.
+ * Wraps a Fabric.js canvas and keeps an Alpine `fields` array as the
+ * authoritative JSON model. Edits made on the canvas (drag, resize, colour
+ * picker) are mirrored back into `fields`; edits made in the right-hand
+ * property panel are pushed from `fields` into Fabric. The final payload
+ * is serialised by `save()` and POSTed to the server.
  *
  * The on-screen preview is fit-to-column — we read the wrapper's clientWidth
  * (capped at 600px tall) and uniformly `setZoom` to scale the design space
@@ -15,6 +17,19 @@
  * malformed legacy value should not blow up the page; we degrade to an
  * empty fields array so the user can rebuild rather than seeing a
  * white-screen stack trace.
+ *
+ * @param {object}          initial
+ * @param {'new'|'edit'}    initial.mode              - determines the POST URL in save()
+ * @param {number|null}     initial.templateId         - existing template id (edit mode)
+ * @param {string}          initial.name               - template display name
+ * @param {string}          initial.description
+ * @param {number}          initial.canvasWidth         - design-space width in px (default 1500)
+ * @param {number}          initial.canvasHeight        - design-space height in px (default 1000)
+ * @param {string}          initial.layoutJson          - JSON string {"fields":[…]}
+ * @param {number|null}     initial.backgroundUploadId  - uploads.id for the background image
+ * @param {string|null}     initial.backgroundUrl       - preview URL for the background image
+ * @param {'contact'|'net'} initial.qsoType             - template QSO type (drives picker filter)
+ * @returns {object} Alpine component object
  */
 function designer(initial) {
     return {
@@ -66,6 +81,11 @@ function designer(initial) {
             });
         },
 
+        /**
+         * Create the Fabric canvas, bind all event listeners, and populate
+         * existing fields. Called once from init() after the DOM is ready.
+         * No-ops with a console.error if Fabric is not loaded.
+         */
         initFabric() {
             if (typeof fabric === 'undefined') {
                 console.error('Fabric.js not loaded');
@@ -129,6 +149,11 @@ function designer(initial) {
             });
         },
 
+        /**
+         * Scale the Fabric canvas to fit its wrapper column (up to 600px tall).
+         * Preserves aspect ratio; stores integer pixel dimensions to avoid
+         * sub-pixel blurring. Called on init and on every window resize.
+         */
         applyViewportScale() {
             // Fit the on-screen canvas to its column. The wrapper ref is set
             // by the edit.php template; if it's missing (legacy markup) we
@@ -150,6 +175,13 @@ function designer(initial) {
             this.fabricCanvas.setDimensions({ width: w, height: h });
         },
 
+        /**
+         * Create a Fabric Textbox for a field definition and add it to the
+         * canvas. Stamps `obj.fieldIndex = idx` so event handlers can resolve
+         * back to the correct Alpine fields entry.
+         * @param {object} field - field definition from the `fields` array
+         * @param {number} idx   - index in `fields`
+         */
         renderFieldOnCanvas(field, idx) {
             const FabricNS = fabric.fabric || fabric;
             // Textbox supports word-wrap & resize handles; fall back to Text
@@ -204,12 +236,23 @@ function designer(initial) {
             return helpers ? helpers.fontFamilyFor(filename) : 'sans-serif';
         },
 
+        /**
+         * Sync the right-hand property panel to the field that corresponds
+         * to the Fabric object that was just selected on the canvas.
+         * @param {fabric.Object|undefined} obj - the newly-selected Fabric object
+         */
         handleSelection(obj) {
             if (obj && typeof obj.fieldIndex !== 'undefined') {
                 this.selectedField = this.fields[obj.fieldIndex] || null;
             }
         },
 
+        /**
+         * Write position, size, colour, and rotation from a moved/resized Fabric
+         * object back into its corresponding `fields` entry. Called from both
+         * the live `object:moving` event and the final `object:modified` commit.
+         * @param {fabric.Object} obj - the Fabric object that changed
+         */
         syncCanvasToField(obj) {
             if (!obj || typeof obj.fieldIndex === 'undefined') return;
             const f = this.fields[obj.fieldIndex];
@@ -221,6 +264,11 @@ function designer(initial) {
             f.rotation = Math.round(obj.angle || 0);
         },
 
+        /**
+         * Append a new field with default styling to the canvas and select it.
+         * Y-position is staggered by 60px per existing field to avoid overlap.
+         * @param {string} text - the placeholder text / label for the new field
+         */
         addField(text) {
             const field = {
                 placeholder: text,
@@ -248,6 +296,11 @@ function designer(initial) {
             this.fabricCanvas?.requestRenderAll();
         },
 
+        /**
+         * Push right-pane property-panel edits from `selectedField` into its
+         * Fabric object and request a re-render. Bound via `x-on:input` in the
+         * template so the canvas updates live as the operator types.
+         */
         syncFieldToCanvas() {
             // Right-pane edits (`x-model` on `selectedField`) → push into
             // the matching Fabric object so the canvas updates live.
@@ -270,6 +323,11 @@ function designer(initial) {
             this.fabricCanvas?.requestRenderAll();
         },
 
+        /**
+         * Remove the currently-selected field from both the Fabric canvas and
+         * the `fields` array, then rebuild the index map because splicing
+         * shifts all higher indices.
+         */
         deleteSelectedField() {
             if (!this.selectedField) return;
             const idx = this.fields.indexOf(this.selectedField);
@@ -330,7 +388,11 @@ function designer(initial) {
             ctx.restore();
         },
 
-        // Select a field from the layers panel by its fields-array index.
+        /**
+         * Select a field programmatically from the layers panel by its array
+         * index, mirroring the selection into Fabric and `selectedField`.
+         * @param {number} idx - index in `fields`
+         */
         selectFieldByIndex(idx) {
             const obj = this.fieldObjects.get(idx);
             if (!obj || !this.fabricCanvas) return;
@@ -357,6 +419,11 @@ function designer(initial) {
 
         // ── Preview tab ───────────────────────────────────────────────────
 
+        /**
+         * Switch the active tab and trigger a preview render when switching
+         * to the preview tab, or a Fabric re-render when switching back.
+         * @param {'design'|'preview'} tab
+         */
         switchTab(tab) {
             this.previewTab = tab;
             if (tab === 'preview') {
@@ -366,9 +433,13 @@ function designer(initial) {
             }
         },
 
-        // Substitute a placeholder string with sample values for display.
-        // Mirrors the server-side PlaceholderResolver regex so the preview
-        // text matches what the real card renderer would produce.
+        /**
+         * Replace {placeholder} tokens in a template string with sample QSO
+         * values so the preview tab shows realistic output. Mirrors the
+         * server-side PlaceholderResolver regex.
+         * @param {string} text - raw field placeholder string
+         * @returns {string} resolved string with tokens substituted
+         */
         resolveForPreview(text) {
             const dt = new Date('2025-07-27T14:30:00Z');
             const sample = {
@@ -400,8 +471,13 @@ function designer(initial) {
             });
         },
 
-        // Convert a PHP date format string to a formatted string from a JS Date.
-        // Handles the subset of PHP format chars actually used in QSL templates.
+        /**
+         * Format a JS Date using a subset of PHP date() format characters.
+         * Handles Y y m n d j H G i s — the only chars used in QSL templates.
+         * @param {string} fmt - PHP date format string
+         * @param {Date}   dt  - date to format
+         * @returns {string}
+         */
         formatPhpDate(fmt, dt) {
             const pad = n => String(n).padStart(2, '0');
             return [...fmt].map(c => {
@@ -421,6 +497,11 @@ function designer(initial) {
             }).join('');
         },
 
+        /**
+         * Render a read-only Fabric canvas in the preview tab, substituting
+         * sample values via resolveForPreview(). Creates `previewFabric` on
+         * first call; clears and redraws on subsequent calls.
+         */
         renderPreview() {
             if (!this.$refs.previewCanvas) return;
             const FabricNS   = fabric.fabric || fabric;
@@ -470,6 +551,12 @@ function designer(initial) {
         // we keep both: id for save(), url for the preview.
         backgroundUrl: initial.backgroundUrl || null,
 
+        /**
+         * Upload a background image file to /templates/upload-background, then
+         * store the returned URL and upload_id and apply the background to the
+         * design canvas.
+         * @param {File} file - image file chosen by the operator
+         */
         async uploadBackground(file) {
             if (!file) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -506,6 +593,11 @@ function designer(initial) {
             }
         },
 
+        /**
+         * Load `backgroundUrl` as a Fabric Image and set it as the background
+         * of the given canvas, scaled to fill the design space exactly.
+         * @param {fabric.Canvas} [targetCanvas] - defaults to the design canvas
+         */
         applyBackground(targetCanvas) {
             const canvas = targetCanvas || this.fabricCanvas;
             if (!this.backgroundUrl || !canvas) return;
@@ -532,6 +624,12 @@ function designer(initial) {
         // is_approved=false` so the template enters the admin moderation queue.
         // We never auto-approve — that requires explicit admin action (M3-T11).
         makePublic: false,
+        /**
+         * Serialise the current design and POST to /templates/new (new mode)
+         * or /templates/:id/edit (edit mode). On success, follows the JSON
+         * redirect_url returned by the controller. Surfaces server validation
+         * errors (HTTP 422) via alert rather than silently navigating away.
+         */
         async save() {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
             const url = this.mode === 'new' ? '/templates/new' : `/templates/${this.templateId}/edit`;

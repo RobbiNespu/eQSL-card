@@ -22,6 +22,13 @@ use Cake\Validation\Validator;
  */
 class ActivationsTable extends Table
 {
+    /**
+     * Configure table name, primary key, Timestamp behavior (created_at only),
+     * and associations to Users + Qsos.
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -42,6 +49,13 @@ class ActivationsTable extends Table
         $this->hasMany('Qsos', ['foreignKey' => 'activation_id']);
     }
 
+    /**
+     * Validation: code + name required (max 60/120 chars); grid_square
+     * is optional but must match Maidenhead format (4 or 6 chars) when present.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -68,9 +82,13 @@ class ActivationsTable extends Table
     }
 
     /**
-     * Returns the user's current active activation (if any).
-     * Used on every /qsos/quick page load to render the banner and to
-     * auto-tag new QSOs at save time. Returns null if no active row.
+     * Return the user's current active activation (ended_at IS NULL), or null.
+     *
+     * Used on every /qsos/quick page load to render the active-activation
+     * banner and to auto-tag new QSOs at save time.
+     *
+     * @param int $userId Owner user primary key.
+     * @return \App\Model\Entity\Activation|null
      */
     public function findActiveForUser(int $userId): ?\App\Model\Entity\Activation
     {
@@ -84,6 +102,10 @@ class ActivationsTable extends Table
 
     /**
      * Recent activations for a user (active + ended), newest first.
+     *
+     * @param int $userId Owner user primary key.
+     * @param int $limit  Maximum rows to return (default 20).
+     * @return \Cake\ORM\Query\SelectQuery
      */
     public function findRecentForUser(int $userId, int $limit = 20): SelectQuery
     {

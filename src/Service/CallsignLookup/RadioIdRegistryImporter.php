@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service\CallsignLookup;
 
+use App\Service\OperationLog;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 
@@ -217,6 +218,12 @@ final class RadioIdRegistryImporter
                 number_format($total),
                 number_format($cached)
             ));
+
+            OperationLog::event('callsign.radioid.import', [
+                'processed' => $total,
+                'cached' => $cached,
+            ]);
+
             return $cached;
         } finally {
             fclose($fh);
@@ -360,6 +367,13 @@ final class RadioIdRegistryImporter
             number_format($totalProcessed),
             number_format($cached)
         ));
+
+        OperationLog::event('callsign.radioid.refresh', [
+            'processed' => $totalProcessed,
+            'cached' => $cached,
+            'mb' => round($bytesRead / 1048576, 1),
+        ]);
+
         return $cached;
     }
 

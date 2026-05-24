@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service\CallsignLookup;
 
+use App\Service\OperationLog;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -48,7 +49,18 @@ final class DirectoryCsvImporter
     ];
 
     /**
+     * Import a callsign CSV file into the `callsign_directory` table.
+     *
+     * Existing rows (matched by uppercase callsign) are updated; new callsigns
+     * are inserted. Empty CSV fields do NOT overwrite existing non-empty values.
+     * Rows without a callsign are counted as skipped. A single summary event is
+     * logged after the import completes.
+     *
+     * @param string      $csvPath     Absolute path to the CSV file (must be readable).
+     * @param string|null $sourceLabel Human label for the data source (e.g. "MCMC 2026-Q1").
      * @return array{imported:int, updated:int, skipped:int, errors:string[]}
+     * @throws \InvalidArgumentException If the CSV is not readable or lacks a callsign column.
+     * @throws \RuntimeException         If the CSV file cannot be opened.
      */
     public function import(string $csvPath, ?string $sourceLabel = null): array
     {
@@ -104,6 +116,13 @@ final class DirectoryCsvImporter
                     $errors[] = "Row {$rowNum} ({$rec['callsign']}): " . $e->getMessage();
                 }
             }
+
+            OperationLog::event('callsign.directory.import', [
+                'source_label' => $sourceLabel,
+                'imported' => $imported,
+                'updated' => $updated,
+                'skipped' => $skipped,
+            ]);
 
             return [
                 'imported' => $imported,

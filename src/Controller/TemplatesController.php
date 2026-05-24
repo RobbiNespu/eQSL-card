@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\OperationLog;
+
 /**
  * Templates Controller (M3-T2 scaffold).
  *
@@ -105,6 +107,7 @@ class TemplatesController extends AppController
             $wantsJson = $this->request->accepts('application/json')
                 && !$this->request->accepts('text/html');
             if (empty($errors)) {
+                OperationLog::event('template.created', ['user_id' => (int)$userId, 'template_id' => (int)$entity->id]);
                 $this->Flash->success('Template created.');
                 // The designer save() fetch sends Accept: application/json
                 // exclusively, so it needs a JSON `redirect_url` back —
@@ -161,6 +164,7 @@ class TemplatesController extends AppController
             $wantsJson = $this->request->accepts('application/json')
                 && !$this->request->accepts('text/html');
             if (empty($errors)) {
+                OperationLog::event('template.saved', ['user_id' => (int)$userId, 'template_id' => (int)$template->id]);
                 $this->Flash->success('Template saved.');
                 if ($wantsJson) {
                     return $this->jsonRedirect('/templates/' . $template->id . '/edit');
@@ -249,6 +253,7 @@ class TemplatesController extends AppController
         $newEntity->set('thumbnail_path', null, ['guard' => false]);
 
         $templates->saveOrFail($newEntity);
+        OperationLog::event('template.cloned', ['user_id' => (int)$userId, 'template_id' => (int)$newEntity->id, 'source_id' => (int)$id]);
 
         $this->Flash->success('Template cloned. You can now edit your copy.');
 
@@ -329,6 +334,7 @@ class TemplatesController extends AppController
         }
 
         $templates->deleteOrFail($template);
+        OperationLog::event('template.deleted', ['user_id' => (int)$userId, 'template_id' => (int)$id]);
         $this->Flash->success('Template deleted.');
 
         return $this->redirect('/templates');
@@ -475,6 +481,7 @@ class TemplatesController extends AppController
         } catch (\Throwable $e) {
             // Log but don't fail the save
             error_log('[TemplateThumbnailRenderer] ' . $e->getMessage());
+            OperationLog::failure('template.thumbnail_render', $e, ['template_id' => (int)$entity->id]);
         }
 
         // Handle "Make public" request — queues for admin moderation
@@ -500,6 +507,7 @@ class TemplatesController extends AppController
             } catch (\Throwable $e) {
                 error_log('audit: ' . $e->getMessage());
             }
+            OperationLog::event('template.public_requested', ['user_id' => (int)$userId, 'template_id' => (int)$entity->id]);
         }
 
         return [];
@@ -538,21 +546,11 @@ class TemplatesController extends AppController
                 $mailer->deliver();
             } catch (\Throwable $e) {
                 error_log('[notify admin] ' . $e->getMessage());
+                OperationLog::failure('template.admin_notify', $e, ['template_id' => (int)$template->id]);
             }
         }
     }
 
-    /**
-     * Read-only template preview (M3-T2 placeholder).
-     *
-     * Allows the current user to view their own templates plus system rows
-     * (`is_system`) and curated public rows (`is_public AND is_approved`).
-     * This is the surface T7's gallery cards link into for "preview before
-     * clone". A richer preview (with rendered thumbnail) ships alongside T6.
-     *
-     * @param int $id Template id (route-bound).
-     * @return void
-     */
     /**
      * Designer preview-background uploader (M3-T5).
      *
@@ -659,6 +657,17 @@ class TemplatesController extends AppController
         return null;
     }
 
+    /**
+     * Read-only template preview (M3-T2 placeholder).
+     *
+     * Allows the current user to view their own templates plus system rows
+     * (`is_system`) and curated public rows (`is_public AND is_approved`).
+     * This is the surface T7's gallery cards link into for "preview before
+     * clone". A richer preview (with rendered thumbnail) ships alongside T6.
+     *
+     * @param int $id Template id (route-bound).
+     * @return void
+     */
     public function view(int $id): void
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();

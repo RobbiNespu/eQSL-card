@@ -15,8 +15,21 @@ final class NetMetrics
     public const WINDOW = 8;
     public const REGULAR_THRESHOLD = 0.5;
 
+    /**
+     * @param \Cake\ORM\Table $qsos The Qsos table (injected so tests can substitute a fixture-backed instance).
+     */
     public function __construct(private Table $qsos) {}
 
+    /**
+     * Compute aggregated statistics for a single net session.
+     *
+     * Returns checkin count, unique callsigns, "new tonight" count (callsigns
+     * not seen in any previous session by the same owner), check-in rate
+     * (per minute), and signal strength distribution.
+     *
+     * @param int $sessionId The `net_sessions.id` to analyse.
+     * @return array{checkins:int, unique:int, new:int, rate:float, signal:array<int|string,int>}
+     */
     public function sessionStats(int $sessionId): array
     {
         $rows = $this->qsos->find()
@@ -91,7 +104,15 @@ final class NetMetrics
         ];
     }
 
-    /** @return list<array{callsign:string,grid:string,lat:float,lon:float,signal:?int}> */
+    /**
+     * Build a list of map marker points for the Leaflet participant map.
+     *
+     * Only QSOs with a non-null `grid_square` that successfully decodes via
+     * Maidenhead are included; malformed grids are silently skipped.
+     *
+     * @param int $sessionId The `net_sessions.id` to map.
+     * @return list<array{callsign:string,grid:string,lat:float,lon:float,signal:?int}>
+     */
     public function mapPoints(int $sessionId): array
     {
         $rows = $this->qsos->find()
@@ -116,6 +137,18 @@ final class NetMetrics
         return $points;
     }
 
+    /**
+     * Compute retention analytics across the last `$window` ended sessions for a net title.
+     *
+     * Returns the per-session unique check-in counts, a list of "regular" callsigns
+     * (appearing in >= `REGULAR_THRESHOLD` fraction of sessions), and the session-over-
+     * session retention ratio (fraction of previous session's callsigns who returned).
+     *
+     * @param int    $ownerId  User ID of the net owner.
+     * @param string $netTitle Net title to query (exact match).
+     * @param int    $window   Number of most-recent ended sessions to include (default 8).
+     * @return array{sessions:list<array{id:int,unique:int}>, regulars:list<string>, retention:float|null}
+     */
     public function retention(int $ownerId, string $netTitle, int $window = self::WINDOW): array
     {
         $netSessions = TableRegistry::getTableLocator()->get('NetSessions');

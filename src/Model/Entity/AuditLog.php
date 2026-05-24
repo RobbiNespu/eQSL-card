@@ -5,6 +5,13 @@ namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
 
+/**
+ * Audit log entry entity.
+ *
+ * All fields are server-controlled and locked from mass assignment.
+ * Rows are written exclusively through the AuditLogService or similar
+ * service-layer helpers — never directly from a controller's patchEntity.
+ */
 class AuditLog extends Entity
 {
     protected array $_accessible = [

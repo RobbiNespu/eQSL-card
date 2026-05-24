@@ -5,6 +5,17 @@ namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
 
+/**
+ * QSO entity.
+ *
+ * Mutators normalise user-supplied strings before persistence:
+ *   - call_worked / ncs_callsign → uppercase + trimmed.
+ *   - net_title / net_organisation / transport_meta → trim, empty → null.
+ *   - grid_square → Maidenhead canonical form (first 4 uppercase, subsquare lowercase).
+ *
+ * Several columns are locked from mass assignment (see $_accessible comments
+ * inline) to prevent spoofing of server-assigned FK values.
+ */
 class Qso extends Entity
 {
     protected array $_accessible = [
@@ -53,6 +64,12 @@ class Qso extends Entity
         'net_role'          => true,
     ];
 
+    /**
+     * Normalise the NCS callsign to uppercase and strip surrounding whitespace.
+     *
+     * @param string|null $value Raw value from the form.
+     * @return string|null Normalised callsign, or null when empty.
+     */
     protected function _setNcsCallsign(?string $value): ?string
     {
         if ($value === null || $value === '') {
@@ -77,6 +94,12 @@ class Qso extends Entity
         return $trimmed === '' ? null : $trimmed;
     }
 
+    /**
+     * Trim net_organisation and coerce empty strings to null.
+     *
+     * @param string|null $value Raw value from the form.
+     * @return string|null Trimmed value, or null when blank.
+     */
     protected function _setNetOrganisation(?string $value): ?string
     {
         if ($value === null) {
@@ -86,6 +109,12 @@ class Qso extends Entity
         return $trimmed === '' ? null : $trimmed;
     }
 
+    /**
+     * Trim transport_meta and coerce empty strings to null.
+     *
+     * @param string|null $value Raw value from the form.
+     * @return string|null Trimmed value, or null when blank.
+     */
     protected function _setTransportMeta(?string $value): ?string
     {
         if ($value === null) {
@@ -95,6 +124,12 @@ class Qso extends Entity
         return $trimmed === '' ? null : $trimmed;
     }
 
+    /**
+     * Normalise the worked callsign to uppercase and strip surrounding whitespace.
+     *
+     * @param string|null $value Raw value from the form.
+     * @return string|null Normalised callsign, or original value when empty/null.
+     */
     protected function _setCallWorked(?string $value): ?string
     {
         if ($value === null || $value === '') {
@@ -103,6 +138,16 @@ class Qso extends Entity
         return strtoupper(trim($value));
     }
 
+    /**
+     * Normalise a Maidenhead grid locator to canonical form.
+     *
+     * The first 4 characters (field + square) are uppercased; the optional
+     * 2-character subsquare suffix is lowercased per convention. Returns the
+     * original value unchanged when empty or too short to apply the rule.
+     *
+     * @param string|null $value Raw value from the form.
+     * @return string|null Canonicalised locator, or original value when empty/null.
+     */
     protected function _setGridSquare(?string $value): ?string
     {
         if ($value === null || $value === '') {

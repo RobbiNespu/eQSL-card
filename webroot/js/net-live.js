@@ -1,3 +1,14 @@
+/**
+ * Public-facing net-session live view.
+ *
+ * Maintains its own RosterStore and polls the delta feed independently of
+ * the NCS cockpit (net-cockpit.js + net-poll.js). Renders the roster table
+ * inline and updates the stats header elements on every tick. For live
+ * sessions polling fires every 4 seconds; for closed sessions a single
+ * initial fetch populates the view and no further polling occurs.
+ *
+ * Requires `window.NET = { feedUrl, status }` to be set by the server.
+ */
 import { RosterStore } from './net-merge.js';
 
 (function () {
@@ -7,6 +18,7 @@ import { RosterStore } from './net-merge.js';
   const tbody = document.querySelector('[data-net-roster] tbody');
   let since = '';
 
+  /** Re-render the roster tbody from the in-memory RosterStore, newest first. */
   function render() {
     if (!tbody) return;
     const rows = store.rows();
@@ -21,12 +33,14 @@ import { RosterStore } from './net-merge.js';
         <td></td>
       </tr>`).join('');
   }
+  /** Update the `data-stat` header elements from the feed's stats payload. */
   function setStats(s) {
     if (!s) return;
     const set = (k, v) => { const el = document.querySelector(`[data-stat="${k}"] [data-stat-value]`); if (el && v != null) el.textContent = v; };
     set('checkins', s.checkins); set('unique', s.unique); set('new', s.new); set('rate', s.rate);
   }
 
+  /** Fetch the latest check-in delta, merge into the store, and re-render. */
   async function tick() {
     if (document.hidden) return;
     try {
@@ -37,7 +51,9 @@ import { RosterStore } from './net-merge.js';
       (json.removed || []).forEach(id => store.remove(id));
       render(); setStats(json.stats);
       document.dispatchEvent(new CustomEvent('net:updated', { detail: json }));
-    } catch (_) {}
+    } catch (err) {
+      console.error('[net-live] feed fetch failed', err);
+    }
   }
 
   // Seed from any server-rendered rows (none for public, but harmless).

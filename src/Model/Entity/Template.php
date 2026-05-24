@@ -5,6 +5,13 @@ namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
 
+/**
+ * Card template entity.
+ *
+ * is_approved and is_system are locked from mass assignment; both are
+ * mutated exclusively through admin service-layer methods to prevent
+ * unprivileged promotion via a crafted POST.
+ */
 class Template extends Entity
 {
     protected array $_accessible = [

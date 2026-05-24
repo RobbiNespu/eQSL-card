@@ -3,11 +3,25 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+/**
+ * File-backed sliding-window rate limiter.
+ *
+ * Each action+identifier pair is stored as a comma-separated list of Unix
+ * timestamps in a single file under `$storageDir`. Hits older than the window
+ * are pruned on every check. Writes are atomic (temp-file + rename) so
+ * concurrent processes and cross-uid test/production runs don't corrupt the
+ * bucket file.
+ */
 final class RateLimiter
 {
     /** @var \Closure():int */
     private \Closure $clock;
 
+    /**
+     * @param string        $storageDir Absolute directory path for bucket files (created if missing).
+     * @param callable|null $clock      Returns the current Unix timestamp. Defaults to `time()`.
+     *                                  Inject a fixed value in tests to control the window.
+     */
     public function __construct(
         private string $storageDir,
         ?callable $clock = null,
@@ -18,6 +32,20 @@ final class RateLimiter
         $this->clock = $clock ? \Closure::fromCallable($clock) : static fn(): int => time();
     }
 
+    /**
+     * Record a hit and return whether it is within the allowed limit.
+     *
+     * Prunes timestamps outside the sliding window before checking. When
+     * the hit is allowed the current timestamp is appended and the bucket
+     * is persisted atomically. When the limit is already reached the bucket
+     * is persisted with stale entries removed but without adding a new stamp.
+     *
+     * @param string $action          Dotted action name (e.g. `auth.login`).
+     * @param string $identifier      Per-actor key (IP address, user id, etc.).
+     * @param int    $limit           Maximum allowed hits within the window.
+     * @param int    $windowSeconds   Sliding window width in seconds.
+     * @return bool True when this hit is within the limit; false when throttled.
+     */
     public function hit(string $action, string $identifier, int $limit, int $windowSeconds): bool
     {
         $file = $this->storageDir . '/' . hash('sha256', $action . ':' . $identifier);

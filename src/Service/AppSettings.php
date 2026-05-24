@@ -25,6 +25,13 @@ final class AppSettings
     /** @var array<string, mixed>|null */
     private static ?array $cache = null;
 
+    /**
+     * Retrieve a single setting value by key.
+     *
+     * @param string $key     Setting key (e.g. `site_name`, `smtp_host`).
+     * @param mixed  $default Value to return when the key is not set.
+     * @return mixed JSON-decoded value, or `$default`.
+     */
     public function get(string $key, mixed $default = null): mixed
     {
         $this->load();
@@ -32,7 +39,11 @@ final class AppSettings
         return self::$cache[$key] ?? $default;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Return all settings as a key → decoded-value map.
+     *
+     * @return array<string, mixed>
+     */
     public function getAll(): array
     {
         $this->load();
@@ -40,6 +51,13 @@ final class AppSettings
         return self::$cache ?? [];
     }
 
+    /**
+     * Persist a single setting to the database and invalidate the in-memory cache.
+     *
+     * @param string $key   Setting key.
+     * @param mixed  $value Value to store (JSON-encoded on the way in).
+     * @return void
+     */
     public function set(string $key, mixed $value): void
     {
         $table = TableRegistry::getTableLocator()->get('AppSettings');
@@ -58,7 +76,10 @@ final class AppSettings
     }
 
     /**
-     * @param array<string, mixed> $kv
+     * Persist multiple settings in one call. Thin loop over {@see self::set()}.
+     *
+     * @param array<string, mixed> $kv Key → value pairs to persist.
+     * @return void
      */
     public function setMany(array $kv): void
     {
@@ -67,11 +88,23 @@ final class AppSettings
         }
     }
 
+    /**
+     * Discard the in-memory cache so the next read reloads from the database.
+     *
+     * Useful in tests or after an out-of-band write to `app_settings`.
+     *
+     * @return void
+     */
     public function clear(): void
     {
         self::$cache = null;
     }
 
+    /**
+     * Populate the static cache from the database (no-op when already loaded).
+     *
+     * @return void
+     */
     private function load(): void
     {
         if (self::$cache !== null) {

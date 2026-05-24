@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Service\OperationLog;
 use Cake\I18n\DateTime;
 
 /**
@@ -63,9 +64,20 @@ final class AdifExporter
             $out .= $this->renderQso($qso, $stationCallsign, $myGrid, $myPota, $mySota, $myIota);
         }
 
+        OperationLog::event('adif.export', [
+            'activation_code' => (string)$activation->code,
+        ]);
+
         return $out;
     }
 
+    /**
+     * Build the ADIF file header block with comment metadata and mandatory tags.
+     *
+     * @param object $activation Activation entity (name, code, grid_square, started_at, ended_at).
+     * @param string $stationCallsign Activator's callsign for the OPERATOR comment line.
+     * @return string ADIF header ending with `<EOH>`.
+     */
     private function renderHeader(object $activation, string $stationCallsign): string
     {
         $started = $activation->started_at instanceof \DateTimeInterface
@@ -96,6 +108,17 @@ final class AdifExporter
         return $h;
     }
 
+    /**
+     * Render a single QSO entity as a sequence of ADIF tagged fields terminated by `<EOR>`.
+     *
+     * @param object $qso            QSO entity (call_worked, qso_datetime_utc, band, mode, etc.).
+     * @param string $stationCallsign Activator's callsign for STATION_CALLSIGN / OPERATOR.
+     * @param string $myGrid         Activation grid square for MY_GRIDSQUARE (may be empty).
+     * @param string $myPota         POTA reference string (may be empty).
+     * @param string $mySota         SOTA reference string (may be empty).
+     * @param string $myIota         IOTA reference string (may be empty).
+     * @return string ADIF record ending with `<EOR>`.
+     */
     private function renderQso(
         object $qso,
         string $stationCallsign,
@@ -147,11 +170,28 @@ final class AdifExporter
         return '<' . $name . ':' . strlen($value) . '>' . $value . ' ';
     }
 
+    /**
+     * Emit a tag only when the value is non-empty; avoids `<FIELD:0>` noise.
+     *
+     * @param string $name  ADIF field name (uppercase).
+     * @param string $value Field value.
+     * @return string ADIF tag string, or empty string when value is blank.
+     */
     private function tagIf(string $name, string $value): string
     {
         return $value !== '' ? $this->tag($name, $value) : '';
     }
 
+    /**
+     * Render QSO_DATE and TIME_ON tags from a datetime value.
+     *
+     * Accepts a DateTimeInterface, a parseable string, or null. Returns an
+     * empty string on null or unparseable input so callers never emit a
+     * malformed date tag.
+     *
+     * @param \DateTimeInterface|string|null $value The QSO datetime (UTC assumed).
+     * @return string Two ADIF tags (`QSO_DATE` + `TIME_ON`), or empty string on failure.
+     */
     private function renderDateTime($value): string
     {
         if ($value === null) return '';

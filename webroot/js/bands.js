@@ -29,6 +29,16 @@ var EQSL_BAND_RANGES = [
     ['70cm', 430.000,  440.000],
 ];
 
+/**
+ * Derive the amateur radio band name from a frequency in MHz.
+ *
+ * Accepts a number or a numeric string. Returns null for values that
+ * don't fall within any entry in EQSL_BAND_RANGES (out-of-band, 0, negative,
+ * NaN, empty string, null, or undefined).
+ *
+ * @param {number|string|null|undefined} mhz - frequency in MHz
+ * @returns {string|null} band name (e.g. '20m') or null if not matched
+ */
 function bandForFrequencyMhz(mhz) {
     if (mhz === null || mhz === undefined || mhz === '') return null;
     var f = (typeof mhz === 'number') ? mhz : parseFloat(String(mhz));

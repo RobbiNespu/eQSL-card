@@ -48,6 +48,9 @@ final class RadioIdApiProvider implements CallsignProviderInterface
         'DNT'              => '1',
     ];
 
+    /**
+     * @param \Cake\Http\Client|null $http HTTP client; defaults to an 8-second timeout instance.
+     */
     public function __construct(private ?Client $http = null)
     {
         $this->http ??= new Client(['timeout' => 8, 'redirect' => 3]);
@@ -70,6 +73,17 @@ final class RadioIdApiProvider implements CallsignProviderInterface
         return (bool)preg_match('/^[A-Z0-9\/]{3,15}$/', $callsign);
     }
 
+    /**
+     * Query the RadioID users API for the given callsign and return the best match.
+     *
+     * Prefers an exact-callsign row; falls back to the first result when no exact match
+     * is found (to handle /P or /M suffixed rows). Returns null on a 200 with no results
+     * or when the JSON envelope is malformed. Throws on HTTP errors or Cloudflare blocks.
+     *
+     * @param string $callsign Normalised uppercase callsign.
+     * @return CallsignLookupResult|null Result with at least one useful field, or null.
+     * @throws \App\Service\CallsignLookup\CallsignLookupException On HTTP failure or CF block.
+     */
     public function lookup(string $callsign): ?CallsignLookupResult
     {
         try {

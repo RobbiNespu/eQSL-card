@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Controller\AppController;
+use App\Service\OperationLog;
 
 /**
  * Admin template moderation queue (M3-T10/T11/T12).
@@ -17,18 +18,29 @@ use App\Controller\AppController;
  */
 class TemplatesController extends AppController
 {
+    /** Load the Authentication component required by all Admin controllers. */
     public function initialize(): void
     {
         parent::initialize();
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Gate access to admin-only actions.
+     *
+     * Anonymous requests are handled by AuthenticationComponent (redirects to
+     * /login). Only authenticated-but-not-admin users need the explicit 403.
+     *
+     * @param \Cake\Event\EventInterface $event The before-filter event.
+     * @return void
+     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
+     */
     public function beforeFilter(\Cake\Event\EventInterface $event): void
     {
         parent::beforeFilter($event);
         $identity = $this->Authentication->getIdentity();
         if (!$identity) {
-            return; // let auth middleware handle redirect
+            return;
         }
         $user = $this->fetchTable('Users')->get($identity->getIdentifier());
         if ($user->role !== 'admin') {
@@ -36,6 +48,11 @@ class TemplatesController extends AppController
         }
     }
 
+    /**
+     * List templates awaiting approval (is_public=true, is_approved=false).
+     *
+     * @return void
+     */
     public function pending(): void
     {
         $pending = $this->fetchTable('Templates')->find()
@@ -50,6 +67,15 @@ class TemplatesController extends AppController
         ]);
     }
 
+    /**
+     * POST /admin/templates/{id}/approve — flip is_approved to true.
+     *
+     * Only acts on templates that are currently public+pending (prevents
+     * double-approval and acting on private or already-approved templates).
+     *
+     * @param int $id Template PK.
+     * @return \Cake\Http\Response
+     */
     public function approve(int $id)
     {
         $this->request->allowMethod('post');
@@ -60,9 +86,6 @@ class TemplatesController extends AppController
         $tpl->set('is_approved', true, ['guard' => false]);
         $tpls->saveOrFail($tpl);
 
-        // M4-T3: replace the placeholder error_log() shim with a real
-        // audit_logs row. Audit failures must never break the moderation
-        // flow, so we wrap and swallow.
         $adminId = $this->Authentication->getIdentity()->getIdentifier();
         try {
             (new \App\Service\AuditLogger())->log(
@@ -74,11 +97,23 @@ class TemplatesController extends AppController
             error_log('audit: ' . $e->getMessage());
         }
 
+        OperationLog::event('admin.template.approved', [
+            'actor_user_id' => $adminId,
+            'template_id'   => (int)$tpl->id,
+        ]);
+
         $this->Flash->success('Template approved.');
 
         return $this->redirect('/admin/templates/pending');
     }
 
+    /**
+     * POST /admin/templates/{id}/reject — clear is_public so the submitter can
+     * revise and resubmit. is_approved is left false.
+     *
+     * @param int $id Template PK.
+     * @return \Cake\Http\Response
+     */
     public function reject(int $id)
     {
         $this->request->allowMethod('post');
@@ -93,9 +128,6 @@ class TemplatesController extends AppController
         // is_approved stays false; submitter can re-edit and re-submit
         $tpls->saveOrFail($tpl);
 
-        // M4-T3: persist the rejection as an audit row. The reason text
-        // (admin's free-form comment) goes into metadata so the audit
-        // viewer can surface it to future reviewers without a join.
         $adminId = $this->Authentication->getIdentity()->getIdentifier();
         try {
             (new \App\Service\AuditLogger())->log(
@@ -107,6 +139,11 @@ class TemplatesController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.template.rejected', [
+            'actor_user_id' => $adminId,
+            'template_id'   => (int)$tpl->id,
+        ]);
 
         $this->Flash->success('Template rejected.' . ($reason !== '' ? " Reason: {$reason}" : ''));
 

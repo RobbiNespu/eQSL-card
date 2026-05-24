@@ -15,12 +15,23 @@ use App\Controller\AppController;
  */
 class CardBackgroundsController extends AppController
 {
+    /** Load the Authentication component required by all Admin controllers. */
     public function initialize(): void
     {
         parent::initialize();
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Gate access to admin-only actions.
+     *
+     * Anonymous requests are handled by AuthenticationComponent (redirects to
+     * /login). Only authenticated-but-not-admin users need the explicit 403.
+     *
+     * @param \Cake\Event\EventInterface $event The before-filter event.
+     * @return void
+     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
+     */
     public function beforeFilter(\Cake\Event\EventInterface $event): void
     {
         parent::beforeFilter($event);
@@ -34,6 +45,16 @@ class CardBackgroundsController extends AppController
         }
     }
 
+    /**
+     * Paginated, filterable listing of all background images across all users.
+     *
+     * Supports `?include_deleted=1` to surface soft-deleted rows and `?kind=`
+     * (`guest` / `user`) to narrow by ownership. Also annotates each row with
+     * which templates currently reference it and whether it is the site-default
+     * background, so the admin can spot load-bearing vs orphan images at a glance.
+     *
+     * @return void
+     */
     public function index(): void
     {
         $table = $this->fetchTable('CardBackgrounds');
