@@ -11,6 +11,16 @@ namespace App\Service;
  */
 final class SignalReport
 {
+    /**
+     * Extract the signal strength digit (1–9) from an RST or RS report string.
+     *
+     * The strength digit is always the second character of the numeric portion:
+     * RST "59" or "599" → 9; RS "57" → 7. Returns null for null input, reports
+     * with fewer than two digits, or values outside 1–9.
+     *
+     * @param string|null $rst Raw RST/RS report (e.g. "599", "59", "57T").
+     * @return int|null Signal strength 1–9, or null if indeterminate.
+     */
     public static function strength(?string $rst): ?int
     {
         if ($rst === null) {

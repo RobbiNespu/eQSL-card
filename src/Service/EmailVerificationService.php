@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Service\OperationLog;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -43,6 +44,8 @@ final class EmailVerificationService
         $entity->set('expires_at', DateTime::now()->addSeconds($this->ttlSeconds), ['guard' => false]);
         $resets->saveOrFail($entity);
 
+        OperationLog::event('email.verify.issued');
+
         return $token;
     }
 
@@ -72,6 +75,8 @@ final class EmailVerificationService
         $user = $users->find()->where(['email' => $row->email])->firstOrFail();
         $user->set('email_verified_at', DateTime::now(), ['guard' => false]);
         $users->saveOrFail($user);
+
+        OperationLog::event('email.verify.consumed');
 
         return (string)$row->email;
     }

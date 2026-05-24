@@ -22,6 +22,13 @@ final class TemplateThumbnailRenderer
         'notes' => 'Sample',
     ];
 
+    /**
+     * @param CardRenderer $renderer           Configured card renderer (with font dir).
+     * @param string       $thumbnailDir       Absolute path to the directory where
+     *                                          thumbnails are written (created if missing).
+     * @param string       $demoBackgroundPath Absolute path to the bundled demo background image.
+     * @param int          $thumbWidth         Target thumbnail width in pixels (default 400).
+     */
     public function __construct(
         private CardRenderer $renderer,
         private string $thumbnailDir,

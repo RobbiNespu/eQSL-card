@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Service\OperationLog;
+
 /**
  * Parses CSV exports of QSO logs into normalized records (same shape as AdifParser).
  *
@@ -62,6 +64,14 @@ final class CsvParser
     ];
 
     /**
+     * Parse CSV text into normalized QSO records (same shape as AdifParser output).
+     *
+     * Strips a leading UTF-8 BOM, auto-detects the delimiter (comma / semicolon / tab),
+     * maps recognized header aliases to canonical field names, and skips rows that are
+     * missing both `call_worked` and a datetime. A single summary event is logged after
+     * the parse completes.
+     *
+     * @param string $content Raw CSV text (UTF-8).
      * @return array{records: array<int, array<string, mixed>>, invalid: int, errors: string[]}
      */
     public function parse(string $content): array
@@ -109,9 +119,23 @@ final class CsvParser
             $records[] = $rec;
         }
 
+        OperationLog::event('csv.parse', [
+            'parsed' => count($records),
+            'invalid' => $invalid,
+        ]);
+
         return ['records' => $records, 'invalid' => $invalid, 'errors' => $errors];
     }
 
+    /**
+     * Heuristically pick the most likely CSV delimiter from the header row.
+     *
+     * Counts occurrences of comma, semicolon, and tab; returns the character
+     * with the highest count. Falls back to comma when none appear.
+     *
+     * @param string $headerLine Raw first line of the CSV.
+     * @return string One of ',', ';', or "\t".
+     */
     private function detectDelimiter(string $headerLine): string
     {
         $counts = [
@@ -166,6 +190,16 @@ final class CsvParser
         return $rec;
     }
 
+    /**
+     * Normalize a date string to `YYYY-MM-DD` format.
+     *
+     * Accepts YYYY-MM-DD, YYYYMMDD, YYYY/MM/DD, and (as last resort) MM/DD/YYYY.
+     * Unrecognized formats are passed through unchanged; downstream validation
+     * will catch them.
+     *
+     * @param string $d Raw date string from the CSV.
+     * @return string Normalized date, or the original string if the format is unknown.
+     */
     private function normalizeDate(string $d): string
     {
         // Accepts: YYYY-MM-DD, YYYYMMDD, YYYY/MM/DD, MM/DD/YYYY (US, last resort)
@@ -181,6 +215,15 @@ final class CsvParser
         return $d; // pass through; downstream validation will catch
     }
 
+    /**
+     * Normalize a time string to `HH:MM:SS` format.
+     *
+     * Accepts HH:MM:SS, HH:MM, HHMMSS, and HHMM. Unrecognized formats are
+     * passed through unchanged.
+     *
+     * @param string $t Raw time string from the CSV.
+     * @return string Normalized time, or the original string if the format is unknown.
+     */
     private function normalizeTime(string $t): string
     {
         // Accepts: HH:MM, HH:MM:SS, HHMM, HHMMSS

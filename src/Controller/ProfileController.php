@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\OperationLog;
+
 /**
  * Profile Controller (M4-T15 + T16).
  *
@@ -80,6 +82,7 @@ class ProfileController extends AppController
             $patch = array_intersect_key($data, $allowed);
             $users->patchEntity($user, $patch);
             if ($users->save($user)) {
+                OperationLog::event('profile.updated', ['user_id' => (int)$userId]);
                 $this->Flash->success('Profile updated.');
 
                 return $this->redirect('/profile');
@@ -134,12 +137,14 @@ class ProfileController extends AppController
         $info = @getimagesize($tmp);
         if ($info === false) {
             @unlink($tmp);
+            OperationLog::warning('profile.avatar_rejected', ['user_id' => (int)$userId, 'reason' => 'not_image']);
             $this->Flash->error('Not a valid image.');
 
             return $this->redirect('/profile');
         }
         if ($info[0] * $info[1] > 50_000_000) {
             @unlink($tmp);
+            OperationLog::warning('profile.avatar_rejected', ['user_id' => (int)$userId, 'reason' => 'too_large']);
             $this->Flash->error('Image too large.');
 
             return $this->redirect('/profile');
@@ -156,6 +161,7 @@ class ProfileController extends AppController
             $optimizer->optimize($tmp, $finalPath);
         } catch (\Throwable $e) {
             @unlink($tmp);
+            OperationLog::failure('profile.avatar_optimize', $e, ['user_id' => (int)$userId]);
             $this->Flash->error('Could not process image: ' . $e->getMessage());
 
             return $this->redirect('/profile');
@@ -170,6 +176,7 @@ class ProfileController extends AppController
         // the matching file on disk.
         $user->set('avatar_path', $relPath, ['guard' => false]);
         $users->saveOrFail($user);
+        OperationLog::event('profile.avatar_updated', ['user_id' => (int)$userId]);
 
         $this->Flash->success('Avatar updated.');
 

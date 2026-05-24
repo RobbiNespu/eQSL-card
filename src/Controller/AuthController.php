@@ -3,8 +3,15 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\OperationLog;
+
 /**
  * Auth Controller
+ *
+ * Handles all authentication flows: register, login, logout, forgot/reset
+ * password, and email verification. All routes are open to unauthenticated
+ * visitors except logout (which requires a valid session to do anything
+ * meaningful, but is harmless to call unauthenticated).
  *
  * Action stubs for the authentication flow. Real bodies land in T15-T17:
  *  - T15: register
@@ -69,6 +76,7 @@ class AuthController extends AppController
                 'role' => 'user',
             ]);
             if ($users->save($entity)) {
+                OperationLog::event('auth.register', ['user_id' => (int)$entity->id]);
                 // M4-T13: send a verification email. Failure here must not
                 // block account creation — the user can still log in and
                 // request a resend, so we swallow + log the error.
@@ -86,6 +94,7 @@ class AuthController extends AppController
                     $mailer->deliver();
                 } catch (\Throwable $e) {
                     error_log('email verify send: ' . $e->getMessage());
+                    OperationLog::failure('auth.verify_email_send', $e, ['user_id' => (int)$entity->id]);
                 }
                 $this->Flash->success('Account created. Please log in.');
 
@@ -111,9 +120,13 @@ class AuthController extends AppController
     {
         $result = $this->Authentication->getResult();
         if ($result?->isValid()) {
+            $identity = $this->Authentication->getIdentity();
+            OperationLog::event('auth.login', ['user_id' => (int)$identity->getIdentifier()]);
+
             return $this->redirect($this->request->getQuery('redirect') ?? '/');
         }
         if ($this->request->is('post') && (!$result || !$result->isValid())) {
+            OperationLog::warning('auth.login.failed', []);
             $this->Flash->error('Invalid email or password');
         }
 
@@ -127,6 +140,10 @@ class AuthController extends AppController
      */
     public function logout()
     {
+        $identity = $this->Authentication->getIdentity();
+        if ($identity) {
+            OperationLog::event('auth.logout', ['user_id' => (int)$identity->getIdentifier()]);
+        }
         $this->Authentication->logout();
 
         return $this->redirect('/login');
@@ -147,15 +164,21 @@ class AuthController extends AppController
         if ($this->request->is('post')) {
             $email = (string)$this->request->getData('email');
             $svc = new \App\Service\PasswordResetService();
-            $token = $svc->issue($email);
-            $link = (string)env('APP_BASE_URL', 'http://localhost:8080') . '/password/reset/' . $token;
-            $mailer = new \Cake\Mailer\Mailer('default');
-            $mailer->setTo($email)
-                ->setSubject('Reset your eQSL password')
-                ->setEmailFormat('both')
-                ->setViewVars(['link' => $link])
-                ->viewBuilder()->setTemplate('password_reset');
-            $mailer->deliver();
+            try {
+                $token = $svc->issue($email);
+                $link = (string)env('APP_BASE_URL', 'http://localhost:8080') . '/password/reset/' . $token;
+                $mailer = new \Cake\Mailer\Mailer('default');
+                $mailer->setTo($email)
+                    ->setSubject('Reset your eQSL password')
+                    ->setEmailFormat('both')
+                    ->setViewVars(['link' => $link])
+                    ->viewBuilder()->setTemplate('password_reset');
+                $mailer->deliver();
+                OperationLog::event('auth.password_reset_requested', []);
+            } catch (\Throwable $e) {
+                error_log('password reset send: ' . $e->getMessage());
+                OperationLog::failure('auth.password_reset_send', $e, []);
+            }
             $this->Flash->success('If that email exists, a reset link has been sent.');
 
             return $this->redirect('/login');
@@ -194,6 +217,7 @@ class AuthController extends AppController
             $user = $users->find()->where(['email' => $email])->firstOrFail();
             $user->password = (string)$this->request->getData('password');
             $users->saveOrFail($user);
+            OperationLog::event('auth.password_reset', ['user_id' => (int)$user->id]);
             $this->Flash->success('Password updated. Please log in.');
 
             return $this->redirect('/login');
@@ -220,8 +244,10 @@ class AuthController extends AppController
         $svc = new \App\Service\EmailVerificationService();
         try {
             $svc->consume($token);
+            OperationLog::event('auth.email_verified', []);
             $this->Flash->success('Email verified — you can now log in.');
         } catch (\Throwable $e) {
+            OperationLog::warning('auth.email_verify_failed', []);
             $this->Flash->error($e->getMessage());
         }
 
@@ -275,6 +301,7 @@ class AuthController extends AppController
                 $mailer->deliver();
             } catch (\Throwable $e) {
                 error_log('resend verify: ' . $e->getMessage());
+                OperationLog::failure('auth.resend_verify_send', $e, ['user_id' => (int)$user->id]);
             }
         }
 

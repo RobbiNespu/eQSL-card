@@ -6,8 +6,24 @@ namespace App\Model\Table;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
+/**
+ * Bulk callsign directory table.
+ *
+ * Holds pre-imported operator records sourced from national databases or
+ * uploaded CSV/ADIF files. Used by the callsign lookup service as a fast
+ * local cache layer before falling back to external APIs. Records carry a
+ * `source_label` (e.g. "MCMC 2024") and an `imported_at` timestamp so
+ * stale imports can be identified and purged.
+ */
 class CallsignDirectoryTable extends Table
 {
+    /**
+     * Configure table name, primary key, and Timestamp behavior
+     * (created_at on insert, updated_at on every save).
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -23,6 +39,13 @@ class CallsignDirectoryTable extends Table
         ]);
     }
 
+    /**
+     * Validation: callsign required; name, qth, country, grid_square,
+     * license_class, source_label are optional scalars; imported_at required.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator

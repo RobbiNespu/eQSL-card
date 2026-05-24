@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Service\CallsignLookup;
 
 use App\Service\AppSettings;
+use App\Service\OperationLog;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -76,17 +77,24 @@ final class CallsignLookupService
             } catch (\Throwable $e) {
                 // Provider blew up. Log + try next. The user-facing request
                 // must complete regardless of any single source's health.
-                error_log(sprintf(
-                    'callsign provider %s failed for %s: %s',
-                    $provider->code(),
-                    $callsign,
-                    $e->getMessage()
-                ));
+                OperationLog::failure(
+                    'callsign.lookup.' . $provider->code(),
+                    $e,
+                    ['callsign' => $callsign]
+                );
                 continue;
             }
             if ($result === null || !$result->hasUsefulFields()) {
+                OperationLog::warning(
+                    'callsign.lookup.' . $provider->code(),
+                    ['callsign' => $callsign, 'hit' => false]
+                );
                 continue;
             }
+            OperationLog::event(
+                'callsign.lookup.' . $provider->code(),
+                ['callsign' => $callsign, 'hit' => true]
+            );
             $this->writeCache($result);
             return $result;
         }
@@ -94,23 +102,41 @@ final class CallsignLookupService
         return null;
     }
 
+    /**
+     * Whether the callsign lookup feature is enabled in admin settings.
+     *
+     * @return bool True when the `callsign_lookup_enabled` setting is truthy.
+     */
     public function isEnabled(): bool
     {
         return (bool)$this->settings->get('callsign_lookup_enabled', false);
     }
 
+    /**
+     * Purge all rows from the `callsign_lookups` cache table.
+     *
+     * @return int Number of rows deleted.
+     */
     public function clearCache(): int
     {
         $table = TableRegistry::getTableLocator()->get('CallsignLookups');
         return $table->deleteAll([]);
     }
 
+    /**
+     * Uppercase and trim a raw callsign string.
+     *
+     * @param string $callsign Raw user input.
+     * @return string Normalised callsign, or empty string.
+     */
     private function normalise(string $callsign): string
     {
         return strtoupper(trim($callsign));
     }
 
     /**
+     * Return providers in the admin-configured order, falling back to registration order.
+     *
      * @return iterable<CallsignProviderInterface>
      */
     private function orderedProviders(): iterable
@@ -132,6 +158,12 @@ final class CallsignLookupService
         return $out;
     }
 
+    /**
+     * Load a non-expired cache row from `callsign_lookups` and return it as a result object.
+     *
+     * @param string $callsign Normalised (uppercase) callsign.
+     * @return CallsignLookupResult|null Cached result, or null on miss/expiry.
+     */
     private function loadFromCache(string $callsign): ?CallsignLookupResult
     {
         $table = TableRegistry::getTableLocator()->get('CallsignLookups');
@@ -156,6 +188,12 @@ final class CallsignLookupService
         );
     }
 
+    /**
+     * Upsert a lookup result into the `callsign_lookups` cache with a TTL of `ttlDays` days.
+     *
+     * @param CallsignLookupResult $r The result to persist.
+     * @return void
+     */
     private function writeCache(CallsignLookupResult $r): void
     {
         $table = TableRegistry::getTableLocator()->get('CallsignLookups');
@@ -179,6 +217,11 @@ final class CallsignLookupService
         $table->saveOrFail($entity);
     }
 
+    /**
+     * Return the current DateTime, honoring the injected clock if set.
+     *
+     * @return \Cake\I18n\DateTime
+     */
     private function now(): DateTime
     {
         return $this->clock ? ($this->clock)() : DateTime::now();

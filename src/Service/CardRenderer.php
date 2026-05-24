@@ -3,6 +3,21 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+/**
+ * Renders eQSL card images (WebP) from a template layout + background photo.
+ *
+ * Responsibilities:
+ *   - Composites a background image onto a canvas at the template's configured
+ *     dimensions, draws each text field (with optional shadow + outline), then
+ *     stamps a credit footer band at the bottom.
+ *   - Writes a 400 px thumbnail alongside the full-resolution card.
+ *   - Wraps an existing card image into a single-page PDF via FPDF (WebP cards
+ *     are transparently transcoded to JPEG for embedding).
+ *
+ * Obtain an instance via {@see self::fromSettings()} in production so the credit
+ * footer text is pulled from `app_settings`; pass the constructor directly in
+ * tests.
+ */
 final class CardRenderer
 {
     /**
@@ -124,6 +139,17 @@ final class CardRenderer
         return $base . '.thumb.' . $ext;
     }
 
+    /**
+     * Downscale `$src` to `$targetWidth` pixels wide (proportional height) and
+     * save as WebP at quality 70. Silently skips on invalid source dimensions.
+     *
+     * @param \GdImage $src         Source GD image (the full-res canvas).
+     * @param string   $dest        Absolute path for the thumbnail file.
+     * @param int      $targetWidth Desired width in pixels.
+     * @param int      $srcW        Source canvas width in pixels.
+     * @param int      $srcH        Source canvas height in pixels.
+     * @return void
+     */
     private function writeThumbnail(\GdImage $src, string $dest, int $targetWidth, int $srcW, int $srcH): void
     {
         if ($srcW <= 0 || $srcH <= 0) {
@@ -189,6 +215,20 @@ final class CardRenderer
         }
     }
 
+    /**
+     * Render a single template field onto the canvas.
+     *
+     * Resolves the placeholder against the QSO data array, then paints (in order):
+     * shadow → outline ring → main fill text using imagettftext. Skips fields
+     * whose resolved text is empty.
+     *
+     * @param \GdImage             $canvas GD image resource to draw onto.
+     * @param array<string, mixed> $field  Template field definition (placeholder, x, y, font,
+     *                                     size, color, rotation, shadow_*, outline_*).
+     * @param array<string, mixed> $qso    QSO data array for placeholder resolution.
+     * @return void
+     * @throws \RuntimeException When the font file is not bundled.
+     */
     private function drawField(\GdImage $canvas, array $field, array $qso): void
     {
         $text = $this->resolver->resolve((string)$field['placeholder'], $qso);
@@ -252,14 +292,17 @@ final class CardRenderer
     }
 
     /**
-     * Paint a thin translucent band at the bottom and write the credit
-     * lines centered in JetBrainsMono — small, terminal-styled. Font size
-     * scales with canvas height so 1500x1000 cards and 800x600 thumbnails
-     * both look right.
-     */
-    /**
-     * @param string[] $rawLines One template per physical line. Resolved against
-     *        a context that includes {year} and {generated_at} placeholders.
+     * Paint a thin translucent band at the bottom and write the credit lines
+     * centered in JetBrainsMono — small, terminal-styled. Font size scales
+     * with canvas height so 1500×1000 cards and 800×600 thumbnails both look right.
+     *
+     * @param \GdImage $canvas    GD image resource to draw onto.
+     * @param int      $width     Canvas width in pixels.
+     * @param int      $height    Canvas height in pixels.
+     * @param string[] $rawLines  One template string per physical line. Resolved
+     *                            against a context that provides `{year}` and
+     *                            `{generated_at}` placeholders.
+     * @return void
      */
     private function drawCreditFooter(\GdImage $canvas, int $width, int $height, array $rawLines): void
     {

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\OperationLog;
+
 /**
  * Qsos Controller (M2-T2 + M2-T3)
  *
@@ -184,23 +186,6 @@ class QsosController extends AppController
     }
 
     /**
-     * Render the add form (GET) or persist a new QSO (POST).
-     *
-     * `user_id` is set explicitly from the authenticated identity AFTER
-     * `patchEntity`, so a hostile payload that tries to ship `user_id` is
-     * silently dropped twice (once by `_accessible`, once by this overwrite).
-     *
-     * On success the user lands on the QSO detail page so they can sanity-check
-     * the row that was just created (frequencies, dates, normalization).
-     *
-     * Re-uses the `add.php` template for both add and edit by passing a `mode`
-     * flag — the form fields are identical, only the heading and submit label
-     * differ.
-     *
-     * @return \Cake\Http\Response|null Redirect on save, or null while
-     *   rendering the form.
-     */
-    /**
      * M5 T7 — Quick-add: portable-first one-thumb QSO entry.
      *
      * Renders a stripped-down form (callsign, freq, mode, RST sent/recv,
@@ -280,6 +265,7 @@ class QsosController extends AppController
             }
             $saved = $qsos->save($entity);
             if ($saved) {
+                OperationLog::event('qso.created', ['user_id' => (int)$userId, 'qso_id' => (int)$entity->id, 'source' => 'quick']);
                 // Success path: delegates JSON / HTML branching to the
                 // helper so the idempotent-replay path uses the same
                 // payload shape.
@@ -481,6 +467,22 @@ class QsosController extends AppController
             ->withStringBody(json_encode($payload, JSON_THROW_ON_ERROR));
     }
 
+    /**
+     * Render the add form (GET) or persist a new QSO (POST).
+     *
+     * `user_id` is set explicitly from the authenticated identity AFTER
+     * `patchEntity`, so a hostile payload that tries to ship `user_id` is
+     * silently dropped twice (once by `_accessible`, once by this overwrite).
+     *
+     * On success the user lands on the QSO detail page so they can sanity-check
+     * the row that was just created (frequencies, dates, normalization).
+     *
+     * Re-uses the `add.php` template for both add and edit by passing a `mode`
+     * flag — the form fields are identical, only the heading and submit label
+     * differ.
+     *
+     * @return \Cake\Http\Response|null Redirect on save, or null while rendering the form.
+     */
     public function add(): ?\Cake\Http\Response
     {
         $qsos = $this->fetchTable('Qsos');
@@ -490,6 +492,7 @@ class QsosController extends AppController
             $entity = $qsos->patchEntity($entity, $this->request->getData());
             $entity->user_id = $this->Authentication->getIdentity()->getIdentifier();
             if ($qsos->save($entity)) {
+                OperationLog::event('qso.created', ['user_id' => (int)$entity->user_id, 'qso_id' => (int)$entity->id]);
                 $this->Flash->success('QSO added.');
 
                 return $this->redirect('/qsos/' . $entity->id);
@@ -537,6 +540,7 @@ class QsosController extends AppController
             // user_id is locked in _accessible; patchEntity drops any attempt
             // to reassign it. Test `testEditCannotChangeUserId` proves this.
             if ($qsos->save($entity)) {
+                OperationLog::event('qso.updated', ['user_id' => (int)$userId, 'qso_id' => (int)$entity->id]);
                 // If a card was rendered from this QSO, its embedded QSO data
                 // is now stale — remove it so the user can render a fresh one.
                 $cards = $this->fetchTable('Cards');
@@ -631,6 +635,7 @@ class QsosController extends AppController
                 }
             });
             $this->request->getSession()->delete("import.{$token}");
+            OperationLog::event('qso.import_complete', ['user_id' => (int)$userId, 'inserted' => $inserted, 'skipped' => $skipped]);
             $this->Flash->success("Imported {$inserted} QSOs ({$skipped} skipped as duplicates or invalid).");
 
             return $this->redirect('/qsos');
@@ -1047,6 +1052,7 @@ class QsosController extends AppController
             } catch (\Throwable $e) {
                 // Mark this slot as failed and keep going; the UI can surface
                 // the null entries to the user without losing successful cards.
+                OperationLog::failure('card.bulk_render_item', $e, ['user_id' => $userId, 'qso_id' => (int)$qsoId]);
                 $job['card_ids'][] = null;
             }
         }
@@ -1178,16 +1184,11 @@ class QsosController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('card.generated', ['user_id' => $userId, 'card_id' => (int)$card->id, 'qso_id' => (int)$qso->id]);
 
         return $card->id;
     }
 
-    /**
-     * Move the request's `background_upload` file to a tempdir scratch path.
-     *
-     * @return string Absolute path to the temp file caller must clean up.
-     * @throws \Cake\Http\Exception\BadRequestException When no usable upload was provided.
-     */
     /**
      * Resolve the upload + attribution to use for a given template at render
      * time. The template owns its background — if `background_upload_id` is
@@ -1380,6 +1381,7 @@ class QsosController extends AppController
             ->firstOrFail();
 
         if ($qsos->delete($entity)) {
+            OperationLog::event('qso.deleted', ['user_id' => (int)$userId, 'qso_id' => (int)$id]);
             $this->Flash->success('QSO deleted.');
         } else {
             $this->Flash->error('Could not delete QSO.');

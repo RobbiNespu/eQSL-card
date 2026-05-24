@@ -40,6 +40,12 @@ final class Transport
         return $opts;
     }
 
+    /**
+     * Human label for a transport code. Returns "RF (over the air)" when `$code` is null or empty.
+     *
+     * @param string|null $code Transport code (e.g. `echolink`, `rf`).
+     * @return string Human-readable label.
+     */
     public static function label(?string $code): string
     {
         if ($code === null || $code === '') {
@@ -48,6 +54,12 @@ final class Transport
         return self::TRANSPORTS[$code] ?? $code;
     }
 
+    /**
+     * Whether the transport is internet-mediated (i.e. not RF).
+     *
+     * @param string|null $code Transport code.
+     * @return bool True for any non-null, non-empty, non-rf code.
+     */
     public static function isInternet(?string $code): bool
     {
         return $code !== null && $code !== '' && $code !== 'rf';

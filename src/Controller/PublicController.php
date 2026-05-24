@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\OperationLog;
+
 /**
  * Public Controller
  *
@@ -45,24 +47,6 @@ class PublicController extends AppController
     }
 
     /**
-     * Public share landing (M2-T14).
-     *
-     * Anonymous-accessible page that resolves a 43-char share slug to a
-     * non-deleted card and renders the embedded card image + downloads.
-     *
-     * Three branches:
-     *  - 404 if the slug doesn't match any active (non-soft-deleted) card.
-     *  - 410 Gone if the share was revoked — search engines will deindex.
-     *  - Redirect to `/qsl/{slug}/unlock` if a password is set and the
-     *    visitor hasn't unlocked this slug in their session yet.
-     *
-     * Otherwise renders `share.php` with the QSO data, operator callsign,
-     * PNG/PDF download links, and OG meta tags.
-     *
-     * @param string $slug 43-char URL-safe base64 slug (constrained by route).
-     * @return mixed
-     */
-    /**
      * GET /qsl/{slug}/download.pdf — stream a PDF of a shared card.
      *
      * Mirrors the share-state checks from `share()`: 404 on unknown slug,
@@ -71,6 +55,9 @@ class PublicController extends AppController
      * Successful path streams the PDF (built on demand from the rendered
      * card image — see CardsController::downloadPdf for the symmetric
      * owner / guest-preview surface).
+     *
+     * @param string $slug 43-char URL-safe base64 slug.
+     * @return \Cake\Http\Response PDF attachment response.
      */
     public function downloadSharePdf(string $slug): \Cake\Http\Response
     {
@@ -114,6 +101,24 @@ class PublicController extends AppController
             ->withStringBody($bytes);
     }
 
+    /**
+     * Public share landing (M2-T14).
+     *
+     * Anonymous-accessible page that resolves a 43-char share slug to a
+     * non-deleted card and renders the embedded card image + downloads.
+     *
+     * Three branches:
+     *  - 404 if the slug doesn't match any active (non-soft-deleted) card.
+     *  - 410 Gone if the share was revoked — search engines will deindex.
+     *  - Redirect to `/qsl/{slug}/unlock` if a password is set and the
+     *    visitor hasn't unlocked this slug in their session yet.
+     *
+     * Otherwise renders `share.php` with the QSO data, operator callsign,
+     * PNG/PDF download links, and OG meta tags.
+     *
+     * @param string $slug 43-char URL-safe base64 slug (constrained by route).
+     * @return mixed
+     */
     public function share(string $slug)
     {
         $card = $this->fetchTable('Cards')->find('active')
@@ -325,6 +330,7 @@ class PublicController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('card.generated', ['guest_visit_id' => (int)$visit->id, 'card_id' => (int)$card->id, 'source' => 'public']);
 
         // pdfUrl points at the lazy-download controller action so each click
         // streams a freshly-built PDF instead of serving a stored file.

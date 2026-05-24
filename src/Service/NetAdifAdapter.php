@@ -18,6 +18,14 @@ final class NetAdifAdapter
     public mixed $ended_at;
     public ?string $notes;
 
+    /**
+     * Wrap a NetSession entity in the activation-shaped DTO that AdifExporter expects.
+     *
+     * The net title (optionally suffixed with the organisation name) maps to
+     * `name`. `code` is always blank because nets have no POTA/SOTA reference.
+     *
+     * @param \App\Model\Entity\NetSession $s The net session to adapt.
+     */
     public function __construct(\App\Model\Entity\NetSession $s)
     {
         $this->name = $s->net_title . ($s->net_organisation ? ' (' . $s->net_organisation . ')' : '');

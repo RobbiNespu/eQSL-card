@@ -6,15 +6,35 @@ namespace App\Service;
 use Cake\ORM\TableRegistry;
 use Migrations\Migrations;
 
+/**
+ * Drives the one-shot installation wizard.
+ *
+ * The wizard controller calls these methods in order:
+ *   1. `runMigrations()` — apply all pending CakePHP migrations.
+ *   2. `createAdmin()` — insert the first admin user.
+ *   3. `seedDefaultTemplate()` — load the bundled system template from JSON.
+ *   4. `lock()` — write a lock file so the wizard is hidden on next boot.
+ */
 final class Installer
 {
+    /**
+     * Run all pending CakePHP migrations on the `default` connection.
+     *
+     * @return void
+     */
     public function runMigrations(): void
     {
         $migrations = new Migrations(['connection' => 'default']);
         $migrations->migrate();
     }
 
-    /** @return \App\Model\Entity\User */
+    /**
+     * Create the initial admin user from wizard form data.
+     *
+     * @param array{name:string,email:string,callsign:string,password:string} $data Validated user data.
+     * @return object The saved User entity.
+     * @throws \Cake\ORM\Exception\PersistenceFailedException If validation or save fails.
+     */
     public function createAdmin(array $data): object
     {
         $users = TableRegistry::getTableLocator()->get('Users');
@@ -30,6 +50,15 @@ final class Installer
         return $entity;
     }
 
+    /**
+     * Insert the bundled system template from a JSON file if none exists yet.
+     *
+     * Idempotent: does nothing when a row with `is_system = true` already exists.
+     *
+     * @param string $jsonPath Absolute path to the template JSON file.
+     * @return void
+     * @throws \JsonException If the file contains invalid JSON.
+     */
     public function seedDefaultTemplate(string $jsonPath): void
     {
         $templates = TableRegistry::getTableLocator()->get('Templates');
@@ -61,6 +90,16 @@ final class Installer
         $templates->saveOrFail($entity);
     }
 
+    /**
+     * Write a lock file at `$lockPath` to mark the installation as complete.
+     *
+     * The file contains the ISO 8601 timestamp of when it was written.
+     * The installer controller checks for this file at boot and redirects
+     * the wizard to the login page when it exists.
+     *
+     * @param string $lockPath Absolute path for the lock file.
+     * @return void
+     */
     public function lock(string $lockPath): void
     {
         file_put_contents($lockPath, date(DATE_ATOM) . "\n", LOCK_EX);

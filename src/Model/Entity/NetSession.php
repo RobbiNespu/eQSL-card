@@ -6,8 +6,12 @@ namespace App\Model\Entity;
 use Cake\ORM\Entity;
 
 /**
- * M6 — Net session. owner_id, status, slugs, started/ended are
- * server-controlled and locked out of mass assignment.
+ * Net session entity (M6).
+ *
+ * owner_id, status, public_slug, logger_token, started_at, and ended_at are
+ * server-controlled and locked out of mass assignment. Only the descriptive
+ * fields (net_title, net_organisation, frequency_mhz, band, mode, is_public,
+ * notes) are writable from controller patchEntity calls.
  *
  * @property int $id
  * @property int $owner_id

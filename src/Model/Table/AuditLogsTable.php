@@ -7,8 +7,28 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
+/**
+ * Audit log ORM table.
+ *
+ * Append-only record of significant user actions (card generation, share
+ * create/revoke, template publish, admin mutations, etc.). All columns are
+ * server-set and locked in the entity's _accessible array. The event string
+ * must be non-empty (enforced by both validationDefault and a custom rule
+ * in buildRules).
+ *
+ * Associations:
+ *   - belongsTo Users (actor_user_id)        — logged-in user who triggered the event.
+ *   - belongsTo GuestVisits (actor_guest_visit_id) — guest session when no user is auth'd.
+ */
 class AuditLogsTable extends Table
 {
+    /**
+     * Configure table name, primary key, Timestamp behavior (created_at only),
+     * and actor associations.
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -21,6 +41,13 @@ class AuditLogsTable extends Table
         $this->belongsTo('GuestVisits', ['foreignKey' => 'actor_guest_visit_id']);
     }
 
+    /**
+     * Validation: event required (max 80 chars); target_type/id and
+     * metadata_json are optional.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -31,6 +58,13 @@ class AuditLogsTable extends Table
         return $validator;
     }
 
+    /**
+     * Application rules: redundant not-empty guard on event as a belt-and-braces
+     * check in case the entity was patched after validation.
+     *
+     * @param \Cake\ORM\RulesChecker $rules Rules checker instance.
+     * @return \Cake\ORM\RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add(function ($entity) {

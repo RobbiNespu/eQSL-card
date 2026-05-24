@@ -8,10 +8,27 @@ use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
 /**
- * M6 — Net sessions ORM. Schema: migration 20260522000001.
+ * Net sessions ORM table (M6).
+ *
+ * A net session tracks a scheduled or live radio net managed by the owning
+ * operator. Status lifecycle: scheduled → live → ended. Only the owner and
+ * authorised co-loggers (NetSessionLoggers rows) may write check-ins.
+ *
+ * Schema: migration 20260522000001.
+ *
+ * Associations:
+ *   - belongsTo Owners (Users, FK owner_id)
+ *   - hasMany Qsos (FK net_session_id)
+ *   - hasMany NetSessionLoggers (FK net_session_id)
  */
 class NetSessionsTable extends Table
 {
+    /**
+     * Configure table name, primary key, Timestamp behavior, and associations.
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -28,6 +45,13 @@ class NetSessionsTable extends Table
         $this->hasMany('NetSessionLoggers', ['foreignKey' => 'net_session_id']);
     }
 
+    /**
+     * Validation: net_title required; net_organisation, frequency_mhz, band,
+     * mode, notes optional; is_public boolean.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -43,7 +67,16 @@ class NetSessionsTable extends Table
         return $validator;
     }
 
-    /** Owner OR co-logger may write to the session. */
+    /**
+     * Check whether a user has write access to the given net session.
+     *
+     * Returns true if the user is the session owner or appears in the
+     * net_session_loggers table for the session.
+     *
+     * @param int $sessionId Net session primary key.
+     * @param int $userId    User primary key to check.
+     * @return bool
+     */
     public function isLogger(int $sessionId, int $userId): bool
     {
         $isOwner = $this->exists(['id' => $sessionId, 'owner_id' => $userId]);
@@ -56,6 +89,12 @@ class NetSessionsTable extends Table
         ]);
     }
 
+    /**
+     * Scheduled (not-yet-started) sessions owned by the given user, newest first.
+     *
+     * @param int $userId Owner's user primary key.
+     * @return \Cake\ORM\Query\SelectQuery
+     */
     public function findUpcomingForUser(int $userId): SelectQuery
     {
         return $this->find()
@@ -63,6 +102,12 @@ class NetSessionsTable extends Table
             ->orderBy(['created_at' => 'DESC']);
     }
 
+    /**
+     * Currently-live sessions owned by the given user, most recently started first.
+     *
+     * @param int $userId Owner's user primary key.
+     * @return \Cake\ORM\Query\SelectQuery
+     */
     public function findLiveForUser(int $userId): SelectQuery
     {
         return $this->find()
@@ -70,6 +115,13 @@ class NetSessionsTable extends Table
             ->orderBy(['started_at' => 'DESC']);
     }
 
+    /**
+     * Ended sessions owned by the given user, most recently ended first.
+     *
+     * @param int $userId Owner's user primary key.
+     * @param int $limit  Maximum number of rows to return (default 50).
+     * @return \Cake\ORM\Query\SelectQuery
+     */
     public function findRecentForUser(int $userId, int $limit = 50): SelectQuery
     {
         return $this->find()

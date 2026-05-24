@@ -6,8 +6,29 @@ namespace App\Model\Table;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
+/**
+ * Card templates ORM table.
+ *
+ * A template defines the visual canvas (width × height) and a JSON layout
+ * descriptor used by the renderer to position callsign, QSO data, and
+ * background image elements. Templates may be:
+ *   - private (is_public=false, default) — visible only to the owner.
+ *   - public-pending (is_public=true, is_approved=false) — submitted for review.
+ *   - public-approved (is_public=true, is_approved=true) — listed in the gallery.
+ *   - system (is_system=true) — shipped with the installer; read-only in UI.
+ *
+ * Associations:
+ *   - belongsTo Users
+ *   - hasMany Cards
+ */
 class TemplatesTable extends Table
 {
+    /**
+     * Configure table name, primary key, Timestamp behavior, and associations.
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -26,6 +47,14 @@ class TemplatesTable extends Table
         $this->hasMany('Cards');
     }
 
+    /**
+     * Validation: name + layout_json required; canvas_width/height must be
+     * positive integers; description, thumbnail_path optional; is_public,
+     * is_approved, is_system must be booleans.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator

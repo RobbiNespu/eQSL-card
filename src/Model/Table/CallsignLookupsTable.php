@@ -6,8 +6,24 @@ namespace App\Model\Table;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
+/**
+ * Per-callsign lookup cache table.
+ *
+ * Each row is a single callsign record fetched from an external source
+ * (QRZ.com, HamDB, etc.) and cached locally. The `fetched_at` column
+ * records when the record was retrieved; `expires_at` (nullable) marks
+ * when a refresh should be forced. The `source` + `callsign` pair is
+ * expected to be unique at the application layer; see CallsignLookupService.
+ */
 class CallsignLookupsTable extends Table
 {
+    /**
+     * Configure table name, primary key, and Timestamp behavior with
+     * explicit column name mappings (created_at / updated_at).
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -26,6 +42,13 @@ class CallsignLookupsTable extends Table
         ]);
     }
 
+    /**
+     * Validation: callsign + source required; optional name, qth, country,
+     * grid_square, license_class, source_url; fetched_at required, expires_at optional.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator

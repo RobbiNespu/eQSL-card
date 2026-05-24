@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Service\OperationLog;
+
 /**
  * Parses ADIF (Amateur Data Interchange Format) text into QSO records.
  *
@@ -35,6 +37,14 @@ final class AdifParser
     ];
 
     /**
+     * Parse ADIF text into normalized QSO records.
+     *
+     * Strips the optional file header (up to `<EOH>`), then splits on
+     * `<EOR>` and maps each record through the tag whitelist. Records
+     * missing CALL or QSO_DATE are counted as invalid and included in
+     * the `errors` list but do not abort the parse.
+     *
+     * @param string $content Raw ADIF text (UTF-8 or ASCII).
      * @return array{records: array<int, array<string, mixed>>, invalid: int, errors: string[]}
      */
     public function parse(string $content): array
@@ -64,10 +74,20 @@ final class AdifParser
             $records[] = $this->normalizeRecord($tags);
         }
 
+        OperationLog::event('adif.parse', [
+            'parsed' => count($records),
+            'invalid' => $invalid,
+        ]);
+
         return ['records' => $records, 'invalid' => $invalid, 'errors' => $errors];
     }
 
-    /** @return array<string, string> */
+    /**
+     * Extract all whitelisted `<TAG:LEN>value` pairs from a single ADIF record block.
+     *
+     * @param string $raw Raw text of one QSO record (between EOR delimiters).
+     * @return array<string, string> Uppercase tag name → raw string value.
+     */
     private function parseTags(string $raw): array
     {
         $tags = [];
@@ -91,8 +111,14 @@ final class AdifParser
     }
 
     /**
-     * @param array<string, string> $tags
-     * @return array<string, mixed>
+     * Map raw tag values to the normalized output record shape.
+     *
+     * Assembles `qso_datetime_utc` from QSO_DATE + TIME_ON, pads a
+     * four-digit time to six digits (HHMM → HHMMSS), and maps each
+     * whitelisted tag to the canonical output key.
+     *
+     * @param array<string, string> $tags Parsed tags from a single ADIF record.
+     * @return array<string, mixed> Normalized QSO record.
      */
     private function normalizeRecord(array $tags): array
     {
@@ -122,7 +148,12 @@ final class AdifParser
         ];
     }
 
-    /** @param array<string, string> $tags */
+    /**
+     * Return the NOTES value, falling back to COMMENT when NOTES is absent.
+     *
+     * @param array<string, string> $tags Parsed tags for one record.
+     * @return string|null Trimmed notes string, or null if neither tag is present.
+     */
     private function preferNotes(array $tags): ?string
     {
         $notes = $tags['NOTES'] ?? $tags['COMMENT'] ?? null;

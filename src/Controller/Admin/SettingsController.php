@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Controller\AppController;
+use App\Service\OperationLog;
 
 /**
  * App settings UI (M4-T17/T18).
@@ -21,12 +22,23 @@ use App\Controller\AppController;
  */
 class SettingsController extends AppController
 {
+    /** Load the Authentication component required by all Admin controllers. */
     public function initialize(): void
     {
         parent::initialize();
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Gate access to admin-only actions.
+     *
+     * Anonymous requests are handled by AuthenticationComponent (redirects to
+     * /login). Only authenticated-but-not-admin users need the explicit 403.
+     *
+     * @param \Cake\Event\EventInterface $event The before-filter event.
+     * @return void
+     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
+     */
     public function beforeFilter(\Cake\Event\EventInterface $event): void
     {
         parent::beforeFilter($event);
@@ -41,6 +53,17 @@ class SettingsController extends AppController
         }
     }
 
+    /**
+     * GET/POST /admin/settings — render form and handle saves.
+     *
+     * On POST, applies an explicit allow-list of keys (to prevent arbitrary DB
+     * writes), coerces numeric fields, persists via AppSettings::setMany(), and
+     * PRG-redirects back. Boolean toggles are handled separately because HTML
+     * checkboxes only POST when checked — the view uses a sibling hidden field
+     * with the unchecked value.
+     *
+     * @return \Cake\Http\Response|null Redirect on POST, null for GET.
+     */
     public function index()
     {
         $settings = new \App\Service\AppSettings();
@@ -81,15 +104,21 @@ class SettingsController extends AppController
             }
             $settings->setMany($update);
 
+            $actorId = $this->Authentication->getIdentity()->getIdentifier();
             try {
                 (new \App\Service\AuditLogger())->log(
                     event: 'settings.updated',
-                    actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                    actorUserId: $actorId,
                     metadata: ['keys' => array_keys($update)],
                 );
             } catch (\Throwable $e) {
                 error_log('audit: ' . $e->getMessage());
             }
+
+            OperationLog::event('admin.settings.saved', [
+                'actor_user_id' => $actorId,
+                'keys'          => array_keys($update),
+            ]);
 
             $this->Flash->success('Settings saved.');
 
@@ -110,10 +139,15 @@ class SettingsController extends AppController
     }
 
     /**
-     * POST /admin/settings/background — upload an admin-supplied default
-     * background image. Saves directly to webroot/files/templates/_default-bg.jpg
-     * (overwriting any prior upload). Falls back to the bundled _demo-bg.jpg
-     * automatically when this file is absent.
+     * POST /admin/settings/background — upload a new site-default background image.
+     *
+     * Saves to webroot/files/templates/_default-bg.jpg (overwriting any prior
+     * upload). Also SHA-deduplicates into uploads/ and persists an uploads row so
+     * the image appears in /admin/card-backgrounds. The bundled _demo-bg.jpg is
+     * used automatically when this file is absent.
+     *
+     * @return \Cake\Http\Response
+     * @throws \Cake\ORM\Exception\PersistenceFailedException On upload-row save failure.
      */
     public function background()
     {
@@ -148,6 +182,9 @@ class SettingsController extends AppController
             $optimizer->optimize($tmp, $finalPath);
         } catch (\Throwable $e) {
             @unlink($tmp);
+            OperationLog::failure('admin.settings.background_upload', $e, [
+                'actor_user_id' => $this->Authentication->getIdentity()->getIdentifier(),
+            ]);
             $this->Flash->error('Could not process image: ' . $e->getMessage());
             return $this->redirect('/admin/settings');
         }
@@ -217,27 +254,40 @@ class SettingsController extends AppController
             'default_background_upload_id'  => $defaultBgUploadId,
         ]);
 
+        $actorId = $this->Authentication->getIdentity()->getIdentifier();
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'settings.default_background_changed',
-                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                actorUserId: $actorId,
                 metadata: ['author' => $authorName ?: null, 'license' => $license, 'upload_id' => $defaultBgUploadId],
             );
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
 
+        OperationLog::event('admin.settings.default_background_changed', [
+            'actor_user_id' => $actorId,
+            'upload_id'     => $defaultBgUploadId,
+            'license'       => $license,
+        ]);
+
         $this->Flash->success('Default background updated.');
         return $this->redirect('/admin/settings');
     }
 
     /**
-     * POST /admin/settings/background/reset — delete the admin-supplied default
-     * so the bundled _demo-bg.jpg becomes the active fallback again.
+     * POST /admin/settings/background/reset — revert to the bundled default background.
+     *
+     * Deletes the admin-supplied _default-bg.jpg so the renderer falls back to
+     * the bundled _demo-bg.jpg. The uploads row is intentionally NOT deleted —
+     * cards rendered with this background may still reference it.
+     *
+     * @return \Cake\Http\Response
      */
     public function backgroundReset()
     {
         $this->request->allowMethod('post');
+        $actorId = $this->Authentication->getIdentity()->getIdentifier();
         $path = WWW_ROOT . 'files/templates/_default-bg.jpg';
         if (is_file($path)) {
             @unlink($path);
@@ -245,11 +295,15 @@ class SettingsController extends AppController
             try {
                 (new \App\Service\AuditLogger())->log(
                     event: 'settings.default_background_reset',
-                    actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                    actorUserId: $actorId,
                 );
             } catch (\Throwable $e) {
                 error_log('audit: ' . $e->getMessage());
             }
+
+            OperationLog::event('admin.settings.default_background_reset', [
+                'actor_user_id' => $actorId,
+            ]);
         }
 
         // Clear the pointer to the uploads row that was acting as the default.

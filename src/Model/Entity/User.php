@@ -6,6 +6,13 @@ namespace App\Model\Entity;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\ORM\Entity;
 
+/**
+ * User entity.
+ *
+ * The `password` field is virtual: assigning it triggers _setPassword() which
+ * hashes the plain text with Argon2id and stores the result in `password_hash`.
+ * Both fields are in $_hidden so they are never serialised to JSON or array.
+ */
 class User extends Entity
 {
     protected array $_accessible = [
@@ -36,6 +43,16 @@ class User extends Entity
 
     protected array $_hidden = ['password_hash', 'password'];
 
+    /**
+     * Hash a plain-text password with Argon2id and store it in password_hash.
+     *
+     * Returns null (the virtual `password` field is never persisted). Empty
+     * strings are ignored so a profile-edit form that omits the password field
+     * does not accidentally clear the stored hash.
+     *
+     * @param string $plain Plain-text password from the form.
+     * @return string|null Always null (hash goes to password_hash instead).
+     */
     protected function _setPassword(string $plain): ?string
     {
         if ($plain === '') {

@@ -21,6 +21,13 @@ class NetController extends AppController
         $this->Authentication->allowUnauthenticated(['live', 'feed']);
     }
 
+    /**
+     * Load a public, non-scheduled net session by its public slug, or throw 404.
+     *
+     * @param string $slug The `public_slug` value from the URL.
+     * @return \App\Model\Entity\NetSession
+     * @throws \Cake\Http\Exception\NotFoundException If not found or not public/active.
+     */
     private function publicSessionOrFail(string $slug): \App\Model\Entity\NetSession
     {
         $row = $this->fetchTable('NetSessions')->find()
@@ -32,12 +39,32 @@ class NetController extends AppController
         return $row;
     }
 
+    /**
+     * Public read-only live net landing page.
+     *
+     * @param string $slug Public slug identifying the net session.
+     * @return void
+     */
     public function live(string $slug): void
     {
         $session = $this->publicSessionOrFail($slug);
         $this->set(['session' => $session, 'title' => $session->net_title]);
     }
 
+    /**
+     * Public delta-feed JSON endpoint for the live net view.
+     *
+     * Returns a JSON payload with `server_time`, `status`, `stats`, `checkins`,
+     * and `removed`. Accepts an optional `?since=` ISO-8601 cursor to return
+     * only rows updated after that timestamp. A malformed cursor falls back to
+     * returning all rows.
+     *
+     * Only a whitelisted subset of fields is exposed (no `logged_by`, no
+     * internal user ids) to keep the public surface read-only.
+     *
+     * @param string $slug Public slug identifying the net session.
+     * @return \Cake\Http\Response JSON delta feed.
+     */
     public function feed(string $slug): \Cake\Http\Response
     {
         $session = $this->publicSessionOrFail($slug);

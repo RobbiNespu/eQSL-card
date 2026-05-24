@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Service\OperationLog;
 use App\Service\RateLimiter;
 use Cake\Http\Response;
 use Psr\Http\Message\ResponseInterface;
@@ -10,6 +11,23 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
+/**
+ * Throttles sensitive endpoints (login, QSL generation, share unlock, net
+ * live feed) using file-backed sliding-window counters.
+ *
+ * Two rule sets are evaluated in order:
+ *   1. Exact-match rules — keyed by absolute path + HTTP method.
+ *   2. Regex-match rules — keyed by action name, pattern + method.
+ *
+ * Requests from non-public (private/loopback) IP addresses are exempted
+ * when the `rate_limit_private_ip_bypass` app_setting is truthy (default
+ * ON). The bypass can be turned off from /admin/settings for deployments
+ * where internal traffic should still be throttled.
+ *
+ * On limit breach the middleware returns HTTP 429 immediately and emits a
+ * `ratelimit.exceeded` warning via OperationLog so ops can correlate
+ * bursts with specific paths.
+ */
 final class RateLimitMiddleware implements MiddlewareInterface
 {
     /** @var (\Closure(): bool)|null */
@@ -28,6 +46,10 @@ final class RateLimitMiddleware implements MiddlewareInterface
      * so it can't be subclassed for stubs, and a closure makes the seam
      * narrow + easy to fake.
      */
+    /**
+     * @param \App\Service\RateLimiter $limiter   File-backed sliding-window counter store.
+     * @param callable|null            $bypassEnabled Closure returning bool; when null, bypass defaults to ON.
+     */
     public function __construct(
         private RateLimiter $limiter,
         ?callable $bypassEnabled = null,
@@ -37,6 +59,16 @@ final class RateLimitMiddleware implements MiddlewareInterface
             : null;
     }
 
+    /**
+     * Evaluate rate-limit rules for the incoming request.
+     *
+     * Returns a 429 response with a plain-text body if any rule is breached,
+     * otherwise delegates to the next handler.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface  $request  Incoming request.
+     * @param \Psr\Http\Server\RequestHandlerInterface  $handler  Next middleware handler.
+     * @return \Psr\Http\Message\ResponseInterface
+     */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $path = $request->getUri()->getPath();
@@ -70,6 +102,7 @@ final class RateLimitMiddleware implements MiddlewareInterface
         if (isset($exactRules[$path]) && $method === $exactRules[$path]['method']) {
             $rule = $exactRules[$path];
             if (!$this->limiter->hit($path, hash('sha256', $ip), $rule['limit'], $rule['window'])) {
+                OperationLog::warning('ratelimit.exceeded', ['path' => $path, 'key_hash' => hash('sha256', $ip)]);
                 return (new Response())->withStatus(429)->withStringBody('Too many requests. Try again later.');
             }
         }
@@ -99,6 +132,7 @@ final class RateLimitMiddleware implements MiddlewareInterface
             if ($method === $rule['method'] && preg_match($rule['pattern'], $path, $m)) {
                 $identifier = $m[1] ?? hash('sha256', $ip);
                 if (!$this->limiter->hit($action, $identifier, $rule['limit'], $rule['window'])) {
+                    OperationLog::warning('ratelimit.exceeded', ['path' => $path, 'key_hash' => hash('sha256', $ip)]);
                     return (new Response())->withStatus(429)->withStringBody($rule['message']);
                 }
             }

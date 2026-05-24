@@ -369,6 +369,20 @@ return [
             'url' => env('LOG_QUERIES_URL', null),
             'scopes' => ['cake.database.queries'],
         ],
+        // Application operational log: a human-readable trail of what the
+        // app did (auth events, session lifecycle, create/update/delete
+        // mutations, external API calls, imports/exports, handled errors).
+        // Written exclusively via App\Service\OperationLog, which redacts
+        // secrets/PII before anything reaches disk. Scoped to 'operations'
+        // so it lands in its own logs/operations.log file.
+        'operations' => [
+            'className' => FileLog::class,
+            'path' => LOGS,
+            'file' => 'operations',
+            'url' => env('LOG_OPERATIONS_URL', null),
+            'scopes' => ['operations'],
+            'levels' => ['info', 'warning', 'error'],
+        ],
     ],
 
     /*

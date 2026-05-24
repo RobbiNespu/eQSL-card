@@ -3,8 +3,21 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+/**
+ * Normalizes uploaded images for background storage.
+ *
+ * Reads a JPEG, PNG, or WebP source, optionally downscales it so neither
+ * dimension exceeds the configured limits, strips EXIF data by re-encoding,
+ * and writes the result as a JPEG. Returns image metadata including a
+ * SHA-256 hash for de-duplication.
+ */
 final class ImageOptimizer
 {
+    /**
+     * @param int $maxWidth  Maximum output width in pixels (default 2000).
+     * @param int $maxHeight Maximum output height in pixels (default 1500).
+     * @param int $quality   JPEG output quality 0–100 (default 82).
+     */
     public function __construct(
         private int $maxWidth = 2000,
         private int $maxHeight = 1500,
@@ -12,7 +25,15 @@ final class ImageOptimizer
     ) {}
 
     /**
+     * Decode, optionally downscale, and re-encode an image file as JPEG.
+     *
+     * If the source image fits within `maxWidth × maxHeight` the dimensions
+     * are preserved. Re-encoding strips EXIF and any embedded payload.
+     *
+     * @param string $sourcePath      Absolute path to the source image (JPEG / PNG / WebP).
+     * @param string $destinationPath Absolute path for the output JPEG.
      * @return array{width_px:int,height_px:int,file_size_bytes:int,mime_type:string,sha256_hash:string}
+     * @throws \RuntimeException If the file is not a recognised image or write fails.
      */
     public function optimize(string $sourcePath, string $destinationPath): array
     {

@@ -39,12 +39,21 @@ const STORE = 'qsos';
  * greater than the previous one, even if the wall clock hasn't ticked.
  */
 let _lastQueuedAt = 0;
+/**
+ * Return a strictly-increasing timestamp for `queued_at`. Guarantees
+ * chronological drain order even when two enqueue() calls land within
+ * the same millisecond.
+ * @returns {number} epoch milliseconds, always > previous call's result
+ */
 function _nextQueuedAt() {
     const now = Date.now();
     _lastQueuedAt = (now > _lastQueuedAt) ? now : (_lastQueuedAt + 1);
     return _lastQueuedAt;
 }
 
+/**
+ * @returns {boolean} true if the IndexedDB API is available in this context
+ */
 function hasIndexedDb() {
     return typeof indexedDB !== 'undefined';
 }
@@ -64,6 +73,11 @@ function generateUuid() {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+/**
+ * Open (or create) the offline IndexedDB database. Creates the `qsos`
+ * object store with a `queued_at` secondary index on first use.
+ * @returns {Promise<IDBDatabase>}
+ */
 function openDb() {
     return new Promise((resolve, reject) => {
         if (!hasIndexedDb()) {
@@ -84,6 +98,13 @@ function openDb() {
     });
 }
 
+/**
+ * Open the DB, run a synchronous callback `fn(store)` inside a transaction,
+ * and resolve with the callback's return value when the transaction commits.
+ * @param {'readonly'|'readwrite'} mode
+ * @param {function(IDBObjectStore): any} fn - synchronous store callback
+ * @returns {Promise<any>}
+ */
 async function withStore(mode, fn) {
     const db = await openDb();
     return new Promise((resolve, reject) => {
@@ -133,7 +154,10 @@ async function enqueue(data) {
     return row;
 }
 
-/** Get every queued row, oldest first. */
+/**
+ * Fetch every queued row from IndexedDB, ordered oldest-first by `queued_at`.
+ * @returns {Promise<object[]>}
+ */
 async function getAll() {
     return withStore('readonly', (store) => {
         return new Promise((resolve, reject) => {
@@ -154,6 +178,10 @@ async function getAll() {
     });
 }
 
+/**
+ * Return the total number of rows currently in the queue.
+ * @returns {Promise<number>}
+ */
 async function count() {
     return withStore('readonly', (store) => {
         return new Promise((resolve, reject) => {
@@ -164,12 +192,24 @@ async function count() {
     });
 }
 
+/**
+ * Delete a queued row by its UUID.
+ * @param {string} uuid - the client-generated UUID assigned at enqueue time
+ * @returns {Promise<void>}
+ */
 async function remove(uuid) {
     return withStore('readwrite', (store) => {
         store.delete(uuid);
     });
 }
 
+/**
+ * Increment `retry_count` and record the error message on a row that failed
+ * to sync. The row stays in the queue for manual retry or future drain.
+ * @param {string} uuid         - row UUID
+ * @param {string} errorMessage - human-readable error from the failed attempt
+ * @returns {Promise<void>}
+ */
 async function markError(uuid, errorMessage) {
     const db = await openDb();
     return new Promise((resolve, reject) => {

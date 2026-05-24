@@ -31,12 +31,22 @@ let _pollTimer = null;
 let _inFlight = false;
 let _lastError = null;
 
+/**
+ * Return the app base-path prefix injected by the layout (e.g. '/qsl' for
+ * subfolder deploys, '' for root). Used to build absolute fetch URLs.
+ * @returns {string}
+ */
 function getBase() {
     return (typeof window !== 'undefined' && typeof window.EQSL_BASE === 'string')
         ? window.EQSL_BASE
         : '';
 }
 
+/**
+ * Read the CSRF token from the page meta tag or the csrfToken cookie.
+ * Returns '' when neither source is available (SSR/test context).
+ * @returns {string}
+ */
 function getCsrf() {
     if (typeof document === 'undefined') return '';
     const meta = document.querySelector('meta[name="csrf-token"]')?.content;
@@ -45,6 +55,13 @@ function getCsrf() {
     return cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
 }
 
+/**
+ * Dispatch an `eqsl-sync-status` CustomEvent on `window` so the sync-status
+ * pill Alpine component can update without polling.
+ * @param {'idle'|'syncing'|'error'} state
+ * @param {number} pending - total rows still in the queue
+ * @param {number} syncing - rows currently being processed in this drain pass
+ */
 function broadcast(state, pending, syncing) {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent('eqsl-sync-status', {
@@ -57,6 +74,12 @@ function broadcast(state, pending, syncing) {
     }));
 }
 
+/**
+ * Read the current queue count and broadcast a status event. Silently
+ * no-ops when IndexedDB is unavailable.
+ * @param {'idle'|'syncing'|'error'} state
+ * @param {number} [syncing=0]
+ */
 async function broadcastCurrent(state, syncing = 0) {
     if (!window.OfflineQueue) return;
     try {

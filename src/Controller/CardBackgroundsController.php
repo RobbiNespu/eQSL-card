@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\OperationLog;
+
 /**
  * User-facing card-background library at /card-backgrounds.
  *
@@ -29,6 +31,15 @@ class CardBackgroundsController extends AppController
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Paginated library of the current user's card backgrounds.
+     *
+     * Shows active (non-soft-deleted) backgrounds ordered newest-first,
+     * along with a per-row map of which templates have each background
+     * bound via `background_upload_id`.
+     *
+     * @return void
+     */
     public function index(): void
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();
@@ -54,6 +65,16 @@ class CardBackgroundsController extends AppController
         ]);
     }
 
+    /**
+     * Render (GET) or save (POST/PUT/PATCH) attribution metadata for a background.
+     *
+     * Only the owner or an admin may edit a background; non-owners get a 404
+     * via `assertCanModify`. The editable fields are `author_name` and `license`
+     * only — all other columns are immutable via this action.
+     *
+     * @param int $id Background primary key.
+     * @return \Cake\Http\Response|null Redirect on save, null when rendering the form.
+     */
     public function edit(int $id)
     {
         $bg = $this->fetchTable('CardBackgrounds')
@@ -76,16 +97,18 @@ class CardBackgroundsController extends AppController
             $bg->set('license', $license, ['guard' => false]);
             $this->fetchTable('CardBackgrounds')->saveOrFail($bg);
 
+            $actorId = $this->Authentication->getIdentity()->getIdentifier();
             try {
                 (new \App\Service\AuditLogger())->log(
                     event: 'card_background.attribution_edited',
-                    actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                    actorUserId: $actorId,
                     target: ['type' => 'CardBackgrounds', 'id' => $bg->id],
                     metadata: ['author' => $authorName, 'license' => $license],
                 );
             } catch (\Throwable $e) {
                 error_log('audit: ' . $e->getMessage());
             }
+            OperationLog::event('card_background.attribution_edited', ['user_id' => (int)$actorId, 'background_id' => (int)$bg->id]);
 
             $this->Flash->success('Background attribution saved.');
             return $this->redirect($this->returnUrl());
@@ -98,6 +121,17 @@ class CardBackgroundsController extends AppController
         return null;
     }
 
+    /**
+     * Soft-delete a card background.
+     *
+     * POST-only. Sets `deleted_at` on the row; the on-disk JPEG is retained
+     * until the admin sweep prunes orphans. Existing cards that reference
+     * this background continue to render normally (the file stays on disk).
+     * Only the owner or an admin may delete; others get 404 via `assertCanModify`.
+     *
+     * @param int $id Background primary key.
+     * @return \Cake\Http\Response Redirect after deletion.
+     */
     public function delete(int $id)
     {
         $this->request->allowMethod('post');
@@ -111,15 +145,17 @@ class CardBackgroundsController extends AppController
         $bg->set('deleted_at', \Cake\I18n\DateTime::now(), ['guard' => false]);
         $this->fetchTable('CardBackgrounds')->saveOrFail($bg);
 
+        $actorId = $this->Authentication->getIdentity()->getIdentifier();
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'card_background.deleted',
-                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                actorUserId: $actorId,
                 target: ['type' => 'CardBackgrounds', 'id' => $bg->id],
             );
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('card_background.deleted', ['user_id' => (int)$actorId, 'background_id' => (int)$bg->id]);
 
         $this->Flash->success('Background deleted (existing cards continue to render).');
         return $this->redirect($this->returnUrl());

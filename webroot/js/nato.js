@@ -92,6 +92,16 @@ var STOP_WORDS = {
     monitor: true, monitoring: true, station: true,
 };
 
+/**
+ * Tokenise a Web Speech API transcript for NATO decoding.
+ *
+ * Normalises hyphens and punctuation to spaces, collapses whitespace,
+ * and re-joins "x-ray"/"x ray" variants into the single token "xray"
+ * before splitting. Returns [] for non-string input.
+ *
+ * @param {string} transcript - raw speech-recognition result
+ * @returns {string[]} lowercase tokens
+ */
 function splitTokens(transcript) {
     if (typeof transcript !== 'string') return [];
     // Normalise hyphens, punctuation, and the common "x-ray"/"x ray"
@@ -107,6 +117,20 @@ function splitTokens(transcript) {
     return clean.split(' ');
 }
 
+/**
+ * Decode a NATO-phonetic speech transcript into a callsign string.
+ *
+ * Tokens matched against NATO_TABLE are replaced with their character;
+ * STOP_WORDS are dropped; bare alphanumeric tokens are uppercased and
+ * passed through. Unrecognised non-alphanumeric noise is silently dropped.
+ *
+ * Examples:
+ *   "whiskey one alpha whiskey over" → "W1AW"
+ *   "9m2rdx"                        → "9M2RDX"
+ *
+ * @param {string} transcript - raw Web Speech API transcript
+ * @returns {string} decoded callsign, or '' if nothing decodable was found
+ */
 function decodeCallsign(transcript) {
     var tokens = splitTokens(transcript);
     var out = '';

@@ -44,6 +44,18 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 class BasePathMiddleware implements MiddlewareInterface
 {
+    /**
+     * Rewrite absolute-path URLs in the response to include the deploy base path.
+     *
+     * Rewrites HTML attribute values (href, action, src, formaction, data-url)
+     * and bare fetch() calls whose paths start with `/` but not `//`. Also
+     * rewrites the Location header on 3xx responses. No-op when webroot is `/`
+     * (root deploy) or when the response is non-HTML.
+     *
+     * @param \Psr\Http\Message\ServerRequestInterface  $request Incoming request.
+     * @param \Psr\Http\Server\RequestHandlerInterface  $handler Next middleware handler.
+     * @return \Psr\Http\Message\ResponseInterface
+     */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $response = $handler->handle($request);

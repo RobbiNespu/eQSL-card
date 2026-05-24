@@ -15,6 +15,14 @@ use Cake\Validation\Validator;
  */
 class CardBackgroundsTable extends Table
 {
+    /**
+     * Configure table name, primary key, Timestamp behavior (created_at only),
+     * and associations. The Cards association uses the legacy FK column name
+     * `upload_id` for backward compatibility with existing card rows.
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -38,6 +46,14 @@ class CardBackgroundsTable extends Table
         $this->hasMany('Cards', ['foreignKey' => 'upload_id']);
     }
 
+    /**
+     * Validation: original_filename, storage_path, mime_type, sha256_hash are
+     * required scalars; width_px, height_px, file_size_bytes must be positive
+     * integers.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -63,6 +79,14 @@ class CardBackgroundsTable extends Table
         return $validator;
     }
 
+    /**
+     * Application rules: sha256_hash must be unique; exactly one of user_id or
+     * guest_visit_id must be set (XOR ownership — a background cannot be owned
+     * by both a user and a guest session simultaneously).
+     *
+     * @param \Cake\ORM\RulesChecker $rules Rules checker instance.
+     * @return \Cake\ORM\RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['sha256_hash']));

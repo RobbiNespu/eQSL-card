@@ -10,7 +10,17 @@ namespace App\Service;
  */
 final class Maidenhead
 {
-    /** @return array{lat: float, lon: float}|null */
+    /**
+     * Decode a 4- or 6-character Maidenhead grid locator to a lat/lon centroid.
+     *
+     * Returns the centre of the 4-char square (±1° lat, ±1° lon accuracy) or
+     * the centre of the 6-char subsquare (±2.5′ lat, ±5′ lon accuracy).
+     * Returns null for null input, invalid format, or grid strings outside
+     * the spec's two-letter field + two-digit square [+ two-letter subsquare].
+     *
+     * @param string|null $grid Maidenhead grid locator (e.g. "OI11", "OI11wg").
+     * @return array{lat: float, lon: float}|null Centroid coordinates, or null on invalid input.
+     */
     public static function toLatLon(?string $grid): ?array
     {
         if ($grid === null) {

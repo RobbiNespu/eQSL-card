@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\AuditLogger;
+use App\Service\OperationLog;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime;
 use Cake\Utility\Security;
@@ -20,6 +21,16 @@ class NetSessionsController extends AppController
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Load a net session owned by the current user, or throw 404.
+     *
+     * Used as an authorization check on all owner-only actions (edit,
+     * start, end, delete, analytics, addLogger, removeLogger).
+     *
+     * @param int $id Net session primary key.
+     * @return \App\Model\Entity\NetSession
+     * @throws \Cake\Http\Exception\NotFoundException If not found or not owned.
+     */
     private function ownedOrFail(int $id): \App\Model\Entity\NetSession
     {
         $uid = $this->Authentication->getIdentity()->getIdentifier();
@@ -31,6 +42,11 @@ class NetSessionsController extends AppController
         return $row;
     }
 
+    /**
+     * List the current user's net sessions — live, upcoming, and recent (last 50).
+     *
+     * @return void
+     */
     public function index(): void
     {
         $uid = $this->Authentication->getIdentity()->getIdentifier();
@@ -44,6 +60,14 @@ class NetSessionsController extends AppController
         ]);
     }
 
+    /**
+     * Render the new net session form (GET) or create one (POST).
+     *
+     * Sets `owner_id` from the authenticated identity, `status` to `'scheduled'`,
+     * a unique `public_slug`, and a random `logger_token` invite link.
+     *
+     * @return \Cake\Http\Response|null Redirect to the view on success, null to re-render.
+     */
     public function add(): ?\Cake\Http\Response
     {
         $tbl = $this->fetchTable('NetSessions');
@@ -56,6 +80,7 @@ class NetSessionsController extends AppController
             $session->set('public_slug', $this->uniqueSlug(), ['guard' => false]);
             $session->set('logger_token', strtolower(Security::randomString(20)), ['guard' => false]);
             if ($tbl->save($session)) {
+                OperationLog::event('net.session.created', ['user_id' => (int)$session->owner_id, 'session_id' => (int)$session->id]);
                 $this->Flash->success('Net session created.');
                 return $this->redirect(['action' => 'view', $session->id]);
             }
@@ -65,12 +90,19 @@ class NetSessionsController extends AppController
         return null;
     }
 
+    /**
+     * Render (GET) or save (POST/PUT) metadata for an owned net session.
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response|null Redirect on save, null to re-render.
+     */
     public function edit(int $id): ?\Cake\Http\Response
     {
         $session = $this->ownedOrFail($id);
         if ($this->request->is(['post', 'put'])) {
             $session = $this->fetchTable('NetSessions')->patchEntity($session, $this->request->getData());
             if ($this->fetchTable('NetSessions')->save($session)) {
+                OperationLog::event('net.session.updated', ['session_id' => (int)$id]);
                 $this->Flash->success('Net session updated.');
                 return $this->redirect(['action' => 'view', $id]);
             }
@@ -80,6 +112,12 @@ class NetSessionsController extends AppController
         return null;
     }
 
+    /**
+     * Transition an owned net session to `live` status and stamp `started_at`.
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response Redirect to the cockpit.
+     */
     public function start(int $id): \Cake\Http\Response
     {
         $this->request->allowMethod('post');
@@ -97,10 +135,17 @@ class NetSessionsController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('net.session.started', ['user_id' => (int)$uid, 'session_id' => (int)$id]);
         $this->Flash->success('Net is live.');
         return $this->redirect(['action' => 'cockpit', $id]);
     }
 
+    /**
+     * Transition an owned net session to `ended` status and stamp `ended_at`.
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response Redirect to the session view.
+     */
     public function end(int $id): \Cake\Http\Response
     {
         $this->request->allowMethod('post');
@@ -118,10 +163,17 @@ class NetSessionsController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('net.session.ended', ['user_id' => (int)$uid, 'session_id' => (int)$id]);
         $this->Flash->success('Net ended.');
         return $this->redirect(['action' => 'view', $id]);
     }
 
+    /**
+     * Hard-delete an owned net session.
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response Redirect to the index.
+     */
     public function delete(int $id): \Cake\Http\Response
     {
         $this->request->allowMethod('post');
@@ -137,10 +189,17 @@ class NetSessionsController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('net.session.deleted', ['user_id' => (int)$uid, 'session_id' => (int)$id]);
         $this->Flash->success('Net session deleted.');
         return $this->redirect(['action' => 'index']);
     }
 
+    /**
+     * Detail view for an owned net session, including co-logger list.
+     *
+     * @param int $id Net session primary key.
+     * @return void
+     */
     public function view(int $id): void
     {
         $session = $this->ownedOrFail($id);
@@ -152,6 +211,14 @@ class NetSessionsController extends AppController
         $this->set(['session' => $session, 'loggers' => $loggers, 'title' => $session->net_title]);
     }
 
+    /**
+     * Add a co-logger to an owned net session by user id.
+     *
+     * Silently no-ops if the user is already a logger (prevents duplicate rows).
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response Redirect to the session view.
+     */
     public function addLogger(int $id): \Cake\Http\Response
     {
         $this->request->allowMethod('post');
@@ -168,6 +235,13 @@ class NetSessionsController extends AppController
         return $this->redirect(['action' => 'view', $id]);
     }
 
+    /**
+     * Remove a co-logger from an owned net session. Silently no-ops if not found.
+     *
+     * @param int $id     Net session primary key.
+     * @param int $userId Co-logger user id to remove.
+     * @return \Cake\Http\Response Redirect to the session view.
+     */
     public function removeLogger(int $id, int $userId): \Cake\Http\Response
     {
         $this->request->allowMethod('post', 'delete');
@@ -181,6 +255,16 @@ class NetSessionsController extends AppController
         return $this->redirect(['action' => 'view', $id]);
     }
 
+    /**
+     * Join a net session as a co-logger via the one-time invite token.
+     *
+     * Already-registered loggers are silently skipped; only the first join
+     * inserts a row in `net_session_loggers`. Redirects to the cockpit on
+     * success. Unknown token throws 404.
+     *
+     * @param string $token Logger invite token from the session's invite URL.
+     * @return \Cake\Http\Response Redirect to the cockpit.
+     */
     public function join(string $token): \Cake\Http\Response
     {
         $uid = $this->Authentication->getIdentity()->getIdentifier();
@@ -199,6 +283,12 @@ class NetSessionsController extends AppController
         return $this->redirect(['action' => 'cockpit', $session->id]);
     }
 
+    /**
+     * Generate a random 16-character lower-case public slug that does not
+     * already exist in `net_sessions.public_slug`.
+     *
+     * @return string Unique slug.
+     */
     private function uniqueSlug(): string
     {
         $tbl = $this->fetchTable('NetSessions');
@@ -208,6 +298,16 @@ class NetSessionsController extends AppController
         return $slug;
     }
 
+    /**
+     * Load a net session for which the current user is an owner or co-logger.
+     *
+     * Used by actions that allow the full logger team (cockpit, checkins,
+     * checkin, exportAdif, exportPdf).
+     *
+     * @param int $id Net session primary key.
+     * @return \App\Model\Entity\NetSession
+     * @throws \Cake\Http\Exception\NotFoundException If not found or no logger access.
+     */
     private function loggerSessionOrFail(int $id): \App\Model\Entity\NetSession
     {
         $uid = $this->Authentication->getIdentity()->getIdentifier();
@@ -276,6 +376,14 @@ class NetSessionsController extends AppController
             ->withStringBody($pdf);
     }
 
+    /**
+     * Analytics dashboard for an owned net session.
+     *
+     * Loads session stats, map points, and retention data from NetMetrics.
+     *
+     * @param int $id Net session primary key.
+     * @return void
+     */
     public function analytics(int $id): void
     {
         $session = $this->ownedOrFail($id);
@@ -289,6 +397,15 @@ class NetSessionsController extends AppController
         ]);
     }
 
+    /**
+     * NCS real-time cockpit for owner and co-loggers.
+     *
+     * Renders the check-in roster in newest-first order. Logger-scoped
+     * (owner + co-loggers); strangers get 404.
+     *
+     * @param int $id Net session primary key.
+     * @return void
+     */
     public function cockpit(int $id): void
     {
         $session = $this->loggerSessionOrFail($id);
@@ -303,6 +420,18 @@ class NetSessionsController extends AppController
         ]);
     }
 
+    /**
+     * Create a check-in (POST) or return the delta feed (GET).
+     *
+     * POST path: validates the session is live, stamps server-side fields
+     * (owner_id, logged_by, net_session_id, qso_type, ncs details, band/freq/mode,
+     * timestamp), saves the QSO, and returns a JSON `{ok, checkin}` payload.
+     * GET path: delegates to `checkinsFeed()` which returns the full or delta
+     * roster as JSON.
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response JSON response.
+     */
     public function checkins(int $id): \Cake\Http\Response
     {
         if ($this->request->is('post')) {
@@ -337,11 +466,24 @@ class NetSessionsController extends AppController
             } catch (\Throwable $e) {
                 error_log('audit: ' . $e->getMessage());
             }
+            OperationLog::event('net.checkin.created', ['user_id' => (int)$uid, 'session_id' => (int)$id, 'qso_id' => (int)$qso->id]);
             return $this->jsonResponse(['ok' => true, 'checkin' => $this->presentCheckin($qso)]);
         }
         return $this->checkinsFeed($id);
     }
 
+    /**
+     * Edit or delete a single check-in QSO (PATCH/PUT or DELETE).
+     *
+     * Logger-scoped (owner + co-loggers); strangers get 404. The session must
+     * still be live for either mutation to proceed (returns 409 otherwise).
+     * DELETE removes the QSO row entirely; PATCH/PUT patches a whitelist of
+     * editable fields.
+     *
+     * @param int $id    Net session primary key.
+     * @param int $qsoId QSO primary key to edit or delete.
+     * @return \Cake\Http\Response JSON response.
+     */
     public function checkin(int $id, int $qsoId): \Cake\Http\Response
     {
         $session = $this->loggerSessionOrFail($id);
@@ -366,6 +508,7 @@ class NetSessionsController extends AppController
             } catch (\Throwable $e) {
                 error_log('audit: ' . $e->getMessage());
             }
+            OperationLog::event('net.checkin.deleted', ['user_id' => (int)$uid, 'session_id' => (int)$id, 'qso_id' => (int)$qsoId]);
             return $this->jsonResponse(['ok' => true, 'removed' => $qsoId]);
         }
         $qso = $qsos->patchEntity($qso, $this->request->getData(), [
@@ -377,12 +520,24 @@ class NetSessionsController extends AppController
         return $this->jsonResponse(['ok' => true, 'checkin' => $this->presentCheckin($qso)]);
     }
 
+    /**
+     * Resolve the NCS callsign from the net session owner's user row.
+     *
+     * @param \App\Model\Entity\NetSession $s The net session.
+     * @return string Owner's callsign, or empty string if unset.
+     */
     private function ncsCallsignFor(\App\Model\Entity\NetSession $s): string
     {
         $owner = $this->fetchTable('Users')->get($s->owner_id);
         return (string)$owner->callsign;
     }
 
+    /**
+     * Project a Qso entity onto the wire shape the cockpit and public feed consume.
+     *
+     * @param \App\Model\Entity\Qso $q Check-in QSO entity.
+     * @return array<string, mixed>
+     */
     private function presentCheckin(\App\Model\Entity\Qso $q): array
     {
         return [
@@ -399,6 +554,16 @@ class NetSessionsController extends AppController
         ];
     }
 
+    /**
+     * Return the full or delta check-in roster as a JSON response.
+     *
+     * If a `?since=` ISO-8601 cursor is provided, only rows with
+     * `updated_at > cursor` are included ('+' space-decoding applied). A
+     * malformed cursor falls back to returning all rows.
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response JSON delta feed.
+     */
     private function checkinsFeed(int $id): \Cake\Http\Response
     {
         $session = $this->loggerSessionOrFail($id);

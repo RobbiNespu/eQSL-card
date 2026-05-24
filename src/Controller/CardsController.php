@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\OperationLog;
+
 /**
  * Cards Controller (M2-T7).
  *
@@ -149,6 +151,7 @@ class CardsController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('card.deleted', ['user_id' => (int)$userId, 'card_id' => (int)$card->id]);
 
         $this->Flash->success('Card deleted.');
 
@@ -240,6 +243,7 @@ class CardsController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('card.shared', ['user_id' => (int)$userId, 'card_id' => (int)$card->id]);
 
         $this->Flash->success('Card shared. Public link: /qsl/' . $slug);
 
@@ -309,6 +313,7 @@ class CardsController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+        OperationLog::event('card.share_revoked', ['user_id' => (int)$userId, 'card_id' => (int)$card->id]);
 
         $this->Flash->success('Share link revoked.');
 

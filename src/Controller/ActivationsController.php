@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\OperationLog;
+
 /**
  * M5 T14 — Activations CRUD.
  *
@@ -30,6 +32,11 @@ class ActivationsController extends AppController
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * List the current user's activations: the active one (if any) and the 50 most recent.
+     *
+     * @return void
+     */
     public function index(): void
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();
@@ -65,6 +72,7 @@ class ActivationsController extends AppController
         $entity->set('started_at', \Cake\I18n\DateTime::now(), ['guard' => false]);
 
         if ($tbl->save($entity)) {
+            OperationLog::event('activation.started', ['user_id' => (int)$userId, 'activation_id' => (int)$entity->id]);
             $this->Flash->success('Started activation: ' . $entity->name . '.');
             return $this->redirect('/activations');
         }
@@ -99,11 +107,19 @@ class ActivationsController extends AppController
 
         $activation->set('ended_at', \Cake\I18n\DateTime::now(), ['guard' => false]);
         $tbl->saveOrFail($activation);
+        OperationLog::event('activation.ended', ['user_id' => (int)$userId, 'activation_id' => (int)$id]);
 
         $this->Flash->success('Ended activation: ' . $activation->name . '.');
         return $this->redirect('/activations');
     }
 
+    /**
+     * Render (GET) or save (POST/PUT/PATCH) an owned activation's editable fields
+     * (name, code, grid_square, notes).
+     *
+     * @param int $id Activation primary key.
+     * @return \Cake\Http\Response|null Redirect on save, null to re-render.
+     */
     public function edit(int $id): ?\Cake\Http\Response
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();
@@ -116,6 +132,7 @@ class ActivationsController extends AppController
         if ($this->request->is(['post', 'put', 'patch'])) {
             $tbl->patchEntity($activation, $this->request->getData());
             if ($tbl->save($activation)) {
+                OperationLog::event('activation.updated', ['user_id' => (int)$userId, 'activation_id' => (int)$id]);
                 $this->Flash->success('Activation updated.');
                 return $this->redirect('/activations');
             }
@@ -174,6 +191,16 @@ class ActivationsController extends AppController
             ->withStringBody($adif);
     }
 
+    /**
+     * Hard-delete an owned activation.
+     *
+     * QSOs tagged with this activation retain their logbook entries; the FK
+     * `qsos.activation_id` is `ON DELETE SET NULL`, so they revert to
+     * "not part of an activation" rather than being deleted.
+     *
+     * @param int $id Activation primary key.
+     * @return \Cake\Http\Response Redirect to /activations.
+     */
     public function delete(int $id): \Cake\Http\Response
     {
         $this->request->allowMethod('post');
@@ -185,6 +212,7 @@ class ActivationsController extends AppController
             ->firstOrFail();
 
         $tbl->deleteOrFail($activation);
+        OperationLog::event('activation.deleted', ['user_id' => (int)$userId, 'activation_id' => (int)$id]);
 
         $this->Flash->success('Activation deleted. QSOs logged under it are still in your logbook.');
         return $this->redirect('/activations');

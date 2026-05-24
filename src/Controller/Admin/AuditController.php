@@ -20,19 +20,27 @@ use App\Controller\AppController;
  */
 class AuditController extends AppController
 {
+    /** Load the Authentication component required by all Admin controllers. */
     public function initialize(): void
     {
         parent::initialize();
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Gate access to admin-only actions.
+     *
+     * Anonymous requests are handled by AuthenticationComponent (redirects to
+     * /login). Only authenticated-but-not-admin users need the explicit 403.
+     *
+     * @param \Cake\Event\EventInterface $event The before-filter event.
+     * @return void
+     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
+     */
     public function beforeFilter(\Cake\Event\EventInterface $event): void
     {
         parent::beforeFilter($event);
 
-        // Anonymous: AuthenticationComponent::startup() (runs after
-        // beforeFilter) throws UnauthenticatedException → middleware redirect
-        // to /login. We only gate authenticated-but-not-admin users here.
         $identity = $this->Authentication->getIdentity();
         if (!$identity) {
             return;

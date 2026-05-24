@@ -7,8 +7,36 @@ use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
+/**
+ * QSOs ORM table.
+ *
+ * Each row is a contact log entry. Two types are recognised via the
+ * `qso_type` column (see QSO_TYPES constant):
+ *   - 'contact' — standard 1:1 station QSO (default).
+ *   - 'net'     — net check-in; also carries ncs_callsign, net_title,
+ *                 net_organisation, net_session_id, net_role.
+ *
+ * The `transport` column defaults to 'rf'; EchoLink/Zello contacts set a
+ * different value plus an optional `transport_meta` qualifier.
+ *
+ * `activation_id` and `net_session_id` / `logged_by_user_id` are locked
+ * from mass assignment and are always assigned server-side. `client_uuid`
+ * is mass-assignable for idempotent offline-queue retries; the DB UNIQUE
+ * constraint on (user_id, client_uuid) provides the dedup guarantee.
+ *
+ * Associations:
+ *   - belongsTo Users
+ *   - hasMany Cards
+ *   - belongsTo Activations (FK activation_id, nullable)
+ */
 class QsosTable extends Table
 {
+    /**
+     * Configure table name, primary key, Timestamp behavior, and associations.
+     *
+     * @param array<string, mixed> $config Table config passed from the ORM locator.
+     * @return void
+     */
     public function initialize(array $config): void
     {
         parent::initialize($config);
@@ -40,6 +68,17 @@ class QsosTable extends Table
      */
     public const QSO_TYPES = ['contact', 'net'];
 
+    /**
+     * Default validation rules.
+     *
+     * call_worked + qso_datetime_utc are required. For net-type QSOs,
+     * ncs_callsign and net_title become additionally required (conditional
+     * `$netMode` callback). transport must be one of the registered
+     * Transport::TRANSPORTS keys.
+     *
+     * @param \Cake\Validation\Validator $validator Validator instance.
+     * @return \Cake\Validation\Validator
+     */
     public function validationDefault(Validator $validator): Validator
     {
         $validator
@@ -87,6 +126,14 @@ class QsosTable extends Table
         return $validator;
     }
 
+    /**
+     * Application rules: user_id must exist in users; (user_id, call_worked,
+     * qso_datetime_utc, band) must be unique — multiple NULLs in band allowed
+     * for legacy rows that predate the band column.
+     *
+     * @param \Cake\ORM\RulesChecker $rules Rules checker instance.
+     * @return \Cake\ORM\RulesChecker
+     */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->existsIn(['user_id'], 'Users'));

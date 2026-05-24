@@ -18,6 +18,15 @@ class DashboardController extends AppController
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Render the authenticated user's dashboard.
+     *
+     * Loads: the user entity, the 6 most-recent cards (with templates),
+     * the 6 most-recent QSOs, aggregate stats (cards/QSOs/shares totals),
+     * and the currently live net session (if any) for the dashboard banner.
+     *
+     * @return void
+     */
     public function index(): void
     {
         $userId = $this->Authentication->getIdentity()->getIdentifier();

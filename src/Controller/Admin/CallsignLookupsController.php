@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 use App\Controller\AppController;
 use App\Service\AppSettings;
 use App\Service\CallsignLookup\CallsignLookupService;
+use App\Service\OperationLog;
 use Cake\Http\Exception\ForbiddenException;
 
 /**
@@ -41,19 +42,27 @@ class CallsignLookupsController extends AppController
         'rapi'                  => 'Indonesia RAPI — use local directory; PDF-only sources',
     ];
 
+    /** Load the Authentication component required by all Admin controllers. */
     public function initialize(): void
     {
         parent::initialize();
         $this->loadComponent('Authentication.Authentication');
     }
 
+    /**
+     * Gate access to admin-only actions.
+     *
+     * Anonymous requests are handled by AuthenticationComponent (redirects to
+     * /login). Only authenticated-but-not-admin users need the explicit 403.
+     *
+     * @param \Cake\Event\EventInterface $event The before-filter event.
+     * @return void
+     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
+     */
     public function beforeFilter(\Cake\Event\EventInterface $event): void
     {
         parent::beforeFilter($event);
 
-        // Anonymous requests fall through; AuthenticationMiddleware redirects
-        // them to /login on its own. Only authenticated-but-non-admin hits
-        // need the explicit 403 here.
         $identity = $this->Authentication->getIdentity();
         if (!$identity) {
             return;
@@ -244,10 +253,14 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Edit a single cache row. The natural key `callsign` is immutable
-     * here — changing it would create a duplicate (UNIQUE constraint) or
-     * orphan whatever the user typed. They can delete + let the chain
-     * re-fetch if a renaming is needed.
+     * Edit a single cache row.
+     *
+     * The natural key `callsign` is immutable here — changing it would create
+     * a duplicate (UNIQUE constraint) or orphan whatever the user typed. They
+     * can delete + let the chain re-fetch if a callsign renaming is needed.
+     *
+     * @param int $id Cache row PK.
+     * @return \Cake\Http\Response|null Redirect on successful save, null for GET/validation failure.
      */
     public function edit(int $id): ?\Cake\Http\Response
     {
@@ -265,6 +278,11 @@ class CallsignLookupsController extends AppController
                 'source_url'    => trim((string)($data['source_url'] ?? '')) ?: null,
             ]);
             if ($table->save($entity)) {
+                OperationLog::event('admin.callsign_lookup.updated', [
+                    'actor_user_id' => $this->Authentication->getIdentity()->getIdentifier(),
+                    'callsign_lookup_id' => $id,
+                    'callsign' => $entity->callsign,
+                ]);
                 $this->Flash->success('Cached lookup updated.');
 
                 return $this->redirect('/admin/callsign-lookups');
@@ -281,8 +299,13 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Hard-delete one cache row. The chain will re-fetch on the next
-     * lookup; no QSO data is touched.
+     * Hard-delete one cache row.
+     *
+     * The lookup chain will re-fetch on the next request for this callsign;
+     * no QSO data is touched.
+     *
+     * @param int $id Cache row PK.
+     * @return \Cake\Http\Response
      */
     public function delete(int $id): \Cake\Http\Response
     {
@@ -291,17 +314,24 @@ class CallsignLookupsController extends AppController
         $table = $this->fetchTable('CallsignLookups');
         $entity = $table->find()->where(['id' => $id])->firstOrFail();
         $call = $entity->callsign;
+        $actorId = $this->Authentication->getIdentity()->getIdentifier();
         $table->deleteOrFail($entity);
 
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'callsign_lookup.deleted',
-                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                actorUserId: $actorId,
                 metadata: ['callsign' => $call],
             );
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.callsign_lookup.deleted', [
+            'actor_user_id'      => $actorId,
+            'callsign_lookup_id' => $id,
+            'callsign'           => $call,
+        ]);
 
         $this->Flash->success("Cached lookup for {$call} removed.");
 
@@ -309,10 +339,13 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Write the enabled flag + provider order to app_settings. Mirrors
-     * the same keys the /admin/settings page edits, so both surfaces stay
-     * in sync — settings.php still works, this is just a focused entry
-     * point next to the cache UI.
+     * Write the enabled flag + provider order to app_settings.
+     *
+     * Mirrors the same keys the /admin/settings page edits, so both surfaces
+     * stay in sync. This is a focused entry point positioned next to the cache
+     * UI for operator convenience.
+     *
+     * @return \Cake\Http\Response
      */
     public function saveSettings(): \Cake\Http\Response
     {
@@ -335,17 +368,24 @@ class CallsignLookupsController extends AppController
         }
         $update['callsign_lookup_providers'] = implode(',', $enabledCodes);
 
+        $actorId = $this->Authentication->getIdentity()->getIdentifier();
         (new AppSettings())->setMany($update);
 
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'settings.updated',
-                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                actorUserId: $actorId,
                 metadata: ['keys' => array_keys($update), 'via' => 'callsign-lookups'],
             );
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.settings.saved', [
+            'actor_user_id' => $actorId,
+            'keys'          => array_keys($update),
+            'via'           => 'callsign-lookups',
+        ]);
 
         $this->Flash->success('Callsign auto-complete settings saved.');
 
@@ -465,10 +505,12 @@ class CallsignLookupsController extends AppController
         $started = microtime(true);
         $count = 0;
         $errored = false;
+        $actorId = $this->Authentication->getIdentity()->getIdentifier();
         try {
             $count = $importer->refresh($emit);
         } catch (\Throwable $e) {
             $emit('ERROR: ' . $e->getMessage());
+            OperationLog::failure('admin.callsign.radioid_cache_refresh', $e, ['actor_user_id' => $actorId]);
             $errored = true;
         }
 
@@ -479,12 +521,18 @@ class CallsignLookupsController extends AppController
             try {
                 (new \App\Service\AuditLogger())->log(
                     event: 'callsign.radioid_cache_synced',
-                    actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                    actorUserId: $actorId,
                     metadata: ['rows' => $count, 'seconds' => $elapsed],
                 );
             } catch (\Throwable $e) {
                 error_log('audit: ' . $e->getMessage());
             }
+
+            OperationLog::event('admin.callsign.radioid_cache_synced', [
+                'actor_user_id' => $actorId,
+                'rows'          => $count,
+                'seconds'       => $elapsed,
+            ]);
         }
 
         // Hard-exit so CakePHP's normal response emitter doesn't run a
@@ -498,14 +546,18 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Wipe the local RadioID lookup cache. Independent of the per-call
-     * `callsign_lookups` cache the chain writes — this only targets the
-     * bulk dump table. Sync from the provider page repopulates.
+     * Wipe the local RadioID lookup cache.
+     *
+     * Targets only the `radioid_registry` bulk dump table, independent of the
+     * per-call `callsign_lookups` cache. Sync from the provider page repopulates.
+     *
+     * @return \Cake\Http\Response
      */
     public function clearRadioIdDump(): \Cake\Http\Response
     {
         $this->request->allowMethod('post');
 
+        $actorId = $this->Authentication->getIdentity()->getIdentifier();
         $conn = $this->fetchTable('CallsignLookups')->getConnection();
         $row = $conn->execute('SELECT COUNT(*) AS c FROM radioid_registry')->fetch('assoc');
         $count = (int)($row['c'] ?? 0);
@@ -514,12 +566,17 @@ class CallsignLookupsController extends AppController
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'callsign.radioid_cache_cleared',
-                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                actorUserId: $actorId,
                 metadata: ['rows_deleted' => $count],
             );
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.callsign.radioid_cache_cleared', [
+            'actor_user_id' => $actorId,
+            'rows_deleted'  => $count,
+        ]);
 
         $this->Flash->success("Cleared RadioID lookup cache — {$count} rows removed.");
 
@@ -527,13 +584,18 @@ class CallsignLookupsController extends AppController
     }
 
     /**
-     * Wipe the entire cache. Re-uses the service-layer clear so audit
-     * counting matches whatever the cleanup page would produce.
+     * Wipe the entire per-call callsign lookups cache.
+     *
+     * Re-uses the service-layer clear so the audit count matches whatever the
+     * cleanup page would produce.
+     *
+     * @return \Cake\Http\Response
      */
     public function clear(): \Cake\Http\Response
     {
         $this->request->allowMethod('post');
 
+        $actorId = $this->Authentication->getIdentity()->getIdentifier();
         $service = new CallsignLookupService(
             providers: [],
             settings: new AppSettings(),
@@ -543,12 +605,17 @@ class CallsignLookupsController extends AppController
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'cleanup.callsign_cache_cleared',
-                actorUserId: $this->Authentication->getIdentity()->getIdentifier(),
+                actorUserId: $actorId,
                 metadata: ['rows_deleted' => $count, 'via' => 'callsign-lookups'],
             );
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
+
+        OperationLog::event('admin.callsign_cache.cleared', [
+            'actor_user_id' => $actorId,
+            'rows_deleted'  => $count,
+        ]);
 
         $this->Flash->success("Cleared {$count} cached callsign lookups.");
 

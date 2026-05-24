@@ -6,6 +6,12 @@ namespace App\Model\Entity;
 use Cake\ORM\Entity;
 
 /**
+ * Net session co-logger entity.
+ *
+ * Records that a user has been granted logging rights for a specific net
+ * session. `added_via` tracks how the permission was granted (e.g. 'token',
+ * 'owner').
+ *
  * @property int $id
  * @property int $net_session_id
  * @property int $user_id
