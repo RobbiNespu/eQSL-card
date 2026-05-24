@@ -101,7 +101,7 @@ final class AdifExporter
 
         $h .= $this->tag('ADIF_VER', '3.1.4');
         $h .= $this->tag('PROGRAMID', 'eQSL Card');
-        $h .= $this->tag('PROGRAMVERSION', '1.1.0');
+        $h .= $this->tag('PROGRAMVERSION', '1.2.0');
         $h .= $this->tag('CREATED_TIMESTAMP', (new DateTime('now', 'UTC'))->format('Ymd His'));
         $h .= "<EOH>\n\n";
 
