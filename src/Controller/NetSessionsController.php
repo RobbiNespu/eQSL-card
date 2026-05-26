@@ -141,6 +141,37 @@ class NetSessionsController extends AppController
     }
 
     /**
+     * Rotate the logger invite token for an owned net session.
+     *
+     * Replaces `logger_token` with a fresh 20-char lower-case random string,
+     * rendering any outstanding `/net-sessions/join/{old}` links invalid (they
+     * will 404 because the token lookup finds no row). Logs both an AuditLog
+     * and an OperationLog event. POST-only; owner-scoped via ownedOrFail().
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response Redirect to the session view.
+     */
+    public function rotateToken(int $id): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+        $session = $this->ownedOrFail($id);
+        $session->set('logger_token', strtolower(Security::randomString(20)), ['guard' => false]);
+        $this->fetchTable('NetSessions')->saveOrFail($session);
+        try {
+            (new AuditLogger())->log(
+                event: 'net.session.token_rotated',
+                actorUserId: $session->owner_id,
+                target: ['type' => 'NetSessions', 'id' => $session->id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+        OperationLog::event('net.session.token_rotated', ['id' => (int)$session->id]);
+        $this->Flash->success('Invite link regenerated. Outstanding links no longer work.');
+        return $this->redirect(['action' => 'view', $id]);
+    }
+
+    /**
      * Transition an owned net session to `ended` status and stamp `ended_at`.
      *
      * @param int $id Net session primary key.

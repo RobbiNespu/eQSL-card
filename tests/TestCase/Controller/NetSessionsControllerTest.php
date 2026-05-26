@@ -556,6 +556,31 @@ final class NetSessionsControllerTest extends TestCase
     // M7 T3 — DELETE writes tombstone; feed returns removed[]
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // M7 T7 — owner-rotatable logger token
+    // -------------------------------------------------------------------------
+
+    public function testRotateTokenInvalidatesOldLink(): void
+    {
+        $ownerId = $this->login();
+        $sessionId = $this->seedNetSession($ownerId, ['logger_token' => 'old-token', 'status' => 'live']);
+        $this->enableCsrfToken();
+        $this->post("/net-sessions/{$sessionId}/rotate-token");
+        $this->assertResponseSuccess();
+        $row = $this->getTableLocator()->get('NetSessions')->get($sessionId);
+        $this->assertNotSame('old-token', $row->logger_token);
+
+        // Old token now 404s on the join confirm page (T9 will create that
+        // route; today, the existing /net-sessions/join/{token} GET should
+        // return 404 since 'old-token' no longer maps to a session).
+        $this->get('/net-sessions/join/old-token');
+        $this->assertResponseCode(404);
+    }
+
+    // -------------------------------------------------------------------------
+    // M7 T3 — DELETE writes tombstone; feed returns removed[]
+    // -------------------------------------------------------------------------
+
     public function testCheckinDeleteWritesTombstoneAndFeedReturnsRemoved(): void
     {
         $ownerId = $this->login();

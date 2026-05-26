@@ -384,6 +384,9 @@ return function (RouteBuilder $routes): void {
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
         $builder->connect('/net-sessions/{id}/end', ['controller' => 'NetSessions', 'action' => 'end'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        // M7 T7 — owner-rotatable logger token. POST-only; old invite links 404 after rotation.
+        $builder->connect('/net-sessions/{id}/rotate-token', ['controller' => 'NetSessions', 'action' => 'rotateToken'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
         $builder->connect('/net-sessions/{id}/delete', ['controller' => 'NetSessions', 'action' => 'delete'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
         $builder->connect('/net-sessions/{id}', ['controller' => 'NetSessions', 'action' => 'view'])

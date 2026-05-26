@@ -118,6 +118,10 @@ $this->assign('title', $title);
              value="<?= h($this->Url->build('/net-sessions/join/' . $session->logger_token, ['fullBase' => true])) ?>"
              readonly aria-label="Co-logger invite link">
     </div>
+    <?= $this->Form->postLink('Regenerate invite link',
+        '/net-sessions/' . (int)$session->id . '/rotate-token',
+        ['confirm' => 'Replace the current invite link? Outstanding links will stop working.',
+         'class' => 'btn btn-sm btn-outline-secondary mb-3']) ?>
 
     <?php if (!empty($loggers) && count($loggers) > 0): ?>
       <p class="mb-2"><strong>Current co-loggers</strong></p>
