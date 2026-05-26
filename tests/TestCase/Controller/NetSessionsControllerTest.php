@@ -21,7 +21,7 @@ final class NetSessionsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.NetSessions', 'app.NetSessionLoggers', 'app.Qsos', 'app.AuditLogs'];
+    protected array $fixtures = ['app.Users', 'app.NetSessions', 'app.NetSessionLoggers', 'app.Qsos', 'app.AuditLogs', 'app.NetSessionRemovals'];
 
     private function login(string $email = 'ncs@x.com'): int
     {
@@ -546,5 +546,30 @@ final class NetSessionsControllerTest extends TestCase
 
         $this->get('/net-sessions/' . $sessionId . '/analytics');
         $this->assertResponseCode(404);
+    }
+
+    // -------------------------------------------------------------------------
+    // M7 T3 — DELETE writes tombstone; feed returns removed[]
+    // -------------------------------------------------------------------------
+
+    public function testCheckinDeleteWritesTombstoneAndFeedReturnsRemoved(): void
+    {
+        $ownerId = $this->login();
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'live']);
+        $qsoId = $this->seedCheckinRow($sessionId, $ownerId, '9W2DEL');
+
+        $this->enableCsrfToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->delete("/net-sessions/{$sessionId}/checkins/{$qsoId}");
+        $this->assertResponseOk();
+
+        $removals = $this->getTableLocator()->get('NetSessionRemovals');
+        $this->assertSame(1, $removals->find()->where(['qso_id' => $qsoId])->count());
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->get("/net-sessions/{$sessionId}/checkins?since=2000-01-01T00:00:00%2B00:00");
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertContains($qsoId, $body['removed']);
     }
 }

@@ -71,11 +71,14 @@ class NetController extends AppController
         $since = (string)$this->request->getQuery('since', '');
         $qsos = $this->fetchTable('Qsos');
         $q = $qsos->find()->where(['net_session_id' => $session->id]);
+        $sinceDt = null;
         if ($since !== '') {
             try {
+                $sinceDt = new \DateTime(str_replace(' ', '+', $since));
                 $q->where(['updated_at >' => new DateTime(str_replace(' ', '+', $since))]);
             } catch (\Exception $e) {
                 // malformed cursor → treat as no cursor (return all)
+                $sinceDt = null;
             }
         }
         $q->orderBy(['qso_datetime_utc' => 'ASC', 'id' => 'ASC']);
@@ -93,12 +96,13 @@ class NetController extends AppController
                 'updated'  => $row->updated_at?->format('c'),
             ];
         }
+        $removed = $this->fetchTable('NetSessionRemovals')->idsRemovedSince($session->id, $sinceDt);
         return $this->jsonResponse([
             'server_time' => DateTime::now()->format('c'),
             'status'      => $session->status,
             'stats'       => (new \App\Service\NetMetrics($qsos))->sessionStats($session->id),
             'checkins'    => $checkins,
-            'removed'     => [],
+            'removed'     => $removed,
         ]);
     }
 }

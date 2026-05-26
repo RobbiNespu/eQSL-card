@@ -497,6 +497,7 @@ class NetSessionsController extends AppController
             throw new NotFoundException('Check-in not found.');
         }
         if ($this->request->is('delete')) {
+            $this->fetchTable('NetSessionRemovals')->record($id, $qsoId);
             $qsos->deleteOrFail($qso);
             try {
                 (new AuditLogger())->log(
@@ -571,15 +572,17 @@ class NetSessionsController extends AppController
         $qsos = $this->fetchTable('Qsos');
 
         $q = $qsos->find()->where(['net_session_id' => $id]);
+        $sinceDt = null;
         if ($since !== '') {
             try {
                 // URL query-string parsing converts '+' → ' ' (form encoding).
                 // ISO-8601 offsets never contain spaces, so restore them before
                 // parsing (e.g. "2026-05-22T12:00:00 00:00" → "+00:00").
-                $cursor = new DateTime(str_replace(' ', '+', $since));
-                $q->where(['updated_at >' => $cursor]);
+                $sinceDt = new \DateTime(str_replace(' ', '+', $since));
+                $q->where(['updated_at >' => new DateTime(str_replace(' ', '+', $since))]);
             } catch (\Exception $e) {
                 // Malformed cursor — treat as no cursor and return all rows.
+                $sinceDt = null;
             }
         }
         $q->orderBy(['qso_datetime_utc' => 'ASC', 'id' => 'ASC']);
@@ -588,15 +591,14 @@ class NetSessionsController extends AppController
         foreach ($q->all() as $row) {
             $checkins[] = $this->presentCheckin($row);
         }
+        $removed = $this->fetchTable('NetSessionRemovals')->idsRemovedSince($id, $sinceDt);
 
         return $this->jsonResponse([
             'server_time' => DateTime::now()->format('c'),
             'status'      => $session->status,
             'stats'       => (new \App\Service\NetMetrics($qsos))->sessionStats($id),
             'checkins'    => $checkins,
-            // Hard-deletes are reflected by absence on a full refresh (no cursor).
-            // Soft-delete tracking (tombstone list) is deferred to future work.
-            'removed'     => [],
+            'removed'     => $removed,
         ]);
     }
 }
