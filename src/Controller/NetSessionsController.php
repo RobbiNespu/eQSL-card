@@ -166,7 +166,7 @@ class NetSessionsController extends AppController
         } catch (\Throwable $e) {
             error_log('audit: ' . $e->getMessage());
         }
-        OperationLog::event('net.session.token_rotated', ['id' => (int)$session->id]);
+        OperationLog::event('net.session.token_rotated', ['user_id' => (int)$session->owner_id, 'session_id' => (int)$session->id]);
         $this->Flash->success('Invite link regenerated. Outstanding links no longer work.');
         return $this->redirect(['action' => 'view', $id]);
     }
