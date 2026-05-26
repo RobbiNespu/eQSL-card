@@ -1,5 +1,6 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest';
-import { RosterStore } from '../../webroot/js/net-merge.js';
+import { RosterStore, renderRoster } from '../../webroot/js/net-merge.js';
 
 describe('RosterStore', () => {
   it('inserts newest first', () => {
@@ -31,5 +32,30 @@ describe('RosterStore', () => {
     s.upsert({ id: 1, callsign: 'A', updated: '2026-05-22T12:00:00Z' });
     s.remove(1);
     expect(s.rows().length).toBe(0);
+  });
+});
+
+describe('renderRoster', () => {
+  it('writes a tbody innerHTML from rows', () => {
+    document.body.innerHTML = '<table><tbody data-net-roster></tbody></table>';
+    const tbody = document.querySelector('tbody');
+    renderRoster(tbody, [
+      { id: 1, callsign: 'A', signal: 9 },
+      { id: 2, callsign: 'B' },
+    ]);
+    expect(tbody.querySelectorAll('tr').length).toBe(2);
+    expect(tbody.innerHTML).toContain('A');
+    expect(tbody.innerHTML).toContain('S9');
+  });
+
+  it('handles empty rows array', () => {
+    document.body.innerHTML = '<table><tbody></tbody></table>';
+    const tbody = document.querySelector('tbody');
+    renderRoster(tbody, []);
+    expect(tbody.innerHTML).toBe('');
+  });
+
+  it('guards null tbody', () => {
+    expect(() => renderRoster(null, [{ id: 1, callsign: 'A' }])).not.toThrow();
   });
 });

@@ -9,7 +9,7 @@
  *
  * Requires `window.NET = { feedUrl, status }` to be set by the server.
  */
-import { RosterStore } from './net-merge.js';
+import { RosterStore, renderRoster, applyStats, startPollLoop } from './net-merge.js';
 
 (function () {
   const cfg = window.NET;
@@ -20,26 +20,7 @@ import { RosterStore } from './net-merge.js';
   let lastEtag = '';
 
   /** Re-render the roster tbody from the in-memory RosterStore, newest first. */
-  function render() {
-    if (!tbody) return;
-    const rows = store.rows();
-    tbody.innerHTML = rows.map((r, i) => `
-      <tr data-checkin-id="${r.id ?? ''}">
-        <td>${rows.length - i}</td>
-        <td class="callsign">${r.callsign ?? ''}</td>
-        <td>${r.name ?? ''}</td>
-        <td>${r.grid ?? ''}</td>
-        <td>${r.signal != null ? 'S' + r.signal : ''}</td>
-        <td>${r.role ?? ''}</td>
-        <td></td>
-      </tr>`).join('');
-  }
-  /** Update the `data-stat` header elements from the feed's stats payload. */
-  function setStats(s) {
-    if (!s) return;
-    const set = (k, v) => { const el = document.querySelector(`[data-stat="${k}"] [data-stat-value]`); if (el && v != null) el.textContent = v; };
-    set('checkins', s.checkins); set('unique', s.unique); set('new', s.new); set('rate', s.rate);
-  }
+  function render() { renderRoster(tbody, store.rows()); }
 
   /** Fetch the latest check-in delta, merge into the store, and re-render. */
   async function tick() {
@@ -54,7 +35,7 @@ import { RosterStore } from './net-merge.js';
       since = json.server_time || since;
       (json.checkins || []).forEach(r => store.upsert(r));
       (json.removed || []).forEach(id => store.remove(id));
-      render(); setStats(json.stats);
+      render(); applyStats(json.stats);
       document.dispatchEvent(new CustomEvent('net:updated', { detail: json }));
     } catch (err) {
       console.error('[net-live] feed fetch failed', err);
@@ -66,11 +47,5 @@ import { RosterStore } from './net-merge.js';
     const id = Number(tr.dataset.checkinId); if (id) store.upsert({ id, callsign: tr.children[1]?.textContent?.trim() });
   });
 
-  const live = cfg.status === 'live';
-  tick();
-  if (live) {
-    const timer = setInterval(tick, 4000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
-    window.addEventListener('beforeunload', () => clearInterval(timer));
-  }
+  startPollLoop(cfg, tick);
 })();

@@ -11,7 +11,7 @@
  * Requires `window.NET = { postUrl, feedUrl, status }` to be set by the
  * server-rendered page before this module executes.
  */
-import { RosterStore } from './net-merge.js';
+import { RosterStore, renderRoster, applyStats } from './net-merge.js';
 
 (function () {
   const cfg = window.NET;
@@ -27,20 +27,7 @@ import { RosterStore } from './net-merge.js';
   }
 
   /** Re-render the roster tbody from the in-memory RosterStore, newest first. */
-  function render() {
-    if (!tbody) return;
-    const rows = store.rows();
-    tbody.innerHTML = rows.map((r, i) => `
-      <tr data-checkin-id="${r.id ?? ''}">
-        <td>${rows.length - i}</td>
-        <td class="callsign">${r.callsign ?? ''}</td>
-        <td>${r.name ?? ''}</td>
-        <td>${r.grid ?? ''}</td>
-        <td>${r.signal != null ? 'S' + r.signal : ''}</td>
-        <td>${r.role ?? ''}</td>
-        <td></td>
-      </tr>`).join('');
-  }
+  function render() { renderRoster(tbody, store.rows()); }
 
   // Seed from server-rendered rows so a refresh keeps state.
   document.querySelectorAll('[data-net-roster] tbody tr[data-checkin-id]').forEach(tr => {
@@ -79,13 +66,6 @@ import { RosterStore } from './net-merge.js';
   window.__netStore = store; // shared with net-poll.js (Task 15)
   document.addEventListener('net:updated', (e) => {
     render();
-    const s = e.detail && e.detail.stats;
-    if (s) {
-      const set = (k, v) => { const el = document.querySelector(`[data-stat="${k}"] [data-stat-value]`); if (el && v != null) el.textContent = v; };
-      set('checkins', s.checkins);
-      set('unique', s.unique);
-      set('new', s.new);
-      set('rate', s.rate);
-    }
+    applyStats(e.detail && e.detail.stats);
   });
 })();

@@ -54,3 +54,64 @@ export class RosterStore {
     return all.sort((a, b) => String(b.updated || b.at || '').localeCompare(String(a.updated || a.at || '')));
   }
 }
+
+/**
+ * Render a net session roster <tbody> from an array of row objects.
+ *
+ * Rows are rendered newest-first (the feed returns ordered by datetime
+ * desc); the row-number column counts down so the first row is the
+ * highest number (total checkins).
+ *
+ * @param {HTMLElement|null} tbody Target <tbody> to fill.
+ * @param {Array<{id?:number,callsign?:string,name?:string,grid?:string,signal?:number,role?:string}>} rows
+ */
+export function renderRoster(tbody, rows) {
+  if (!tbody) return;
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr data-checkin-id="${r.id ?? ''}">
+      <td>${rows.length - i}</td>
+      <td class="callsign">${r.callsign ?? ''}</td>
+      <td>${r.name ?? ''}</td>
+      <td>${r.grid ?? ''}</td>
+      <td>${r.signal != null ? 'S' + r.signal : ''}</td>
+      <td>${r.role ?? ''}</td>
+      <td></td>
+    </tr>`).join('');
+}
+
+/**
+ * Apply stats from a feed payload to the page's `[data-stat="*"]` chips.
+ *
+ * @param {{checkins?:number,unique?:number,new?:number,rate?:string|number}|null} stats
+ */
+export function applyStats(stats) {
+  if (!stats) return;
+  const set = (k, v) => {
+    const el = document.querySelector(`[data-stat="${k}"] [data-stat-value]`);
+    if (el && v != null) el.textContent = v;
+  };
+  set('checkins', stats.checkins);
+  set('unique', stats.unique);
+  set('new', stats.new);
+  set('rate', stats.rate);
+}
+
+/**
+ * Start the live-poll loop. Fires `onTick` immediately (one initial paint),
+ * then on a 4-second interval while `cfg.status === 'live'`. Skips ticks
+ * when the document is hidden and re-fires on visibilitychange. Clears the
+ * interval on beforeunload.
+ *
+ * @param {{status:string}} cfg
+ * @param {() => Promise<void>|void} onTick
+ */
+export function startPollLoop(cfg, onTick) {
+  let timer = null;
+  const fire = async () => { if (!document.hidden) await onTick(); };
+  fire();
+  if (cfg.status === 'live') {
+    timer = setInterval(fire, 4000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) fire(); });
+    window.addEventListener('beforeunload', () => clearInterval(timer));
+  }
+}
