@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Controller\AppController;
 use App\Service\OperationLog;
 
 /**
@@ -23,44 +22,8 @@ use App\Service\OperationLog;
  * hits go through the AuthenticationMiddleware → redirect to /login,
  * authenticated non-admins get a 403 from `beforeFilter()`.
  */
-class UsersController extends AppController
+class UsersController extends AdminController
 {
-    /** ID of the currently authenticated admin, populated in beforeFilter. */
-    private int $actorId = 0;
-
-    /** Load the Authentication component required by all Admin controllers. */
-    public function initialize(): void
-    {
-        parent::initialize();
-        $this->loadComponent('Authentication.Authentication');
-    }
-
-    /**
-     * Gate access to admin-only actions and cache the actor user ID.
-     *
-     * Anonymous requests are handled by AuthenticationComponent (redirects to
-     * /login). Only authenticated-but-not-admin users need the explicit 403.
-     * The actor ID is stashed in $this->actorId so action methods don't need
-     * to re-fetch it from the identity.
-     *
-     * @param \Cake\Event\EventInterface $event The before-filter event.
-     * @return void
-     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
-     */
-    public function beforeFilter(\Cake\Event\EventInterface $event): void
-    {
-        parent::beforeFilter($event);
-
-        $identity = $this->Authentication->getIdentity();
-        if (!$identity) {
-            return;
-        }
-        $user = $this->fetchTable('Users')->get($identity->getIdentifier());
-        if ($user->role !== 'admin') {
-            throw new \Cake\Http\Exception\ForbiddenException('Admin only.');
-        }
-        $this->actorId = $identity->getIdentifier();
-    }
 
     /**
      * Paginated, searchable list of non-deleted users.

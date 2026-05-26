@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Controller\AppController;
-
 /**
  * Admin all-cards browser (M4-T7).
  *
@@ -20,38 +18,8 @@ use App\Controller\AppController;
  * hits go through the AuthenticationMiddleware → redirect to /login,
  * authenticated non-admins get a 403 from `beforeFilter()`.
  */
-class CardsController extends AppController
+class CardsController extends AdminController
 {
-    /** Load the Authentication component required by all Admin controllers. */
-    public function initialize(): void
-    {
-        parent::initialize();
-        $this->loadComponent('Authentication.Authentication');
-    }
-
-    /**
-     * Gate access to admin-only actions.
-     *
-     * Anonymous requests are handled by AuthenticationComponent (redirects to
-     * /login). Only authenticated-but-not-admin users need the explicit 403.
-     *
-     * @param \Cake\Event\EventInterface $event The before-filter event.
-     * @return void
-     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
-     */
-    public function beforeFilter(\Cake\Event\EventInterface $event): void
-    {
-        parent::beforeFilter($event);
-
-        $identity = $this->Authentication->getIdentity();
-        if (!$identity) {
-            return;
-        }
-        $user = $this->fetchTable('Users')->get($identity->getIdentifier());
-        if ($user->role !== 'admin') {
-            throw new \Cake\Http\Exception\ForbiddenException('Admin only.');
-        }
-    }
 
     /**
      * Paginated, filterable list of every card in the system.

@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Controller\AppController;
-
 /**
  * Admin all-backgrounds listing at /admin/card-backgrounds.
  *
@@ -13,37 +11,8 @@ use App\Controller\AppController;
  * admin role to allow operating on any owner's background) with
  * `?return=/admin/card-backgrounds` so the redirect lands back here.
  */
-class CardBackgroundsController extends AppController
+class CardBackgroundsController extends AdminController
 {
-    /** Load the Authentication component required by all Admin controllers. */
-    public function initialize(): void
-    {
-        parent::initialize();
-        $this->loadComponent('Authentication.Authentication');
-    }
-
-    /**
-     * Gate access to admin-only actions.
-     *
-     * Anonymous requests are handled by AuthenticationComponent (redirects to
-     * /login). Only authenticated-but-not-admin users need the explicit 403.
-     *
-     * @param \Cake\Event\EventInterface $event The before-filter event.
-     * @return void
-     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
-     */
-    public function beforeFilter(\Cake\Event\EventInterface $event): void
-    {
-        parent::beforeFilter($event);
-        $identity = $this->Authentication->getIdentity();
-        if (!$identity) {
-            return;
-        }
-        $user = $this->fetchTable('Users')->get($identity->getIdentifier());
-        if ($user->role !== 'admin') {
-            throw new \Cake\Http\Exception\ForbiddenException('Admin only.');
-        }
-    }
 
     /**
      * Paginated, filterable listing of all background images across all users.
