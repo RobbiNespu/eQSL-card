@@ -595,6 +595,11 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/callsign-directory/clear', ['controller' => 'CallsignDirectory', 'action' => 'clear'])
             ->setMethods(['POST']);
 
+        // M7 T4 — sweep net-session removal tombstones older than 7 days.
+        // POST-only; tombstones are only needed within one polling cycle.
+        $builder->connect('/cleanup/net-removals-sweep', ['controller' => 'Cleanup', 'action' => 'netRemovalsSweep'])
+            ->setMethods(['POST']);
+
         // Filesystem maintenance: nuke cache files + Cake's in-memory caches,
         // truncate logs, drop active sessions. Each is POST-only so a stray
         // GET (link prefetch, link preview, accidental refresh) cannot trigger

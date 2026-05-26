@@ -488,6 +488,22 @@ class CleanupController extends AppController
     }
 
     /**
+     * Prune net-session removal tombstones older than 7 days. Tombstones
+     * exist only to surface live deletions to polling clients; old ones
+     * are noise.
+     */
+    public function netRemovalsSweep(): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+        $cutoff = DateTime::now()->subDays(7);
+        $table = $this->fetchTable('NetSessionRemovals');
+        $deleted = $table->deleteAll(['removed_at <' => $cutoff]);
+        $this->Flash->success("Pruned {$deleted} old net-removal tombstones.");
+        OperationLog::event('admin.cleanup.net_removals_pruned', ['count' => $deleted]);
+        return $this->redirect(['action' => 'index']);
+    }
+
+    /**
      * POST /admin/cleanup/sessions — delete every active CakePHP file session
      * under tmp/sessions/. Forces a logout for every signed-in user, including
      * the admin running this. We re-auth ourselves explicitly via
