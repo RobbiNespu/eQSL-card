@@ -1082,22 +1082,18 @@ class QsosController extends AppController
     }
 
     /**
-     * Render a single QSO into a Card row + on-disk PNG/PDF.
+     * Render a single QSO into a Card row + on-disk WebP image.
      *
-     * Shared between the interactive `renderCard` action (M2-T10) and the
-     * bulk render endpoints (M2-T11). All callers MUST have already verified
-     * the upload belongs to `$userId` (we re-check via the predicate here, so
-     * a foreign upload id 404s before any GD work runs).
+     * Orchestrates the three helper phases: fetch dependencies → render PNG →
+     * write card row + audit. Shared between the interactive `renderCard`
+     * action (M2-T10) and the bulk render endpoints (M2-T11).
      *
      * @param int $userId Authenticated user id.
      * @param int $qsoId QSO primary key.
      * @param int $templateId Template primary key (system, owned, or public-approved).
-     * @param int $uploadId Upload primary key (must belong to `$userId`).
+     * @param int $uploadId Upload primary key (must be active / not soft-deleted).
      * @param string|null $authorOverride When set, used for the attribution
-     *        footer line instead of the upload row's stored author_name. Lets
-     *        the interactive renderCard action express "the admin's
-     *        configured default-bg attribution" or "the form-supplied values"
-     *        without writing them onto an existing dedup-matched upload row.
+     *        footer line instead of the upload row's stored author_name.
      * @param string|null $licenseOverride Same idea for the license code.
      * @return int The newly persisted Card primary key.
      */
@@ -1109,33 +1105,21 @@ class QsosController extends AppController
         ?string $authorOverride = null,
         ?string $licenseOverride = null,
     ): int {
-        $qsos = $this->fetchTable('Qsos');
-        $qso = $qsos->find()->where(['id' => $qsoId, 'user_id' => $userId])->firstOrFail();
-        $template = $this->fetchTable('Templates')->get($templateId);
-        // Upload is no longer user-picked — it's resolved internally by
-        // resolveTemplateBackground (or its bulk equivalent), which derives
-        // the row from the template's binding or the site-default. That
-        // means it may legitimately be owned by another user (e.g. the
-        // template author for a system/public template), so we deliberately
-        // do NOT re-scope by user_id here. The deleted_at guard remains —
-        // a soft-deleted row's file may have been pruned and would 500 GD.
-        $upload = $this->fetchTable('CardBackgrounds')->find()
-            ->where(['id' => $uploadId, 'CardBackgrounds.deleted_at IS' => null])
-            ->firstOrFail();
+        // Phase (a): load QSO, template, and upload — 404 on any missing row.
+        $deps = $this->fetchRenderDependencies($userId, $qsoId, $templateId, $uploadId);
 
-        $finalPath = WWW_ROOT . $upload->storage_path;
-        $layout = json_decode((string)$template->layout_json, true) ?: [];
-        $qsoData = $this->qsoToRenderData($qso);
+        $qso      = $deps['qso'];
+        $template = $deps['template'];
+        $upload   = $deps['upload'];
+        $qsoData  = $this->qsoToRenderData($qso);
 
-        $renderer = \App\Service\CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
-        $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
-        // WebP output — ~40% smaller than the prior PNG-level-6 baseline. The
-        // column name `cards.png_path` is kept for backwards compat with rows
-        // persisted before this commit.
+        // Phase (b): render the card image to disk.
+        $uuid     = \Ramsey\Uuid\Uuid::uuid4()->toString();
         $cardPath = WWW_ROOT . 'files/cards/' . $uuid . '.webp';
         if (!is_dir(dirname($cardPath))) {
             mkdir(dirname($cardPath), 0o775, true);
         }
+        $layout   = json_decode((string)$template->layout_json, true) ?: [];
         // Override > row value > null. This lets renderCard ship freshly-
         // computed attribution (admin defaults / form values) past any stale
         // values on a dedup-matched upload row, while bulk render — which
@@ -1145,35 +1129,103 @@ class QsosController extends AppController
             $licenseOverride ?? ($upload->license ?? null),
             (string)($qsoData['operator_callsign'] ?? '')
         );
+        $renderer = \App\Service\CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
         $renderer->renderPng(
             ['canvas_width' => $template->canvas_width, 'canvas_height' => $template->canvas_height,
              'fields' => $layout['fields'] ?? []],
-            $finalPath,
+            WWW_ROOT . $upload->storage_path,
             $qsoData,
             $cardPath,
             extraFooterLines: [$attributionLine]
         );
-        // No pre-rendered PDF — built on demand by CardsController::downloadPdf
-        // when the user clicks "Download PDF". Halves per-card disk usage.
+        // No pre-rendered PDF — built on demand by CardsController::downloadPdf.
+
+        // Phase (c): persist the card row and emit the audit event.
+        $card = $this->writeCardRow($userId, $deps, $qsoData, $uuid);
+
+        return $card->id;
+    }
+
+    /**
+     * Load the QSO, template, and background upload needed to render a card.
+     *
+     * Encapsulates all three find/get calls and their not-found handling.
+     * The upload is deliberately NOT re-scoped to `$userId` because it may
+     * legitimately be owned by another user (e.g. a system/public template's
+     * bound background); the `deleted_at IS NULL` guard ensures the on-disk
+     * file still exists.
+     *
+     * @param int $userId  Authenticated user id (QSO ownership scope).
+     * @param int $qsoId QSO primary key.
+     * @param int $templateId Template primary key.
+     * @param int $uploadId CardBackgrounds primary key (active rows only).
+     * @return array{qso: object, template: object, upload: object}
+     */
+    private function fetchRenderDependencies(
+        int $userId,
+        int $qsoId,
+        int $templateId,
+        int $uploadId,
+    ): array {
+        $qso = $this->fetchTable('Qsos')
+            ->find()
+            ->where(['id' => $qsoId, 'user_id' => $userId])
+            ->firstOrFail();
+
+        $template = $this->fetchTable('Templates')->get($templateId);
+
+        // Upload is resolved internally by resolveTemplateBackground — it may
+        // belong to another user, so we only guard on deleted_at.
+        $upload = $this->fetchTable('CardBackgrounds')
+            ->find()
+            ->where(['id' => $uploadId, 'CardBackgrounds.deleted_at IS' => null])
+            ->firstOrFail();
+
+        return compact('qso', 'template', 'upload');
+    }
+
+    /**
+     * Persist the Cards row and emit the card.generated audit event.
+     *
+     * Takes the resolved dependency map and the rendered-file UUID, inserts
+     * a Cards row with a QSO snapshot, fires the AuditLogger and OperationLog
+     * events, and returns the saved entity. Audit failures are caught and
+     * logged — they must never break the user-facing render flow.
+     *
+     * @param int $userId Authenticated user id.
+     * @param array{qso: object, template: object, upload: object} $deps Dependency map from fetchRenderDependencies().
+     * @param array<string,string> $qsoData Render-data array from qsoToRenderData().
+     * @param string $uuid UUID used as the base name for the rendered WebP file.
+     * @return \App\Model\Entity\Card The newly saved card entity.
+     */
+    private function writeCardRow(
+        int $userId,
+        array $deps,
+        array $qsoData,
+        string $uuid,
+    ): \App\Model\Entity\Card {
+        $qso      = $deps['qso'];
+        $template = $deps['template'];
+        $upload   = $deps['upload'];
 
         $cards = $this->fetchTable('Cards');
+        /** @var \App\Model\Entity\Card $card */
         $card = $cards->saveOrFail($cards->newEntity([
-            'user_id' => $userId,
-            'qso_id' => $qso->id,
-            'template_id' => $template->id,
-            'upload_id' => $upload->id,
+            'user_id'      => $userId,
+            'qso_id'       => $qso->id,
+            'template_id'  => $template->id,
+            'upload_id'    => $upload->id,
             // Snapshot the QSO at render time. Edits/deletes to the
             // underlying QSO row must NEVER mutate a card that's already
             // been issued (cards are historical artefacts).
             'qso_data_json' => json_encode($qsoData, JSON_UNESCAPED_SLASHES),
-            'png_path' => 'files/cards/' . $uuid . '.webp',
-            'pdf_path' => null,
+            'png_path'     => 'files/cards/' . $uuid . '.webp',
+            'pdf_path'     => null,
         ]));
 
         // M4-T3: Audit each card produced. Lives in the helper so both the
         // interactive `renderCard` action and the bulk render endpoints
-        // emit exactly one `card.generated` row per card. Audit failures
-        // must never break the user-facing render flow.
+        // emit exactly one `card.generated` row per card.
         try {
             (new \App\Service\AuditLogger())->log(
                 event: 'card.generated',
@@ -1186,7 +1238,7 @@ class QsosController extends AppController
         }
         OperationLog::event('card.generated', ['user_id' => $userId, 'card_id' => (int)$card->id, 'qso_id' => (int)$qso->id]);
 
-        return $card->id;
+        return $card;
     }
 
     /**

@@ -382,10 +382,11 @@ class TemplatesController extends AppController
     /**
      * Shared save pipeline for `add()` and `edit()`.
      *
-     * Trims/normalises form input, enforces name/canvas bounds, runs the
-     * layout JSON through `TemplateLayoutValidator`, then persists. On the
-     * new-row path we stamp `user_id` from the authenticated identity (never
-     * from form input) so a user can't forge ownership.
+     * Orchestrates the three helper phases: validate → background binding →
+     * thumbnail render. On the new-row path we stamp `user_id` from the
+     * authenticated identity (never from form input) so a user can't forge
+     * ownership. Returns an empty array on success or a non-empty errors
+     * array that the caller surfaces via Flash + optional JSON 422.
      *
      * @param \Cake\Datasource\EntityInterface $entity Template entity to persist.
      * @param int $userId Authenticated user id (used as ownership stamp on new rows).
@@ -395,96 +396,36 @@ class TemplatesController extends AppController
     private function saveTemplate(\Cake\Datasource\EntityInterface $entity, int $userId, bool $isNew): array
     {
         $data = $this->request->getData();
-        $name = trim((string)($data['name'] ?? ''));
-        $description = trim((string)($data['description'] ?? ''));
-        $canvasWidth = (int)($data['canvas_width'] ?? 1500);
-        $canvasHeight = (int)($data['canvas_height'] ?? 1000);
-        $layoutJson = (string)($data['layout_json'] ?? '{"fields":[]}');
 
-        if ($name === '' || mb_strlen($name) > 120) {
-            return ['Name is required (max 120 chars).'];
-        }
-        if ($canvasWidth < 100 || $canvasWidth > 5000 || $canvasHeight < 100 || $canvasHeight > 5000) {
-            return ['Canvas dimensions must be in 100..5000 px.'];
+        // Phase (a): validate and normalise form input.
+        $validated = $this->validateTemplateInput($data);
+        if (isset($validated['_errors'])) {
+            return $validated['_errors'];
         }
 
-        $layoutErrors = (new \App\Service\TemplateLayoutValidator())->validate($layoutJson, $canvasWidth, $canvasHeight);
-        if (!empty($layoutErrors)) {
-            return $layoutErrors;
-        }
-
-        // QSO type: must be 'contact' or 'net' — anything else gets coerced to
-        // 'contact' (the safer default). The render-from-QSO picker filter
-        // depends on this matching the qsos.qso_type enum exactly. Extract
-        // once with a fallback so the true branch can't trip an
-        // "Undefined array key" warning when the POST omits the field.
-        $qsoTypeRaw = (string)($data['qso_type'] ?? 'contact');
-        $qsoType = in_array($qsoTypeRaw, ['contact', 'net'], true) ? $qsoTypeRaw : 'contact';
-
-        $entity->set('name', $name);
-        $entity->set('description', $description);
-        $entity->set('canvas_width', $canvasWidth);
-        $entity->set('canvas_height', $canvasHeight);
-        $entity->set('layout_json', $layoutJson);
-        $entity->set('qso_type', $qsoType);
+        // Apply validated fields onto the entity.
+        $entity->set('name', $validated['name']);
+        $entity->set('description', $validated['description']);
+        $entity->set('canvas_width', $validated['canvas_width']);
+        $entity->set('canvas_height', $validated['canvas_height']);
+        $entity->set('layout_json', $validated['layout_json']);
+        $entity->set('qso_type', $validated['qso_type']);
         if ($isNew) {
             $entity->set('user_id', $userId);
         }
 
-        // Background-on-template. Empty string = explicit "no background"
-        // (render flows fall back to site default). Otherwise verify the
-        // upload belongs to this user — block attempts to bind someone
-        // else's image by guessing an id.
-        if (array_key_exists('background_upload_id', $data)) {
-            $bgIdRaw = trim((string)$data['background_upload_id']);
-            if ($bgIdRaw === '') {
-                $entity->set('background_upload_id', null);
-            } else {
-                $bgId = (int)$bgIdRaw;
-                $owned = $this->fetchTable('CardBackgrounds')->find()
-                    ->where(['id' => $bgId, 'user_id' => $userId, 'CardBackgrounds.deleted_at IS' => null])
-                    ->count();
-                if ($owned > 0) {
-                    $entity->set('background_upload_id', $bgId);
-                } else {
-                    // Unowned/missing id — keep the silent-on-which-id security
-                    // property (no "id X not found" leak) but surface a generic
-                    // notice so the user knows their bg request was dropped.
-                    $this->Flash->error(
-                        'Selected background not found or not owned. Existing background kept.'
-                    );
-                }
-            }
-        }
+        // Phase (b): resolve and bind the background upload (if submitted).
+        $this->applyBackgroundBinding($entity, $data, $userId);
 
         $templates = $this->fetchTable('Templates');
         if (!$templates->save($entity)) {
             return ['Database save failed: ' . json_encode($entity->getErrors())];
         }
 
-        // Render thumbnail (best-effort; failure does not fail the save)
-        try {
-            $renderer = \App\Service\CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
-            $thumb = new \App\Service\TemplateThumbnailRenderer(
-                $renderer,
-                WWW_ROOT . 'files/templates/',
-                WWW_ROOT . 'files/templates/_demo-bg.jpg'
-            );
-            $template = [
-                'canvas_width' => $entity->canvas_width,
-                'canvas_height' => $entity->canvas_height,
-                'fields' => json_decode((string)$entity->layout_json, true)['fields'] ?? [],
-            ];
-            $relPath = $thumb->render($entity->id, $template);
-            $entity->set('thumbnail_path', $relPath, ['guard' => false]);
-            $templates->save($entity);
-        } catch (\Throwable $e) {
-            // Log but don't fail the save
-            error_log('[TemplateThumbnailRenderer] ' . $e->getMessage());
-            OperationLog::failure('template.thumbnail_render', $e, ['template_id' => (int)$entity->id]);
-        }
+        // Phase (c): best-effort thumbnail render — never fails the save.
+        $this->renderThumbnailIfPossible($entity, $templates);
 
-        // Handle "Make public" request — queues for admin moderation
+        // Handle "Make public" request — queues for admin moderation.
         $makePublic = !empty($this->request->getData('make_public'));
         if ($makePublic && !$entity->is_public) {
             $entity->set('is_public', true, ['guard' => false]);
@@ -511,6 +452,138 @@ class TemplatesController extends AppController
         }
 
         return [];
+    }
+
+    /**
+     * Validate and normalise raw form input for a template save.
+     *
+     * Checks that `name` is non-empty and within 120 chars, that canvas
+     * dimensions fall in the 100–5000 px range, and that `layout_json`
+     * passes `TemplateLayoutValidator`. The `qso_type` value is coerced to
+     * 'contact' if it is not one of the two accepted enum values.
+     *
+     * Returns the sanitised data array on success. On failure, returns an
+     * array with a single `_errors` key whose value is the string[] of
+     * error messages (compatible with the saveTemplate return contract).
+     *
+     * @param array $data Raw POST data from `$this->request->getData()`.
+     * @return array Sanitised fields, or `['_errors' => string[]]` on failure.
+     */
+    private function validateTemplateInput(array $data): array
+    {
+        $name = trim((string)($data['name'] ?? ''));
+        $description = trim((string)($data['description'] ?? ''));
+        $canvasWidth = (int)($data['canvas_width'] ?? 1500);
+        $canvasHeight = (int)($data['canvas_height'] ?? 1000);
+        $layoutJson = (string)($data['layout_json'] ?? '{"fields":[]}');
+
+        if ($name === '' || mb_strlen($name) > 120) {
+            return ['_errors' => ['Name is required (max 120 chars).']];
+        }
+        if ($canvasWidth < 100 || $canvasWidth > 5000 || $canvasHeight < 100 || $canvasHeight > 5000) {
+            return ['_errors' => ['Canvas dimensions must be in 100..5000 px.']];
+        }
+
+        $layoutErrors = (new \App\Service\TemplateLayoutValidator())->validate($layoutJson, $canvasWidth, $canvasHeight);
+        if (!empty($layoutErrors)) {
+            return ['_errors' => $layoutErrors];
+        }
+
+        // QSO type: must be 'contact' or 'net' — anything else gets coerced to
+        // 'contact' (the safer default). The render-from-QSO picker filter
+        // depends on this matching the qsos.qso_type enum exactly.
+        $qsoTypeRaw = (string)($data['qso_type'] ?? 'contact');
+        $qsoType = in_array($qsoTypeRaw, ['contact', 'net'], true) ? $qsoTypeRaw : 'contact';
+
+        return compact('name', 'description', 'canvasWidth', 'canvasHeight', 'layoutJson', 'qsoType');
+    }
+
+    /**
+     * Resolve and bind a background upload onto the template entity.
+     *
+     * Only acts when `background_upload_id` is present in `$data`. An empty
+     * string clears the binding (explicit "no background"). A numeric id is
+     * verified to belong to `$userId` and not be soft-deleted before binding;
+     * an unowned/missing id leaves the existing binding untouched and surfaces
+     * a generic Flash error (no id leak).
+     *
+     * Mutates `$entity` in place; no return value.
+     *
+     * @param \Cake\Datasource\EntityInterface $entity Template entity (mutated).
+     * @param array $data Raw POST data (may or may not contain `background_upload_id`).
+     * @param int $userId Authenticated user id used for ownership verification.
+     * @return void
+     */
+    private function applyBackgroundBinding(
+        \Cake\Datasource\EntityInterface $entity,
+        array $data,
+        int $userId,
+    ): void {
+        if (!array_key_exists('background_upload_id', $data)) {
+            return;
+        }
+
+        $bgIdRaw = trim((string)$data['background_upload_id']);
+        if ($bgIdRaw === '') {
+            // Empty string = explicit "no background" (render falls back to site default).
+            $entity->set('background_upload_id', null);
+
+            return;
+        }
+
+        $bgId = (int)$bgIdRaw;
+        $owned = $this->fetchTable('CardBackgrounds')->find()
+            ->where(['id' => $bgId, 'user_id' => $userId, 'CardBackgrounds.deleted_at IS' => null])
+            ->count();
+        if ($owned > 0) {
+            $entity->set('background_upload_id', $bgId);
+        } else {
+            // Unowned/missing id — keep the silent-on-which-id security property
+            // (no "id X not found" leak) but surface a generic notice so the user
+            // knows their bg request was dropped.
+            $this->Flash->error(
+                'Selected background not found or not owned. Existing background kept.'
+            );
+        }
+    }
+
+    /**
+     * Attempt to render a thumbnail for the just-saved template.
+     *
+     * This is a best-effort operation: any exception is caught, logged, and
+     * recorded via OperationLog — it never propagates and never fails the save
+     * that preceded it. On success the `thumbnail_path` column is updated in
+     * place with a second `save()` call.
+     *
+     * @param \Cake\Datasource\EntityInterface $entity Saved template entity.
+     * @param \Cake\ORM\Table $templates The Templates table instance (already
+     *        fetched by the caller; reused to avoid a redundant `fetchTable`).
+     * @return void
+     */
+    private function renderThumbnailIfPossible(
+        \Cake\Datasource\EntityInterface $entity,
+        \Cake\ORM\Table $templates,
+    ): void {
+        try {
+            $renderer = \App\Service\CardRenderer::fromSettings(WWW_ROOT . 'files/fonts/');
+            $thumb = new \App\Service\TemplateThumbnailRenderer(
+                $renderer,
+                WWW_ROOT . 'files/templates/',
+                WWW_ROOT . 'files/templates/_demo-bg.jpg'
+            );
+            $template = [
+                'canvas_width' => $entity->canvas_width,
+                'canvas_height' => $entity->canvas_height,
+                'fields' => json_decode((string)$entity->layout_json, true)['fields'] ?? [],
+            ];
+            $relPath = $thumb->render($entity->id, $template);
+            $entity->set('thumbnail_path', $relPath, ['guard' => false]);
+            $templates->save($entity);
+        } catch (\Throwable $e) {
+            // Log but don't fail the save.
+            error_log('[TemplateThumbnailRenderer] ' . $e->getMessage());
+            OperationLog::failure('template.thumbnail_render', $e, ['template_id' => (int)$entity->id]);
+        }
     }
 
     /**
