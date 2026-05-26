@@ -124,4 +124,7 @@ $isLive = $session->status === 'live';
 <script src="<?= $this->Url->build('/js/net-cockpit.js') ?>" type="module" defer></script>
 <script src="<?= $this->Url->build('/js/net-poll.js') ?>" type="module" defer></script>
 <script src="<?= $this->Url->build('/js/net-charts.js') ?>" type="module" defer></script>
+<link rel="stylesheet" href="<?= $this->Url->build('/js/vendor/leaflet/leaflet.css') ?>">
+<script src="<?= $this->Url->build('/js/vendor/leaflet/leaflet.js') ?>" defer></script>
+<script src="<?= $this->Url->build('/js/net-map.js') ?>" defer></script>
 <?php $this->end(); ?>

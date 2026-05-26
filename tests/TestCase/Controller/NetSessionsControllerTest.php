@@ -317,12 +317,16 @@ final class NetSessionsControllerTest extends TestCase
         $this->assertArrayHasKey('server_time', $body);
         $this->assertArrayHasKey('status', $body);
         $this->assertArrayHasKey('stats', $body);
+        $this->assertArrayHasKey('map', $body);
         $this->assertArrayHasKey('checkins', $body);
         $this->assertArrayHasKey('removed', $body);
 
         $this->assertCount(1, $body['checkins'], 'should have exactly 1 check-in row');
         $this->assertSame('9M2RDX', $body['checkins'][0]['callsign']);
         $this->assertSame(1, $body['stats']['checkins']);
+        $this->assertIsArray($body['map'], 'feed.map must be an array');
+        $this->assertCount(1, $body['map'], 'feed.map should contain 1 point for the seeded grid_square');
+        $this->assertSame('9M2RDX', $body['map'][0]['callsign']);
     }
 
     public function testDeltaFeedSinceFutureReturnsEmpty(): void

@@ -56,6 +56,10 @@ final class NetControllerTest extends TestCase
         $this->assertResponseContains('9M2PUB');
         // logged_by_user_id must be absent — confirms the whitelist strips it.
         $this->assertResponseNotContains('logged_by_user_id');
+        // M7 T5 — feed must include a `map` key (empty array when no grid squares).
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertArrayHasKey('map', $body, 'public feed must include map key');
+        $this->assertIsArray($body['map'], 'feed.map must be an array');
     }
 
     public function testScheduledSessionNotPublic(): void
