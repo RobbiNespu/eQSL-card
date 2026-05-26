@@ -184,10 +184,37 @@ final class NetMetrics
             $retention = count($prev) ? round(count(array_intersect($prev, $last)) / count($prev), 3) : null;
         }
 
+        // Longest consecutive-session attendance streak. Iterates the same
+        // session order used elsewhere in this method; for each callsign,
+        // increments the running streak by 1 if present this session, otherwise
+        // resets to 0. The maximum-so-far is tracked alongside its holders.
+        $run = [];
+        $best = ['len' => 0, 'leaders' => []];
+        foreach ($sessionIds as $sid) {
+            $present = array_fill_keys($attendance[$sid] ?? [], true);
+            foreach (array_keys($present) as $c) {
+                $run[$c] = ($run[$c] ?? 0) + 1;
+                if ($run[$c] > $best['len']) {
+                    $best = ['len' => $run[$c], 'leaders' => [$c]];
+                } elseif ($run[$c] === $best['len']) {
+                    $best['leaders'][] = $c;
+                }
+            }
+            foreach (array_keys($run) as $c) {
+                if (!isset($present[$c])) {
+                    $run[$c] = 0;
+                }
+            }
+        }
+        $longestStreak = $best['len'];
+        $streakLeaders = array_values(array_unique($best['leaders']));
+
         return [
-            'sessions'  => array_map(fn ($sid) => ['id' => $sid, 'unique' => count($attendance[$sid])], $sessionIds),
-            'regulars'  => array_values($regulars),
-            'retention' => $retention,
+            'sessions'       => array_map(fn ($sid) => ['id' => $sid, 'unique' => count($attendance[$sid])], $sessionIds),
+            'regulars'       => array_values($regulars),
+            'retention'      => $retention,
+            'longest_streak' => $longestStreak,
+            'streak_leaders' => $streakLeaders,
         ];
     }
 }

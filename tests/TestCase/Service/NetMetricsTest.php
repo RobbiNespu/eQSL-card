@@ -132,4 +132,22 @@ final class NetMetricsTest extends TestCase
         $stats = $this->metrics()->sessionStats($sid);
         $this->assertSame(0.0, $stats['rate'], 'rate must be 0 when started_at is null');
     }
+
+    public function testRetentionLongestStreak(): void
+    {
+        // Two ended sessions sharing owner+title (MARTS Daily Net).
+        // 9W2AAA attends both → streak of 2. 9W2BBB attends only the first → streak of 1.
+        $s1 = $this->seedSession($this->userId, 'ended', '2026-05-01 12:00:00', '2026-05-01 13:00:00');
+        $s2 = $this->seedSession($this->userId, 'ended', '2026-05-08 12:00:00', '2026-05-08 13:00:00');
+        $this->seedCheckin($s1, '9W2AAA', null, '59');
+        $this->seedCheckin($s1, '9W2BBB', null, '57');
+        $this->seedCheckin($s2, '9W2AAA', null, '59');
+
+        $r = $this->metrics()->retention($this->userId, 'MARTS Daily Net');
+        $this->assertArrayHasKey('longest_streak', $r);
+        $this->assertArrayHasKey('streak_leaders', $r);
+        $this->assertIsInt($r['longest_streak']);
+        $this->assertGreaterThanOrEqual(2, $r['longest_streak']);
+        $this->assertContains('9W2AAA', $r['streak_leaders']);
+    }
 }
