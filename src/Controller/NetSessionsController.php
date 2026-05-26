@@ -579,7 +579,7 @@ class NetSessionsController extends AppController
                 // ISO-8601 offsets never contain spaces, so restore them before
                 // parsing (e.g. "2026-05-22T12:00:00 00:00" → "+00:00").
                 $sinceDt = new \DateTime(str_replace(' ', '+', $since));
-                $q->where(['updated_at >' => new DateTime(str_replace(' ', '+', $since))]);
+                $q->where(['updated_at >' => $sinceDt]);
             } catch (\Exception $e) {
                 // Malformed cursor — treat as no cursor and return all rows.
                 $sinceDt = null;

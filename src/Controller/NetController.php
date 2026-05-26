@@ -75,7 +75,7 @@ class NetController extends AppController
         if ($since !== '') {
             try {
                 $sinceDt = new \DateTime(str_replace(' ', '+', $since));
-                $q->where(['updated_at >' => new DateTime(str_replace(' ', '+', $since))]);
+                $q->where(['updated_at >' => $sinceDt]);
             } catch (\Exception $e) {
                 // malformed cursor → treat as no cursor (return all)
                 $sinceDt = null;

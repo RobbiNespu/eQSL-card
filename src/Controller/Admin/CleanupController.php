@@ -495,11 +495,15 @@ class CleanupController extends AppController
     public function netRemovalsSweep(): \Cake\Http\Response
     {
         $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
         $cutoff = DateTime::now()->subDays(7);
         $table = $this->fetchTable('NetSessionRemovals');
         $deleted = $table->deleteAll(['removed_at <' => $cutoff]);
         $this->Flash->success("Pruned {$deleted} old net-removal tombstones.");
-        OperationLog::event('admin.cleanup.net_removals_pruned', ['count' => $deleted]);
+        OperationLog::event('admin.cleanup.net_removals_pruned', [
+            'actor_user_id' => $userId,
+            'count'         => $deleted,
+        ]);
         return $this->redirect(['action' => 'index']);
     }
 
