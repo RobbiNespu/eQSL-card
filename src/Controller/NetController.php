@@ -107,7 +107,7 @@ class NetController extends AppController
             ];
         }
         $removed = $this->fetchTable('NetSessionRemovals')->idsRemovedSince($session->id, $sinceDt);
-        $metrics = new \App\Service\NetMetrics($qsos);
+        $metrics = new \App\Service\NetMetrics($qsos, $this->fetchTable('NetSessions'));
         return $this->jsonResponse([
             'server_time' => DateTime::now()->format('c'),
             'status'      => $session->status,

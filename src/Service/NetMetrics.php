@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace App\Service;
 
 use Cake\ORM\Table;
-use Cake\ORM\TableRegistry;
 
 /**
  * M6 — net analytics. Values are computed from qsos scoped by
@@ -16,9 +15,13 @@ final class NetMetrics
     public const REGULAR_THRESHOLD = 0.5;
 
     /**
-     * @param \Cake\ORM\Table $qsos The Qsos table (injected so tests can substitute a fixture-backed instance).
+     * @param \Cake\ORM\Table $qsos        The Qsos table (injected so tests can substitute a fixture-backed instance).
+     * @param \Cake\ORM\Table $netSessions The NetSessions table (injected for DI; avoids internal TableRegistry calls).
      */
-    public function __construct(private Table $qsos) {}
+    public function __construct(
+        private Table $qsos,
+        private Table $netSessions,
+    ) {}
 
     /**
      * Compute aggregated statistics for a single net session.
@@ -43,9 +46,8 @@ final class NetMetrics
 
         // Fetch the session entity (with hydration) so date fields are proper
         // DateTimeInterface instances and we can compute "new" and "rate".
-        $netSessions = TableRegistry::getTableLocator()->get('NetSessions');
         /** @var \App\Model\Entity\NetSession|null $session */
-        $session = $netSessions->find()
+        $session = $this->netSessions->find()
             ->where(['id' => $sessionId])
             ->select(['id', 'owner_id', 'started_at', 'ended_at'])
             ->first();
@@ -58,7 +60,7 @@ final class NetMetrics
 
             // "New tonight": distinct callsigns in THIS session that do NOT
             // appear in any OTHER session owned by the same operator.
-            $siblingIds = $netSessions->find()
+            $siblingIds = $this->netSessions->find()
                 ->where(['owner_id' => $ownerId, 'id !=' => $sessionId])
                 ->select(['id'])->disableHydration()->all()->extract('id')->toList();
 
@@ -151,8 +153,7 @@ final class NetMetrics
      */
     public function retention(int $ownerId, string $netTitle, int $window = self::WINDOW): array
     {
-        $netSessions = TableRegistry::getTableLocator()->get('NetSessions');
-        $sessions = $netSessions->find()
+        $sessions = $this->netSessions->find()
             ->where(['owner_id' => $ownerId, 'net_title' => $netTitle, 'status' => 'ended'])
             ->orderBy(['ended_at' => 'DESC'])->limit($window)
             ->select(['id'])->disableHydration()->all()->toList();

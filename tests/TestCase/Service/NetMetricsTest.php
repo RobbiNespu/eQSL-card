@@ -31,7 +31,10 @@ final class NetMetricsTest extends TestCase
 
     private function metrics(): NetMetrics
     {
-        return new NetMetrics($this->qsos());
+        return new NetMetrics(
+            TableRegistry::getTableLocator()->get('Qsos'),
+            TableRegistry::getTableLocator()->get('NetSessions'),
+        );
     }
 
     private function seedCheckin(int $sessionId, string $call, ?string $grid, ?string $rst): void

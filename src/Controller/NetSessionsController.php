@@ -407,7 +407,7 @@ class NetSessionsController extends AppController
     public function exportPdf(int $id): \Cake\Http\Response
     {
         $session = $this->loggerSessionOrFail($id);
-        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'));
+        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'), $this->fetchTable('NetSessions'));
         $checkins = $this->fetchTable('Qsos')->find()
             ->where(['net_session_id' => $id])
             ->orderBy(['qso_datetime_utc' => 'ASC'])->all();
@@ -437,7 +437,7 @@ class NetSessionsController extends AppController
     public function analytics(int $id): void
     {
         $session = $this->ownedOrFail($id);
-        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'));
+        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'), $this->fetchTable('NetSessions'));
         $this->set([
             'session'   => $session,
             'stats'     => $metrics->sessionStats($id),
@@ -653,7 +653,7 @@ class NetSessionsController extends AppController
         }
         $removed = $this->fetchTable('NetSessionRemovals')->idsRemovedSince($id, $sinceDt);
 
-        $metrics = new \App\Service\NetMetrics($qsos);
+        $metrics = new \App\Service\NetMetrics($qsos, $this->fetchTable('NetSessions'));
         return $this->jsonResponse([
             'server_time' => DateTime::now()->format('c'),
             'status'      => $session->status,
