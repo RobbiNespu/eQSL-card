@@ -341,6 +341,7 @@ $isAdmin = is_object($userData) && (string)($userData->role ?? '') === 'admin';
 <script src="<?= $this->Url->build('/js/nato.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/offline-queue.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/offline-sync.js') ?>" defer></script>
+<script src="<?= $this->Url->build('/js/csrf.js') ?>" defer></script>
 <script src="<?= $this->Url->build('/js/app.js') ?>" defer></script>
 <?= $this->fetch('script') ?>
 <!--

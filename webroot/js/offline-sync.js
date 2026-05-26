@@ -43,16 +43,13 @@ function getBase() {
 }
 
 /**
- * Read the CSRF token from the page meta tag or the csrfToken cookie.
- * Returns '' when neither source is available (SSR/test context).
+ * Read the CSRF token via the shared window.eqslCsrf helper.
+ * Returns '' when running outside a browser context (SSR/test).
  * @returns {string}
  */
 function getCsrf() {
-    if (typeof document === 'undefined') return '';
-    const meta = document.querySelector('meta[name="csrf-token"]')?.content;
-    if (meta) return decodeURIComponent(meta);
-    const cookieMatch = document.cookie.match(/csrfToken=([^;]+)/);
-    return cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
+    if (typeof window === 'undefined' || typeof window.eqslCsrf !== 'function') return '';
+    return window.eqslCsrf();
 }
 
 /**

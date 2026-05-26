@@ -241,8 +241,7 @@ function bulkRenderForm() {
          */
         async startBulk() {
             this.started = true;
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content
-                || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
+            const csrf = window.eqslCsrf();
             const body = new URLSearchParams();
             body.append('template_id', this.templateId);
             this.selected.forEach(id => body.append('qso_ids[]', id));
@@ -621,8 +620,7 @@ function quickAddForm(recent) {
                 return;
             }
 
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content
-                || document.cookie.match(/csrfToken=([^;]+)/)?.[1] || '';
+            const csrf = window.eqslCsrf();
             const body = new URLSearchParams(data);
 
             try {

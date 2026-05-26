@@ -20,10 +20,9 @@ import { RosterStore, renderRoster, applyStats } from './net-merge.js';
   const form = document.querySelector('[data-net-entry]');
   const tbody = document.querySelector('[data-net-roster] tbody');
 
-  /** @returns {string} current CSRF token from the page meta tag */
+  /** @returns {string} current CSRF token */
   function csrf() {
-    const m = document.querySelector('meta[name="csrf-token"]');
-    return m ? m.getAttribute('content') : '';
+    return window.eqslCsrf();
   }
 
   /** Re-render the roster tbody from the in-memory RosterStore, newest first. */
