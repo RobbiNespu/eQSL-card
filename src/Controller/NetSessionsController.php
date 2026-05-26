@@ -287,6 +287,24 @@ class NetSessionsController extends AppController
     }
 
     /**
+     * GET confirm page for the invite link. A POST to the same URL
+     * actually joins; this GET only renders. Stops drive-by prefetches
+     * (or someone forwarding a link) from silently adding the viewer
+     * as a co-logger.
+     *
+     * @param string $token Logger invite token from the session's invite URL.
+     * @return void
+     */
+    public function joinConfirm(string $token): void
+    {
+        $session = $this->fetchTable('NetSessions')->find()->where(['logger_token' => $token])->first();
+        if ($session === null) {
+            throw new NotFoundException('Invalid invite link.');
+        }
+        $this->set(['session' => $session, 'token' => $token, 'title' => 'Join as logger']);
+    }
+
+    /**
      * Join a net session as a co-logger via the one-time invite token.
      *
      * Already-registered loggers are silently skipped; only the first join
@@ -298,6 +316,7 @@ class NetSessionsController extends AppController
      */
     public function join(string $token): \Cake\Http\Response
     {
+        $this->request->allowMethod('post');
         $uid = $this->Authentication->getIdentity()->getIdentifier();
         $session = $this->fetchTable('NetSessions')->find()->where(['logger_token' => $token])->first();
         if ($session === null) {

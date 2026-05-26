@@ -373,11 +373,17 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
         $builder->connect('/net-sessions/new', ['controller' => 'NetSessions', 'action' => 'add'])
             ->setMethods(['GET', 'POST']);
-        // Static invite-join route MUST be declared BEFORE the parametrized
+        // Static invite-join routes MUST be declared BEFORE the parametrized
         // /{id} routes. "join" is not digits so the \d+ id pattern would never
         // match it anyway, but static-before-parametric is the codebase convention.
-        $builder->connect('/net-sessions/join/{token}', ['controller' => 'NetSessions', 'action' => 'join'])
+        // M7 T9 — split into GET (confirm page) and POST (mutation) so a link
+        // prefetch or forwarded URL cannot silently add the viewer as a co-logger.
+        $builder->connect('/net-sessions/join/{token}',
+            ['controller' => 'NetSessions', 'action' => 'joinConfirm'])
             ->setPass(['token'])->setMethods(['GET']);
+        $builder->connect('/net-sessions/join/{token}',
+            ['controller' => 'NetSessions', 'action' => 'join'])
+            ->setPass(['token'])->setMethods(['POST']);
         $builder->connect('/net-sessions/{id}/edit', ['controller' => 'NetSessions', 'action' => 'edit'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
         $builder->connect('/net-sessions/{id}/start', ['controller' => 'NetSessions', 'action' => 'start'])

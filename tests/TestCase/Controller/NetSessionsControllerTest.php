@@ -366,23 +366,31 @@ final class NetSessionsControllerTest extends TestCase
     // M6 T15 — live polling client + co-logger management
     // -------------------------------------------------------------------------
 
-    public function testInviteJoinAddsCoLogger(): void
+    public function testInviteJoinIsTwoStep(): void
     {
         // Create the session owner (different from the joining user).
         $ownerId = $this->createUser('owner-join@x.com', '9W2OWJ');
         $sessionId = $this->seedNetSession($ownerId, ['logger_token' => 'tok-join-1', 'status' => 'live']);
 
         // Login as a fresh user who will be joining via the invite link.
-        $joiningId = $this->login('joiner@x.com');
+        $coId = $this->login('joiner@x.com');
 
+        // GET = confirm page only, NO mutation.
         $this->get('/net-sessions/join/tok-join-1');
-
-        $this->assertRedirectContains('/net-sessions/' . $sessionId . '/cockpit');
-
+        $this->assertResponseOk();
         $loggers = $this->getTableLocator()->get('NetSessionLoggers');
+        $this->assertFalse(
+            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $coId]),
+            'GET must not add the viewer as a co-logger'
+        );
+
+        // POST = mutation — actually joins.
+        $this->enableCsrfToken();
+        $this->post('/net-sessions/join/tok-join-1');
+        $this->assertRedirectContains('/net-sessions/' . $sessionId . '/cockpit');
         $this->assertTrue(
-            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $joiningId, 'added_via' => 'invite']),
-            'NetSessionLoggers must have a row for the joining user with added_via=invite'
+            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $coId, 'added_via' => 'invite']),
+            'NetSessionLoggers must have a row for the joining user with added_via=invite after POST'
         );
     }
 
