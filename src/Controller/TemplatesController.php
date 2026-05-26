@@ -495,7 +495,14 @@ class TemplatesController extends AppController
         $qsoTypeRaw = (string)($data['qso_type'] ?? 'contact');
         $qsoType = in_array($qsoTypeRaw, ['contact', 'net'], true) ? $qsoTypeRaw : 'contact';
 
-        return compact('name', 'description', 'canvasWidth', 'canvasHeight', 'layoutJson', 'qsoType');
+        return [
+            'name' => $name,
+            'description' => $description,
+            'canvas_width' => $canvasWidth,
+            'canvas_height' => $canvasHeight,
+            'layout_json' => $layoutJson,
+            'qso_type' => $qsoType,
+        ];
     }
 
     /**
