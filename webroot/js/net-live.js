@@ -17,6 +17,7 @@ import { RosterStore } from './net-merge.js';
   const store = new RosterStore();
   const tbody = document.querySelector('[data-net-roster] tbody');
   let since = '';
+  let lastEtag = '';
 
   /** Re-render the roster tbody from the in-memory RosterStore, newest first. */
   function render() {
@@ -44,7 +45,11 @@ import { RosterStore } from './net-merge.js';
   async function tick() {
     if (document.hidden) return;
     try {
-      const res = await fetch(cfg.feedUrl + (since ? ('?since=' + encodeURIComponent(since)) : ''), { headers: { 'Accept': 'application/json' } });
+      const headers = { 'Accept': 'application/json' };
+      if (lastEtag) headers['If-None-Match'] = lastEtag;
+      const res = await fetch(cfg.feedUrl + (since ? ('?since=' + encodeURIComponent(since)) : ''), { headers });
+      if (res.status === 304) return;
+      lastEtag = res.headers.get('ETag') || lastEtag;
       const json = await res.json();
       since = json.server_time || since;
       (json.checkins || []).forEach(r => store.upsert(r));

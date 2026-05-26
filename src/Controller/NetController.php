@@ -68,6 +68,16 @@ class NetController extends AppController
     public function feed(string $slug): \Cake\Http\Response
     {
         $session = $this->publicSessionOrFail($slug);
+
+        $validator = new \App\Service\NetFeedValidator(
+            $this->fetchTable('Qsos'),
+            $this->fetchTable('NetSessionRemovals'),
+        );
+        $etag = $validator->compute($session->id);
+        if ($this->request->getHeaderLine('If-None-Match') === $etag) {
+            return $this->response->withStatus(304)->withHeader('ETag', $etag);
+        }
+
         $since = (string)$this->request->getQuery('since', '');
         $qsos = $this->fetchTable('Qsos');
         $q = $qsos->find()->where(['net_session_id' => $session->id]);
@@ -105,6 +115,6 @@ class NetController extends AppController
             'map'         => $metrics->mapPoints($session->id),
             'checkins'    => $checkins,
             'removed'     => $removed,
-        ]);
+        ])->withHeader('ETag', $etag);
     }
 }

@@ -618,6 +618,16 @@ class NetSessionsController extends AppController
     private function checkinsFeed(int $id): \Cake\Http\Response
     {
         $session = $this->loggerSessionOrFail($id);
+
+        $validator = new \App\Service\NetFeedValidator(
+            $this->fetchTable('Qsos'),
+            $this->fetchTable('NetSessionRemovals'),
+        );
+        $etag = $validator->compute($session->id);
+        if ($this->request->getHeaderLine('If-None-Match') === $etag) {
+            return $this->response->withStatus(304)->withHeader('ETag', $etag);
+        }
+
         $since = (string)$this->request->getQuery('since', '');
         $qsos = $this->fetchTable('Qsos');
 
@@ -651,6 +661,6 @@ class NetSessionsController extends AppController
             'map'         => $metrics->mapPoints($id),
             'checkins'    => $checkins,
             'removed'     => $removed,
-        ]);
+        ])->withHeader('ETag', $etag);
     }
 }

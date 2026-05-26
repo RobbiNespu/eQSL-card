@@ -589,6 +589,26 @@ final class NetSessionsControllerTest extends TestCase
     // M7 T3 — DELETE writes tombstone; feed returns removed[]
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // M7 T8 — ETag / 304 on checkins feed
+    // -------------------------------------------------------------------------
+
+    public function testFeedReturnsEtagAnd304OnRepeat(): void
+    {
+        $ownerId = $this->login();
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'live']);
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->get("/net-sessions/{$sessionId}/checkins");
+        $this->assertResponseOk();
+        $etag = $this->_response->getHeaderLine('ETag');
+        $this->assertNotSame('', $etag);
+        $this->assertStringStartsWith('W/"', $etag);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'If-None-Match' => $etag]]);
+        $this->get("/net-sessions/{$sessionId}/checkins");
+        $this->assertResponseCode(304);
+    }
+
     public function testCheckinDeleteWritesTombstoneAndFeedReturnsRemoved(): void
     {
         $ownerId = $this->login();
