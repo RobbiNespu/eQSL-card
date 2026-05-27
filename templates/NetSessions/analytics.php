@@ -87,6 +87,16 @@ $this->assign('title', $title);
     </div>
 
     <div class="mb-3">
+      <strong>Longest streak:</strong>
+      <?php if (($retention['longest_streak'] ?? 0) > 0): ?>
+        <span class="badge bg-primary"><?= h($retention['longest_streak']) ?></span>
+        &middot; held by <?= h(implode(', ', $retention['streak_leaders'])) ?>
+      <?php else: ?>
+        <span class="text-muted">&mdash;</span>
+      <?php endif; ?>
+    </div>
+
+    <div class="mb-3">
       <strong>Regulars</strong>
       <small class="text-muted">(appeared in &ge;50% of recent sessions)</small>
       <?php if (!empty($retention['regulars'])): ?>

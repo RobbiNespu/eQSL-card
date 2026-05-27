@@ -141,6 +141,37 @@ class NetSessionsController extends AppController
     }
 
     /**
+     * Rotate the logger invite token for an owned net session.
+     *
+     * Replaces `logger_token` with a fresh 20-char lower-case random string,
+     * rendering any outstanding `/net-sessions/join/{old}` links invalid (they
+     * will 404 because the token lookup finds no row). Logs both an AuditLog
+     * and an OperationLog event. POST-only; owner-scoped via ownedOrFail().
+     *
+     * @param int $id Net session primary key.
+     * @return \Cake\Http\Response Redirect to the session view.
+     */
+    public function rotateToken(int $id): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+        $session = $this->ownedOrFail($id);
+        $session->set('logger_token', strtolower(Security::randomString(20)), ['guard' => false]);
+        $this->fetchTable('NetSessions')->saveOrFail($session);
+        try {
+            (new AuditLogger())->log(
+                event: 'net.session.token_rotated',
+                actorUserId: $session->owner_id,
+                target: ['type' => 'NetSessions', 'id' => $session->id],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+        OperationLog::event('net.session.token_rotated', ['user_id' => (int)$session->owner_id, 'session_id' => (int)$session->id]);
+        $this->Flash->success('Invite link regenerated. Outstanding links no longer work.');
+        return $this->redirect(['action' => 'view', $id]);
+    }
+
+    /**
      * Transition an owned net session to `ended` status and stamp `ended_at`.
      *
      * @param int $id Net session primary key.
@@ -256,6 +287,24 @@ class NetSessionsController extends AppController
     }
 
     /**
+     * GET confirm page for the invite link. A POST to the same URL
+     * actually joins; this GET only renders. Stops drive-by prefetches
+     * (or someone forwarding a link) from silently adding the viewer
+     * as a co-logger.
+     *
+     * @param string $token Logger invite token from the session's invite URL.
+     * @return void
+     */
+    public function joinConfirm(string $token): void
+    {
+        $session = $this->fetchTable('NetSessions')->find()->where(['logger_token' => $token])->first();
+        if ($session === null) {
+            throw new NotFoundException('Invalid invite link.');
+        }
+        $this->set(['session' => $session, 'token' => $token, 'title' => 'Join as logger']);
+    }
+
+    /**
      * Join a net session as a co-logger via the one-time invite token.
      *
      * Already-registered loggers are silently skipped; only the first join
@@ -267,6 +316,7 @@ class NetSessionsController extends AppController
      */
     public function join(string $token): \Cake\Http\Response
     {
+        $this->request->allowMethod('post');
         $uid = $this->Authentication->getIdentity()->getIdentifier();
         $session = $this->fetchTable('NetSessions')->find()->where(['logger_token' => $token])->first();
         if ($session === null) {
@@ -357,7 +407,7 @@ class NetSessionsController extends AppController
     public function exportPdf(int $id): \Cake\Http\Response
     {
         $session = $this->loggerSessionOrFail($id);
-        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'));
+        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'), $this->fetchTable('NetSessions'));
         $checkins = $this->fetchTable('Qsos')->find()
             ->where(['net_session_id' => $id])
             ->orderBy(['qso_datetime_utc' => 'ASC'])->all();
@@ -387,7 +437,7 @@ class NetSessionsController extends AppController
     public function analytics(int $id): void
     {
         $session = $this->ownedOrFail($id);
-        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'));
+        $metrics = new \App\Service\NetMetrics($this->fetchTable('Qsos'), $this->fetchTable('NetSessions'));
         $this->set([
             'session'   => $session,
             'stats'     => $metrics->sessionStats($id),
@@ -497,6 +547,7 @@ class NetSessionsController extends AppController
             throw new NotFoundException('Check-in not found.');
         }
         if ($this->request->is('delete')) {
+            $this->fetchTable('NetSessionRemovals')->record($id, $qsoId);
             $qsos->deleteOrFail($qso);
             try {
                 (new AuditLogger())->log(
@@ -567,19 +618,31 @@ class NetSessionsController extends AppController
     private function checkinsFeed(int $id): \Cake\Http\Response
     {
         $session = $this->loggerSessionOrFail($id);
+
+        $validator = new \App\Service\NetFeedValidator(
+            $this->fetchTable('Qsos'),
+            $this->fetchTable('NetSessionRemovals'),
+        );
+        $etag = $validator->compute($session->id);
+        if ($this->request->getHeaderLine('If-None-Match') === $etag) {
+            return $this->response->withStatus(304)->withHeader('ETag', $etag);
+        }
+
         $since = (string)$this->request->getQuery('since', '');
         $qsos = $this->fetchTable('Qsos');
 
         $q = $qsos->find()->where(['net_session_id' => $id]);
+        $sinceDt = null;
         if ($since !== '') {
             try {
                 // URL query-string parsing converts '+' → ' ' (form encoding).
                 // ISO-8601 offsets never contain spaces, so restore them before
                 // parsing (e.g. "2026-05-22T12:00:00 00:00" → "+00:00").
-                $cursor = new DateTime(str_replace(' ', '+', $since));
-                $q->where(['updated_at >' => $cursor]);
+                $sinceDt = new \DateTime(str_replace(' ', '+', $since));
+                $q->where(['updated_at >' => $sinceDt]);
             } catch (\Exception $e) {
                 // Malformed cursor — treat as no cursor and return all rows.
+                $sinceDt = null;
             }
         }
         $q->orderBy(['qso_datetime_utc' => 'ASC', 'id' => 'ASC']);
@@ -588,15 +651,16 @@ class NetSessionsController extends AppController
         foreach ($q->all() as $row) {
             $checkins[] = $this->presentCheckin($row);
         }
+        $removed = $this->fetchTable('NetSessionRemovals')->idsRemovedSince($id, $sinceDt);
 
+        $metrics = new \App\Service\NetMetrics($qsos, $this->fetchTable('NetSessions'));
         return $this->jsonResponse([
             'server_time' => DateTime::now()->format('c'),
             'status'      => $session->status,
-            'stats'       => (new \App\Service\NetMetrics($qsos))->sessionStats($id),
+            'stats'       => $metrics->sessionStats($id),
+            'map'         => $metrics->mapPoints($id),
             'checkins'    => $checkins,
-            // Hard-deletes are reflected by absence on a full refresh (no cursor).
-            // Soft-delete tracking (tombstone list) is deferred to future work.
-            'removed'     => [],
-        ]);
+            'removed'     => $removed,
+        ])->withHeader('ETag', $etag);
     }
 }

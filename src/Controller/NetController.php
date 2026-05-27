@@ -68,14 +68,27 @@ class NetController extends AppController
     public function feed(string $slug): \Cake\Http\Response
     {
         $session = $this->publicSessionOrFail($slug);
+
+        $validator = new \App\Service\NetFeedValidator(
+            $this->fetchTable('Qsos'),
+            $this->fetchTable('NetSessionRemovals'),
+        );
+        $etag = $validator->compute($session->id);
+        if ($this->request->getHeaderLine('If-None-Match') === $etag) {
+            return $this->response->withStatus(304)->withHeader('ETag', $etag);
+        }
+
         $since = (string)$this->request->getQuery('since', '');
         $qsos = $this->fetchTable('Qsos');
         $q = $qsos->find()->where(['net_session_id' => $session->id]);
+        $sinceDt = null;
         if ($since !== '') {
             try {
-                $q->where(['updated_at >' => new DateTime(str_replace(' ', '+', $since))]);
+                $sinceDt = new \DateTime(str_replace(' ', '+', $since));
+                $q->where(['updated_at >' => $sinceDt]);
             } catch (\Exception $e) {
                 // malformed cursor → treat as no cursor (return all)
+                $sinceDt = null;
             }
         }
         $q->orderBy(['qso_datetime_utc' => 'ASC', 'id' => 'ASC']);
@@ -93,12 +106,15 @@ class NetController extends AppController
                 'updated'  => $row->updated_at?->format('c'),
             ];
         }
+        $removed = $this->fetchTable('NetSessionRemovals')->idsRemovedSince($session->id, $sinceDt);
+        $metrics = new \App\Service\NetMetrics($qsos, $this->fetchTable('NetSessions'));
         return $this->jsonResponse([
             'server_time' => DateTime::now()->format('c'),
             'status'      => $session->status,
-            'stats'       => (new \App\Service\NetMetrics($qsos))->sessionStats($session->id),
+            'stats'       => $metrics->sessionStats($session->id),
+            'map'         => $metrics->mapPoints($session->id),
             'checkins'    => $checkins,
-            'removed'     => [],
-        ]);
+            'removed'     => $removed,
+        ])->withHeader('ETag', $etag);
     }
 }

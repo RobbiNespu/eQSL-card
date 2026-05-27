@@ -21,7 +21,7 @@ final class NetSessionsControllerTest extends TestCase
 {
     use IntegrationTestTrait;
 
-    protected array $fixtures = ['app.Users', 'app.NetSessions', 'app.NetSessionLoggers', 'app.Qsos', 'app.AuditLogs'];
+    protected array $fixtures = ['app.Users', 'app.NetSessions', 'app.NetSessionLoggers', 'app.Qsos', 'app.AuditLogs', 'app.NetSessionRemovals'];
 
     private function login(string $email = 'ncs@x.com'): int
     {
@@ -317,12 +317,16 @@ final class NetSessionsControllerTest extends TestCase
         $this->assertArrayHasKey('server_time', $body);
         $this->assertArrayHasKey('status', $body);
         $this->assertArrayHasKey('stats', $body);
+        $this->assertArrayHasKey('map', $body);
         $this->assertArrayHasKey('checkins', $body);
         $this->assertArrayHasKey('removed', $body);
 
         $this->assertCount(1, $body['checkins'], 'should have exactly 1 check-in row');
         $this->assertSame('9M2RDX', $body['checkins'][0]['callsign']);
         $this->assertSame(1, $body['stats']['checkins']);
+        $this->assertIsArray($body['map'], 'feed.map must be an array');
+        $this->assertCount(1, $body['map'], 'feed.map should contain 1 point for the seeded grid_square');
+        $this->assertSame('9M2RDX', $body['map'][0]['callsign']);
     }
 
     public function testDeltaFeedSinceFutureReturnsEmpty(): void
@@ -362,23 +366,31 @@ final class NetSessionsControllerTest extends TestCase
     // M6 T15 — live polling client + co-logger management
     // -------------------------------------------------------------------------
 
-    public function testInviteJoinAddsCoLogger(): void
+    public function testInviteJoinIsTwoStep(): void
     {
         // Create the session owner (different from the joining user).
         $ownerId = $this->createUser('owner-join@x.com', '9W2OWJ');
         $sessionId = $this->seedNetSession($ownerId, ['logger_token' => 'tok-join-1', 'status' => 'live']);
 
         // Login as a fresh user who will be joining via the invite link.
-        $joiningId = $this->login('joiner@x.com');
+        $coId = $this->login('joiner@x.com');
 
+        // GET = confirm page only, NO mutation.
         $this->get('/net-sessions/join/tok-join-1');
-
-        $this->assertRedirectContains('/net-sessions/' . $sessionId . '/cockpit');
-
+        $this->assertResponseOk();
         $loggers = $this->getTableLocator()->get('NetSessionLoggers');
+        $this->assertFalse(
+            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $coId]),
+            'GET must not add the viewer as a co-logger'
+        );
+
+        // POST = mutation — actually joins.
+        $this->enableCsrfToken();
+        $this->post('/net-sessions/join/tok-join-1');
+        $this->assertRedirectContains('/net-sessions/' . $sessionId . '/cockpit');
         $this->assertTrue(
-            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $joiningId, 'added_via' => 'invite']),
-            'NetSessionLoggers must have a row for the joining user with added_via=invite'
+            $loggers->exists(['net_session_id' => $sessionId, 'user_id' => $coId, 'added_via' => 'invite']),
+            'NetSessionLoggers must have a row for the joining user with added_via=invite after POST'
         );
     }
 
@@ -546,5 +558,71 @@ final class NetSessionsControllerTest extends TestCase
 
         $this->get('/net-sessions/' . $sessionId . '/analytics');
         $this->assertResponseCode(404);
+    }
+
+    // -------------------------------------------------------------------------
+    // M7 T7 — owner-rotatable logger token
+    // -------------------------------------------------------------------------
+
+    public function testRotateTokenInvalidatesOldLink(): void
+    {
+        $ownerId = $this->login();
+        $sessionId = $this->seedNetSession($ownerId, ['logger_token' => 'old-token', 'status' => 'live']);
+        $this->enableCsrfToken();
+        $this->post("/net-sessions/{$sessionId}/rotate-token");
+        $this->assertResponseSuccess();
+        $row = $this->getTableLocator()->get('NetSessions')->get($sessionId);
+        $this->assertNotSame('old-token', $row->logger_token);
+
+        // Old token now 404s on the join confirm page (T9 will create that
+        // route; today, the existing /net-sessions/join/{token} GET should
+        // return 404 since 'old-token' no longer maps to a session).
+        $this->get('/net-sessions/join/old-token');
+        $this->assertResponseCode(404);
+    }
+
+    // -------------------------------------------------------------------------
+    // M7 T8 — ETag / 304 on checkins feed
+    // -------------------------------------------------------------------------
+
+    public function testFeedReturnsEtagAnd304OnRepeat(): void
+    {
+        $ownerId = $this->login();
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'live']);
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->get("/net-sessions/{$sessionId}/checkins");
+        $this->assertResponseOk();
+        $etag = $this->_response->getHeaderLine('ETag');
+        $this->assertNotSame('', $etag);
+        $this->assertStringStartsWith('W/"', $etag);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'If-None-Match' => $etag]]);
+        $this->get("/net-sessions/{$sessionId}/checkins");
+        $this->assertResponseCode(304);
+    }
+
+    // -------------------------------------------------------------------------
+    // M7 T3 — DELETE writes tombstone; feed returns removed[]
+    // -------------------------------------------------------------------------
+
+    public function testCheckinDeleteWritesTombstoneAndFeedReturnsRemoved(): void
+    {
+        $ownerId = $this->login();
+        $sessionId = $this->seedNetSession($ownerId, ['status' => 'live']);
+        $qsoId = $this->seedCheckinRow($sessionId, $ownerId, '9W2DEL');
+
+        $this->enableCsrfToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->delete("/net-sessions/{$sessionId}/checkins/{$qsoId}");
+        $this->assertResponseOk();
+
+        $removals = $this->getTableLocator()->get('NetSessionRemovals');
+        $this->assertSame(1, $removals->find()->where(['qso_id' => $qsoId])->count());
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->get("/net-sessions/{$sessionId}/checkins?since=2000-01-01T00:00:00%2B00:00");
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $this->assertContains($qsoId, $body['removed']);
     }
 }

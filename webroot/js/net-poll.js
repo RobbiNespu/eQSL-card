@@ -10,22 +10,26 @@
  * Only runs when `window.NET.status === 'live'`; silently no-ops for
  * closed/archived sessions so the page stays static.
  */
-import { RosterStore } from './net-merge.js';
+import { RosterStore, startPollLoop } from './net-merge.js';
 
 (function () {
   const cfg = window.NET;
   if (!cfg || cfg.status !== 'live') return;
   const store = window.__netStore || new RosterStore();
   let since = '';
-  let timer = null;
+  let lastEtag = '';
 
   /** Fetch the latest check-in delta and merge it into the roster. */
   async function tick() {
     if (document.hidden) return;
     try {
+      const headers = { 'Accept': 'application/json' };
+      if (lastEtag) headers['If-None-Match'] = lastEtag;
       const res = await fetch(cfg.feedUrl + (since ? ('?since=' + encodeURIComponent(since)) : ''), {
-        headers: { 'Accept': 'application/json' },
+        headers,
       });
+      if (res.status === 304) return;
+      lastEtag = res.headers.get('ETag') || lastEtag;
       const json = await res.json();
       since = json.server_time || since;
       (json.checkins || []).forEach(r => store.upsert(r));
@@ -36,8 +40,5 @@ import { RosterStore } from './net-merge.js';
     }
   }
 
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
-  timer = setInterval(tick, 4000);
-  tick();
-  window.addEventListener('beforeunload', () => clearInterval(timer));
+  startPollLoop(cfg, tick);
 })();

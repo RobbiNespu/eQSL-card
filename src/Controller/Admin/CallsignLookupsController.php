@@ -3,11 +3,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Controller\AppController;
 use App\Service\AppSettings;
 use App\Service\CallsignLookup\CallsignLookupService;
 use App\Service\OperationLog;
-use Cake\Http\Exception\ForbiddenException;
 
 /**
  * Admin surface for the `callsign_lookups` cache (the rows that the
@@ -25,7 +23,7 @@ use Cake\Http\Exception\ForbiddenException;
  * a cache row only changes what the auto-complete UI suggests next time,
  * not any historic contact data.
  */
-class CallsignLookupsController extends AppController
+class CallsignLookupsController extends AdminController
 {
     /**
      * Provider codes the chain knows about, keyed by code() with a short
@@ -41,37 +39,6 @@ class CallsignLookupsController extends AppController
         'marts'                 => 'MARTS Malaysia — use local directory; site unstable',
         'rapi'                  => 'Indonesia RAPI — use local directory; PDF-only sources',
     ];
-
-    /** Load the Authentication component required by all Admin controllers. */
-    public function initialize(): void
-    {
-        parent::initialize();
-        $this->loadComponent('Authentication.Authentication');
-    }
-
-    /**
-     * Gate access to admin-only actions.
-     *
-     * Anonymous requests are handled by AuthenticationComponent (redirects to
-     * /login). Only authenticated-but-not-admin users need the explicit 403.
-     *
-     * @param \Cake\Event\EventInterface $event The before-filter event.
-     * @return void
-     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
-     */
-    public function beforeFilter(\Cake\Event\EventInterface $event): void
-    {
-        parent::beforeFilter($event);
-
-        $identity = $this->Authentication->getIdentity();
-        if (!$identity) {
-            return;
-        }
-        $user = $this->fetchTable('Users')->get($identity->getIdentifier());
-        if ($user->role !== 'admin') {
-            throw new ForbiddenException('Admin only.');
-        }
-    }
 
     /**
      * Source-of-data settings only. The browse / search / per-row CRUD

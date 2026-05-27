@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Controller\AppController;
 use App\Service\OperationLog;
 use Cake\Cache\Cache;
 
@@ -19,42 +18,8 @@ use Cake\Cache\Cache;
  * `/login` by the Authentication middleware, and authenticated non-admins
  * receive a 403 Forbidden.
  */
-class UpgradeController extends AppController
+class UpgradeController extends AdminController
 {
-    /** Load the Authentication component required by all Admin controllers. */
-    public function initialize(): void
-    {
-        parent::initialize();
-        $this->loadComponent('Authentication.Authentication');
-    }
-
-    /**
-     * Gate access to admin-only actions.
-     *
-     * Anonymous requests are handled by AuthenticationComponent (redirects to
-     * /login). The role check re-fetches the user row fresh — the Session
-     * authenticator may have stashed only the bare id-only payload in the
-     * session, so we can't rely on a role field being present on the identity.
-     *
-     * @param \Cake\Event\EventInterface $event The before-filter event.
-     * @return void
-     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
-     */
-    public function beforeFilter(\Cake\Event\EventInterface $event): void
-    {
-        parent::beforeFilter($event);
-
-        $identity = $this->Authentication->getIdentity();
-        if ($identity === null) {
-            return;
-        }
-
-        $userId = $identity->getIdentifier();
-        $user = $this->fetchTable('Users')->find()->where(['id' => $userId])->first();
-        if (!$user || $user->role !== 'admin') {
-            throw new \Cake\Http\Exception\ForbiddenException('Admin only.');
-        }
-    }
 
     /**
      * GET/POST /admin/upgrade — show pending migrations and apply them on POST.

@@ -78,6 +78,16 @@
 
   <div class="col-12">
     <div class="card card-body">
+      <h2 class="h5">Net-session removal tombstones</h2>
+      <p class="form-text">Tombstones older than 7 days. Used only by live polling clients to surface deletions within one cycle.</p>
+      <?= $this->Form->postLink('Prune tombstones older than 7 days',
+          '/admin/cleanup/net-removals-sweep',
+          ['confirm' => 'Prune old net-removal tombstones?', 'class' => 'btn btn-warning']) ?>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card card-body">
       <h2 class="h5">Expire old user cards</h2>
       <?php if (($cardRetentionDays ?? 0) <= 0): ?>
         <p class="form-text">

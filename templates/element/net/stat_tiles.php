@@ -47,4 +47,11 @@
     </div>
   </div>
 
+  <div class="net-map-wrap card">
+    <div class="card-body p-2">
+      <p class="form-label small text-muted mb-1">Participant map</p>
+      <div data-net-map class="net-map-placeholder" aria-label="Participant map"></div>
+    </div>
+  </div>
+
 </aside>

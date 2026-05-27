@@ -373,16 +373,25 @@ return function (RouteBuilder $routes): void {
             ->setMethods(['GET']);
         $builder->connect('/net-sessions/new', ['controller' => 'NetSessions', 'action' => 'add'])
             ->setMethods(['GET', 'POST']);
-        // Static invite-join route MUST be declared BEFORE the parametrized
+        // Static invite-join routes MUST be declared BEFORE the parametrized
         // /{id} routes. "join" is not digits so the \d+ id pattern would never
         // match it anyway, but static-before-parametric is the codebase convention.
-        $builder->connect('/net-sessions/join/{token}', ['controller' => 'NetSessions', 'action' => 'join'])
+        // M7 T9 — split into GET (confirm page) and POST (mutation) so a link
+        // prefetch or forwarded URL cannot silently add the viewer as a co-logger.
+        $builder->connect('/net-sessions/join/{token}',
+            ['controller' => 'NetSessions', 'action' => 'joinConfirm'])
             ->setPass(['token'])->setMethods(['GET']);
+        $builder->connect('/net-sessions/join/{token}',
+            ['controller' => 'NetSessions', 'action' => 'join'])
+            ->setPass(['token'])->setMethods(['POST']);
         $builder->connect('/net-sessions/{id}/edit', ['controller' => 'NetSessions', 'action' => 'edit'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['GET', 'POST', 'PUT', 'PATCH']);
         $builder->connect('/net-sessions/{id}/start', ['controller' => 'NetSessions', 'action' => 'start'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
         $builder->connect('/net-sessions/{id}/end', ['controller' => 'NetSessions', 'action' => 'end'])
+            ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
+        // M7 T7 — owner-rotatable logger token. POST-only; old invite links 404 after rotation.
+        $builder->connect('/net-sessions/{id}/rotate-token', ['controller' => 'NetSessions', 'action' => 'rotateToken'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
         $builder->connect('/net-sessions/{id}/delete', ['controller' => 'NetSessions', 'action' => 'delete'])
             ->setPass(['id'])->setPatterns(['id' => '\d+'])->setMethods(['POST']);
@@ -593,6 +602,11 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/callsign-directory/upload', ['controller' => 'CallsignDirectory', 'action' => 'upload'])
             ->setMethods(['POST']);
         $builder->connect('/callsign-directory/clear', ['controller' => 'CallsignDirectory', 'action' => 'clear'])
+            ->setMethods(['POST']);
+
+        // M7 T4 — sweep net-session removal tombstones older than 7 days.
+        // POST-only; tombstones are only needed within one polling cycle.
+        $builder->connect('/cleanup/net-removals-sweep', ['controller' => 'Cleanup', 'action' => 'netRemovalsSweep'])
             ->setMethods(['POST']);
 
         // Filesystem maintenance: nuke cache files + Cake's in-memory caches,

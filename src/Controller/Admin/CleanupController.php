@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Controller\AppController;
 use App\Service\OperationLog;
 use Cake\I18n\DateTime;
 
@@ -28,38 +27,8 @@ use Cake\I18n\DateTime;
  * hits go through AuthenticationMiddleware → /login redirect; authenticated
  * non-admins get 403 from `beforeFilter()`.
  */
-class CleanupController extends AppController
+class CleanupController extends AdminController
 {
-    /** Load the Authentication component required by all Admin controllers. */
-    public function initialize(): void
-    {
-        parent::initialize();
-        $this->loadComponent('Authentication.Authentication');
-    }
-
-    /**
-     * Gate access to admin-only actions.
-     *
-     * Anonymous requests are handled by AuthenticationComponent (redirects to
-     * /login). Only authenticated-but-not-admin users need the explicit 403.
-     *
-     * @param \Cake\Event\EventInterface $event The before-filter event.
-     * @return void
-     * @throws \Cake\Http\Exception\ForbiddenException When the authenticated user is not an admin.
-     */
-    public function beforeFilter(\Cake\Event\EventInterface $event): void
-    {
-        parent::beforeFilter($event);
-
-        $identity = $this->Authentication->getIdentity();
-        if (!$identity) {
-            return;
-        }
-        $user = $this->fetchTable('Users')->get($identity->getIdentifier());
-        if ($user->role !== 'admin') {
-            throw new \Cake\Http\Exception\ForbiddenException('Admin only.');
-        }
-    }
 
     /**
      * Dry-run preview. GET /admin/cleanup?days=N
@@ -485,6 +454,35 @@ class CleanupController extends AppController
 
         $this->Flash->success("Logs cleared ({$deleted} files removed).");
         return $this->redirect('/admin/cleanup');
+    }
+
+    /**
+     * Prune net-session removal tombstones older than 7 days. Tombstones
+     * exist only to surface live deletions to polling clients; old ones
+     * are noise.
+     */
+    public function netRemovalsSweep(): \Cake\Http\Response
+    {
+        $this->request->allowMethod('post');
+        $userId = $this->Authentication->getIdentity()->getIdentifier();
+        $cutoff = DateTime::now()->subDays(7);
+        $table = $this->fetchTable('NetSessionRemovals');
+        $deleted = $table->deleteAll(['removed_at <' => $cutoff]);
+        $this->Flash->success("Pruned {$deleted} old net-removal tombstones.");
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'admin.cleanup.net_removals_pruned',
+                actorUserId: $userId,
+                metadata: ['tombstones_removed' => $deleted],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
+        OperationLog::event('admin.cleanup.net_removals_pruned', [
+            'actor_user_id' => $userId,
+            'count'         => $deleted,
+        ]);
+        return $this->redirect(['action' => 'index']);
     }
 
     /**

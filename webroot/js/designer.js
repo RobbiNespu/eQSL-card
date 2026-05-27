@@ -559,7 +559,7 @@ function designer(initial) {
          */
         async uploadBackground(file) {
             if (!file) return;
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const csrf = window.eqslCsrf();
             const fd = new FormData();
             fd.append('background_upload', file);
             const r = await fetch('/templates/upload-background', {
@@ -631,7 +631,7 @@ function designer(initial) {
          * errors (HTTP 422) via alert rather than silently navigating away.
          */
         async save() {
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const csrf = window.eqslCsrf();
             const url = this.mode === 'new' ? '/templates/new' : `/templates/${this.templateId}/edit`;
             const body = new URLSearchParams();
             body.append('name', this.name);

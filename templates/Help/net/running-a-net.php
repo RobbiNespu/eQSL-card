@@ -57,7 +57,18 @@
   <li><strong>Entry bar</strong> — the fast check-in form (described below).</li>
   <li><strong>Roster</strong> — the live list of everyone who has checked in, newest at the top, updating automatically as entries arrive.</li>
   <li><strong>Stat tiles</strong> — live counts of total check-ins and unique callsigns, visible on the right side of the screen.</li>
+  <li><strong>Live participant map</strong> — a real-time map showing the geographic location of all check-ins that have a Maidenhead grid square logged (see below).</li>
 </ul>
+
+<h2>Live participant map</h2>
+<p>Both the cockpit and the public read-only live view display a <strong>live participant map</strong> — a world map with a marker for each check-in that includes a grid square. The map updates automatically as new check-ins arrive, without requiring a full page reload: each polling cycle adds new markers and removes any check-ins that have been deleted.</p>
+
+<p>Hover or tap a marker to see the callsign and signal strength. If a grid square covers a large area (e.g. a 4-character locator like <code>OJ02</code>), the marker is placed at the centre of that square. More precise 6-character grids give a more accurate position.</p>
+
+<?= $this->element('ui/callout', [
+    'variant' => 'tip',
+    'body' => 'Include "please send your grid square" in your net preamble. The map is most useful when the majority of check-ins include a grid. Even a 4-character locator is enough to plot a country-level position.',
+]) ?>
 
 <h2>The fast entry bar</h2>
 <p>The entry bar is designed for speed. It has five fields:</p>

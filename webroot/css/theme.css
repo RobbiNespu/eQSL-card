@@ -2831,6 +2831,13 @@ dl.dl-stack > dd:last-of-type { border-bottom: 0; }
   border-radius: var(--r-md);
   overflow: hidden;
 }
+/* cockpit / public live map — placeholder before Leaflet renders */
+.net-map-placeholder {
+  min-height: 240px;
+  border-radius: var(--r-md);
+  background-color: var(--surface-2);
+  overflow: hidden;
+}
 .net-map-fallback {
   list-style: none;
   padding: 0.75rem 1rem;

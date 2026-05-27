@@ -13,7 +13,7 @@ hosting (PHP + MariaDB) with no external services required.
 
 ## Status
 
-**Status:** v1.2.0 — Net Control Station dashboard + platform upgrades. Production-ready for shared-hosting deployment, usable one-thumb from a phone during POTA / SOTA / field-day activations, with a live collaborative net-control cockpit.
+**Status:** v1.3.0 — NCS dashboard hardening + backlog cleanup.
 
 ## Quickstart
 
@@ -105,6 +105,7 @@ Shared-hosting deployment (cPanel / DirectAdmin / similar) is documented in
 - ✅ **M4 Admin & polish** (`v1.0.0`) — audit logs, admin tools, email verification, profile, CI
 - ✅ **M5 Mobile & portable ops** (`v1.1.0`) — one-thumb QSO entry at `/qsos/quick`, sticky-above-keyboard save, notes quick-fill chips, callsign dupe-check traffic-light badge, opt-in block-on-dupe safety, haptic save confirmation, opt-in NATO-phonetic voice input on the callsign field, PWA manifest + service worker with offline IndexedDB queue + auto-sync, activation grouping for POTA / SOTA / field-day with one-tap ADIF export, bottom-tab nav, subfolder deploy support
 - ✅ **M6 Net Control Station dashboard** (`v1.2.0`) — net sessions (scheduled → live → ended), a live collaborative cockpit with real-time check-in logging, a shareable public read-only live view, analytics (signal-strength distribution, participant map, participation/retention), and per-session PDF + ADIF export. Plus platform upgrades (CakePHP Authentication 4, Tailwind CSS 4, daisyUI 5), a code audit, and codebase-wide documentation + operational logging.
+- ✅ **M7 Hardening & cleanup** (`v1.3.0`) — live participant map on cockpit + public, longest-streak retention metric, rotatable invite tokens, GET→POST invite-join confirm page, ETag/304 on polling feeds, dedicated tombstone table for instant live removal, plus five internal refactors (NetMetrics DI, shared admin base, helper splits, shared net-JS, unified CSRF reader).
 
 Per-milestone implementation plans live under [`docs/superpowers/plans/`](docs/superpowers/plans/).
 

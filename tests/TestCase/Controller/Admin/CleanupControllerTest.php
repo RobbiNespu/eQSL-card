@@ -30,6 +30,8 @@ final class CleanupControllerTest extends TestCase
         'app.Cards',
         'app.GuestVisits',
         'app.AuditLogs',
+        'app.NetSessions',
+        'app.NetSessionRemovals',
     ];
 
     private static int $shaCounter = 0;
@@ -305,6 +307,21 @@ final class CleanupControllerTest extends TestCase
         $audit = $this->getTableLocator()->get('AuditLogs');
         $log = $audit->find()->where(['event' => 'cleanup.cards_expired'])->first();
         $this->assertNull($log, 'no-op should not emit an audit row');
+    }
+
+    public function testNetRemovalsSweepPrunesOldTombstones(): void
+    {
+        $this->loginAs('admin');
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $table = $this->getTableLocator()->get('NetSessionRemovals');
+        $old = $table->newEntity(['net_session_id' => 1, 'qso_id' => 1, 'removed_at' => DateTime::now()->subDays(10)]);
+        $new = $table->newEntity(['net_session_id' => 1, 'qso_id' => 2, 'removed_at' => DateTime::now()->subHours(1)]);
+        $table->saveOrFail($old);
+        $table->saveOrFail($new);
+        $this->post('/admin/cleanup/net-removals-sweep');
+        $this->assertRedirect('/admin/cleanup');
+        $this->assertSame(1, $table->find()->count());
     }
 
     public function testExpireCardsSoftDeletesOldUserCards(): void
