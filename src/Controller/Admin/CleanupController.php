@@ -469,6 +469,15 @@ class CleanupController extends AdminController
         $table = $this->fetchTable('NetSessionRemovals');
         $deleted = $table->deleteAll(['removed_at <' => $cutoff]);
         $this->Flash->success("Pruned {$deleted} old net-removal tombstones.");
+        try {
+            (new \App\Service\AuditLogger())->log(
+                event: 'admin.cleanup.net_removals_pruned',
+                actorUserId: $userId,
+                metadata: ['tombstones_removed' => $deleted],
+            );
+        } catch (\Throwable $e) {
+            error_log('audit: ' . $e->getMessage());
+        }
         OperationLog::event('admin.cleanup.net_removals_pruned', [
             'actor_user_id' => $userId,
             'count'         => $deleted,

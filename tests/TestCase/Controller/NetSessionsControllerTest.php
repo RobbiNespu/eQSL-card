@@ -561,10 +561,6 @@ final class NetSessionsControllerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // M7 T3 — DELETE writes tombstone; feed returns removed[]
-    // -------------------------------------------------------------------------
-
-    // -------------------------------------------------------------------------
     // M7 T7 — owner-rotatable logger token
     // -------------------------------------------------------------------------
 
@@ -586,10 +582,6 @@ final class NetSessionsControllerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // M7 T3 — DELETE writes tombstone; feed returns removed[]
-    // -------------------------------------------------------------------------
-
-    // -------------------------------------------------------------------------
     // M7 T8 — ETag / 304 on checkins feed
     // -------------------------------------------------------------------------
 
@@ -608,6 +600,10 @@ final class NetSessionsControllerTest extends TestCase
         $this->get("/net-sessions/{$sessionId}/checkins");
         $this->assertResponseCode(304);
     }
+
+    // -------------------------------------------------------------------------
+    // M7 T3 — DELETE writes tombstone; feed returns removed[]
+    // -------------------------------------------------------------------------
 
     public function testCheckinDeleteWritesTombstoneAndFeedReturnsRemoved(): void
     {
