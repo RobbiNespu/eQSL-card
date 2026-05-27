@@ -39,10 +39,11 @@
 <ul>
   <li><strong>Session-to-session retention</strong> — the fraction of last session's unique callsigns who also appeared in the current session. For example, 75% means three-quarters of last week's participants checked in again this week.</li>
   <li><strong>Regulars</strong> — callsigns that appeared in at least 50% of the recent sessions in the window. These are your reliable check-ins.</li>
+  <li><strong>Longest streak</strong> — the maximum number of <em>consecutive</em> sessions that any single callsign attended within the retention window. The callsign (or callsigns, if there is a tie) holding that record is listed beside the number. For example, "5 — W1ABC" means W1ABC checked in to every one of the last five sessions in a row. Use this to recognise your most committed participants.</li>
   <li><strong>Session history table</strong> — a compact table showing session IDs and unique callsign counts for the recent window, so you can spot trends at a glance.</li>
 </ul>
 
-<p>Retention figures require at least two ended sessions with the identical net title. A new net, or one that has only run once, will show a dash instead of a percentage.</p>
+<p>Retention figures require at least two ended sessions with the identical net title. A new net, or one that has only run once, will show a dash instead of a percentage. The longest-streak figure likewise shows a dash if the window contains fewer than two sessions.</p>
 
 <?= $this->element('ui/callout', [
     'variant' => 'note',
